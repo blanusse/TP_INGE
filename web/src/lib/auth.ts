@@ -1,7 +1,14 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { supabase } from "@/lib/supabase";
 
-// Tipos de perfil de usuario
+// Roles en la DB → roles del frontend
+const dbRoleToFrontend: Record<string, "camionero" | "dador"> = {
+  driver: "camionero",
+  shipper: "dador",
+};
+
 export type UserRole = "camionero" | "dador" | "flota";
 
 declare module "next-auth" {
@@ -21,26 +28,33 @@ declare module "next-auth" {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
-    // Credentials solo para desarrollo/demo.
-    // En producción: reemplazar por Auth0Provider.
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Contraseña", type: "password" },
-        role: { label: "Rol", type: "text" },
       },
       async authorize(credentials) {
-        // TODO: validar contra la base de datos con hashing bcrypt
-        // Este bloque es solo para demo — nunca comparar contraseñas en texto plano en producción
-        if (!credentials?.email || !credentials?.password || !credentials?.role) {
-          return null;
-        }
-        // Simulación de usuario demo
+        if (!credentials?.email || !credentials?.password) return null;
+
+        const { data: user } = await supabase
+          .from("users")
+          .select("id, email, name, role, password_hash")
+          .eq("email", credentials.email)
+          .single();
+
+        if (!user?.password_hash) return null;
+
+        const passwordOk = await bcrypt.compare(
+          credentials.password as string,
+          user.password_hash
+        );
+        if (!passwordOk) return null;
+
         return {
-          id: "demo-user-1",
-          email: credentials.email as string,
-          name: "Usuario Demo",
-          role: credentials.role as UserRole,
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: dbRoleToFrontend[user.role] ?? "camionero",
         };
       },
     }),
