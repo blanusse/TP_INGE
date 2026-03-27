@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 // ── Datos ────────────────────────────────────────────────────────────────────
 
@@ -396,10 +396,19 @@ function SeccionEnCurso() {
   );
 }
 
-function SeccionPerfil({ onToast }: { onToast: (m: string) => void }) {
+function SeccionPerfil({ onToast, userName, userEmail, rolLabel }: {
+  onToast: (m: string) => void;
+  userName: string;
+  userEmail: string;
+  rolLabel: string;
+}) {
   const [editando, setEditando] = useState(false);
-  const [nombre, setNombre] = useState("Alejandro Rodríguez");
+  const [nombre, setNombre] = useState(userName);
   const [telefono, setTelefono] = useState("+54 9 11 4523-7891");
+  const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
+
+  // Sincronizar si el nombre de sesión cambia (ej: recarga)
+  useState(() => { setNombre(userName); });
 
   return (
     <main style={{ padding: 20, flex: 1, maxWidth: 640 }}>
@@ -419,16 +428,17 @@ function SeccionPerfil({ onToast }: { onToast: (m: string) => void }) {
       {/* Card principal */}
       <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20, marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
-          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: "var(--color-brand-dark)" }}>AR</div>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: "var(--color-brand-dark)" }}>{initials}</div>
           <div>
             {editando
               ? <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ fontSize: 18, fontWeight: 600, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "4px 8px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }} />
               : <div style={{ fontSize: 18, fontWeight: 600, color: "var(--color-text-primary)" }}>{nombre}</div>
             }
             <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
-              Camionero independiente
+              {rolLabel}
               <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontWeight: 500 }}>Verificado ✓</span>
             </div>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 4 }}>{userEmail}</div>
           </div>
         </div>
 
@@ -468,7 +478,7 @@ function SeccionPerfil({ onToast }: { onToast: (m: string) => void }) {
           </div>
           <div>
             <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 4 }}>Email</div>
-            <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>alejandro.r@gmail.com</div>
+            <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{userEmail || "—"}</div>
           </div>
         </div>
       </div>
@@ -575,9 +585,18 @@ function ModalOfertar({ info, onClose, onEnviar }: {
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function CamioneroDashboard() {
+  const { data: session } = useSession();
   const [navActivo, setNavActivo] = useState<NavItem>("Buscar cargas");
   const [modalOferta, setModalOferta] = useState<ModalOfertaState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  const userName = session?.user?.name ?? "Usuario";
+  const userEmail = session?.user?.email ?? "";
+  const userRole = session?.user?.role ?? "camionero";
+  const rolLabel = userRole === "flota" ? "Empresa de flota" : "Camionero independiente";
+  // Iniciales a partir del nombre real
+  const initials = userName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
+  const primerNombre = userName.split(" ")[0];
 
   const mostrarToast = (msg: string) => setToast(msg);
 
@@ -605,9 +624,15 @@ export default function CamioneroDashboard() {
           </nav>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Camión disponible</span>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{primerNombre}</span>
+            <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{rolLabel}</span>
+          </div>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--color-brand)" }} />
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--color-brand-dark)" }}>AR</div>
+          <div
+            title={userEmail}
+            style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--color-brand-dark)", cursor: "default" }}
+          >{initials}</div>
         </div>
       </header>
 
@@ -621,7 +646,7 @@ export default function CamioneroDashboard() {
         )}
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "En curso" && <SeccionEnCurso />}
-        {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} />}
+        {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} rolLabel={rolLabel} />}
       </div>
 
       {/* Modal ofertar */}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 // ── Datos ────────────────────────────────────────────────────────────────────
 
@@ -463,10 +463,16 @@ function SeccionFacturacion() {
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function DadorDashboard() {
+  const { data: session } = useSession();
   const [navActivo, setNavActivo] = useState<NavItem>("Mis cargas");
   const [modalPublicar, setModalPublicar] = useState(false);
   const [modalOfertas, setModalOfertas] = useState<Carga | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  const userName = session?.user?.name ?? "Usuario";
+  const userEmail = session?.user?.email ?? "";
+  const initials = userName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
+  const primerNombre = userName.split(" ")[0];
 
   const mostrarToast = (msg: string) => setToast(msg);
 
@@ -491,9 +497,19 @@ export default function DadorDashboard() {
           <button onClick={() => setModalPublicar(true)} style={{ fontSize: 13, padding: "7px 14px", borderRadius: "var(--border-radius-md)", background: "var(--color-brand)", border: "none", color: "#fff", fontWeight: 500, cursor: "pointer" }}>
             + Publicar carga
           </button>
-          <button onClick={() => signOut({ callbackUrl: "/" })} title="Cerrar sesión" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--color-background-info)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--color-text-info)", cursor: "pointer" }}>
-            JM
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{primerNombre}</span>
+              <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Dador de carga</span>
+            </div>
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              title={`Cerrar sesión · ${userEmail}`}
+              style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--color-background-info)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--color-text-info)", cursor: "pointer" }}
+            >
+              {initials}
+            </button>
+          </div>
         </div>
       </header>
 
