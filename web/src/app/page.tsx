@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { NavbarLanding } from "./_components/NavbarLanding";
 
 export default async function Home() {
   const session = await auth();
@@ -9,23 +10,7 @@ export default async function Home() {
   return (
     <div style={{ background: "#fff", color: "var(--color-text-primary)", fontFamily: "var(--font-sans, sans-serif)" }}>
 
-      {/* ── Navbar ───────────────────────────────────────────────────────────── */}
-      <header style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(8px)", borderBottom: "0.5px solid var(--color-border-tertiary)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 48px" }}>
-        <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.5 }}>
-          Carga<span style={{ color: "var(--color-brand)" }}>Back</span>
-        </div>
-        <nav style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <a href="#como-funciona" style={{ fontSize: 13, color: "var(--color-text-secondary)", textDecoration: "none", padding: "6px 12px" }}>Cómo funciona</a>
-          <a href="#para-quien" style={{ fontSize: 13, color: "var(--color-text-secondary)", textDecoration: "none", padding: "6px 12px" }}>Para quién</a>
-          <a href="#contacto" style={{ fontSize: 13, color: "var(--color-text-secondary)", textDecoration: "none", padding: "6px 12px" }}>Contacto</a>
-          <Link href="/login?modo=login" style={{ fontSize: 13, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", color: "var(--color-text-primary)", textDecoration: "none", fontWeight: 500 }}>
-            Iniciar sesión
-          </Link>
-          <Link href="/login?modo=registro" style={{ fontSize: 13, padding: "7px 16px", borderRadius: "var(--border-radius-md)", background: "var(--color-brand)", color: "#fff", textDecoration: "none", fontWeight: 600 }}>
-            Registrarse gratis
-          </Link>
-        </nav>
-      </header>
+      <NavbarLanding />
 
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
       <section style={{ background: "linear-gradient(160deg, #0f1a16 0%, #0f6e56 60%, #1d9e75 100%)", color: "#fff", padding: "100px 48px 120px", textAlign: "center", position: "relative", overflow: "hidden" }}>
@@ -110,16 +95,19 @@ export default async function Home() {
               {
                 icono: "🚛", titulo: "Camionero independiente",
                 color: "var(--color-brand-dark)", bg: "var(--color-brand-light)",
+                perfil: "camionero", paginaInfo: "/para/camioneros",
                 items: ["Encontrá cargas para tu vuelta en segundos", "Ofertá tu precio directamente", "Historial de viajes y reputación verificada", "Certificaciones y documentación digital"],
               },
               {
                 icono: "🏢", titulo: "Empresa de flota",
                 color: "#185fa5", bg: "#e6f1fb",
+                perfil: "flota", paginaInfo: "/para/empresas",
                 items: ["Gestioná múltiples camiones y conductores", "Visión centralizada de toda la operación", "Asignación automática de cargas por ruta", "Reportes y métricas de rendimiento"],
               },
               {
                 icono: "📦", titulo: "Dador de carga",
                 color: "#7c3aed", bg: "#f3f0ff",
+                perfil: "dador", paginaInfo: "/para/dadores",
                 items: ["Publicá cargas en menos de 2 minutos", "Recibí ofertas de camioneros verificados", "Remitos digitales y seguimiento en tiempo real", "Sin comisiones ocultas ni intermediarios"],
               },
             ].map((card) => (
@@ -135,9 +123,14 @@ export default async function Home() {
                       <span style={{ fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{item}</span>
                     </div>
                   ))}
-                  <Link href="/login?modo=registro" style={{ display: "block", marginTop: 20, textAlign: "center", padding: "9px", borderRadius: "var(--border-radius-md)", background: card.bg, color: card.color, fontSize: 13, fontWeight: 600, textDecoration: "none", border: `0.5px solid ${card.color}22` }}>
-                    Registrarme como {card.titulo.split(" ")[0].toLowerCase()} →
-                  </Link>
+                  <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+                    <Link href={`/login?modo=registro&perfil=${card.perfil}`} style={{ flex: 1, display: "block", textAlign: "center", padding: "9px", borderRadius: "var(--border-radius-md)", background: card.bg, color: card.color, fontSize: 13, fontWeight: 600, textDecoration: "none", border: `0.5px solid ${card.color}33` }}>
+                      Registrarme →
+                    </Link>
+                    <Link href={card.paginaInfo} style={{ display: "block", textAlign: "center", padding: "9px 12px", borderRadius: "var(--border-radius-md)", background: "none", color: "var(--color-text-tertiary)", fontSize: 13, textDecoration: "none", border: "0.5px solid var(--color-border-secondary)" }}>
+                      Más info
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}
@@ -239,8 +232,13 @@ export default async function Home() {
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 14, color: "var(--color-text-tertiary)" }}>Producto</div>
-              {["Cómo funciona", "Para camioneros", "Para empresas", "Para dadores"].map((l) => (
-                <div key={l} style={{ marginBottom: 8 }}><a href="#" style={{ fontSize: 13, color: "var(--color-text-secondary)", textDecoration: "none" }}>{l}</a></div>
+              {[
+                { label: "Cómo funciona",  href: "/#como-funciona" },
+                { label: "Para camioneros", href: "/para/camioneros" },
+                { label: "Para empresas",   href: "/para/empresas" },
+                { label: "Para dadores",    href: "/para/dadores" },
+              ].map((l) => (
+                <div key={l.label} style={{ marginBottom: 8 }}><Link href={l.href} style={{ fontSize: 13, color: "var(--color-text-secondary)", textDecoration: "none" }}>{l.label}</Link></div>
               ))}
             </div>
             <div>

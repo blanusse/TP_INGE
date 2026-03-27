@@ -1,0 +1,54 @@
+"use client";
+
+import Link from "next/link";
+
+export function NavbarLanding() {
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const navbarH = 64;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - navbarH, behavior: "smooth" });
+  };
+
+  return (
+    <header style={{
+      position: "sticky", top: 0, zIndex: 50,
+      background: "rgba(255,255,255,0.92)", backdropFilter: "blur(8px)",
+      borderBottom: "0.5px solid var(--color-border-tertiary)",
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      padding: "14px 48px",
+    }}>
+      <Link href="/" style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.5, textDecoration: "none", color: "var(--color-text-primary)" }}>
+        Carga<span style={{ color: "var(--color-brand)" }}>Back</span>
+      </Link>
+
+      <nav style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <button onClick={() => scrollTo("como-funciona")} style={navBtnStyle}>Cómo funciona</button>
+        <button onClick={() => scrollTo("para-quien")}    style={navBtnStyle}>Para quién</button>
+        <button onClick={() => scrollTo("contacto")}      style={navBtnStyle}>Contacto</button>
+        <Link href="/login?modo=login"    style={btnSecStyle}>Iniciar sesión</Link>
+        <Link href="/login?modo=registro" style={btnPriStyle}>Registrarse gratis</Link>
+      </nav>
+    </header>
+  );
+}
+
+const navBtnStyle: React.CSSProperties = {
+  background: "none", border: "none", cursor: "pointer",
+  fontSize: 13, color: "var(--color-text-secondary)",
+  padding: "6px 12px", borderRadius: 6,
+};
+
+const btnSecStyle: React.CSSProperties = {
+  fontSize: 13, padding: "7px 16px",
+  borderRadius: "var(--border-radius-md)",
+  border: "0.5px solid var(--color-border-secondary)",
+  color: "var(--color-text-primary)", textDecoration: "none", fontWeight: 500,
+};
+
+const btnPriStyle: React.CSSProperties = {
+  fontSize: 13, padding: "7px 16px",
+  borderRadius: "var(--border-radius-md)",
+  background: "var(--color-brand)", color: "#fff",
+  textDecoration: "none", fontWeight: 600,
+};

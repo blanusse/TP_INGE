@@ -1,58 +1,78 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 
-type Perfil   = "camionero" | "flota" | "dador";
-type Paso     = "inicio" | "perfil" | "dador-tipo" | "login" | "registro";
-type SubPaso  = "personal" | "camion";
+type Perfil    = "camionero" | "flota" | "dador";
+type Paso      = "inicio" | "perfil" | "dador-tipo" | "login" | "registro";
+type SubPaso   = "personal" | "camion" | "conductor";
 type TipoDador = "personal" | "empresa";
 
 const PERFILES = [
-  { id: "camionero" as Perfil, titulo: "Soy camionero independiente", subtitulo: "Busco cargas para mis rutas y gestiono mis viajes", icono: "🚛" },
-  { id: "flota"     as Perfil, titulo: "Tengo una empresa de flota",  subtitulo: "Gestiono múltiples camiones y conductores",        icono: "🏢" },
-  { id: "dador"     as Perfil, titulo: "Tengo cargas para enviar",    subtitulo: "Publico cargas y elijo el mejor camionero",        icono: "📦" },
+  { id: "camionero" as Perfil, titulo: "Soy camionero independiente", subtitulo: "Busco cargas para mis rutas", icono: "🚛" },
+  { id: "flota"     as Perfil, titulo: "Tengo una empresa de flota",  subtitulo: "Gestiono múltiples camiones",  icono: "🏢" },
+  { id: "dador"     as Perfil, titulo: "Tengo cargas para enviar",    subtitulo: "Publico cargas a camioneros",  icono: "📦" },
 ];
 
-const TIPO_CAMION = ["camion", "semi", "acoplado", "frigorifico", "cisterna", "otros"] as const;
-
-const emptyTruck = () => ({ patente: "", marca: "", modelo: "", año: "", truck_type: "", capacity_kg: "", vtv_vence: "", seguro_poliza: "", seguro_vence: "" });
+const TIPO_CAMION = ["camion", "semi", "acoplado", "frigorifico", "cisterna", "batea", "otros"] as const;
+// semi, acoplado y batea llevan patente separada para el remolque/acoplado
+const REQUIERE_PATENTE_REMOLQUE = new Set(["semi", "acoplado", "batea"]);
+const emptyTruck  = () => ({ patente: "", patente_remolque: "", marca: "", modelo: "", año: "", truck_type: "", capacity_kg: "", vtv_vence: "", seguro_poliza: "", seguro_vence: "" });
 
 function LoginInner() {
-  const router = useRouter();
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const modoInicial = searchParams.get("modo");
 
-  const [paso, setPaso]       = useState<Paso>(modoInicial === "login" ? "login" : modoInicial === "registro" ? "perfil" : "inicio");
+  // Siempre empezar con "inicio" en servidor y cliente para evitar hydration mismatch.
+  // El useEffect aplica los parámetros de URL solo en el cliente, después del primer render.
+  const [paso, setPaso]     = useState<Paso>("inicio");
   const [subPaso, setSubPaso] = useState<SubPaso>("personal");
-  const [perfil, setPerfil]   = useState<Perfil | null>(null);
+  const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [tipoDador, setTipoDador] = useState<TipoDador | null>(null);
+  const [from, setFrom]     = useState<string | null>(null);
 
-  // Datos personales
-  const [nombre, setNombre]     = useState("");
-  const [dni, setDni]           = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
+  useEffect(() => {
+    const modo      = searchParams.get("modo");
+    const perfilP   = searchParams.get("perfil") as Perfil | null;
+    const fromP     = searchParams.get("from");
+    if (fromP) setFrom(fromP);
+    if (perfilP) setPerfil(perfilP);
+    if (modo === "login")                         setPaso("login");
+    else if (modo === "registro" && perfilP)      setPaso(perfilP === "dador" ? "dador-tipo" : "registro");
+    else if (modo === "registro")                 setPaso("perfil");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [nombre, setNombre]       = useState("");
+  const [dni, setDni]             = useState("");
+  const [telefono, setTelefono]   = useState("");
+  const [email, setEmail]         = useState("");
+  const [password, setPassword]   = useState("");
   const [mostrarPwd, setMostrarPwd]       = useState(false);
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
-
-  // Datos empresa
   const [razonSocial, setRazonSocial] = useState("");
   const [cuit, setCuit]               = useState("");
   const [direccion, setDireccion]     = useState("");
-
-  // Camiones (array para flota)
-  const [trucks, setTrucks] = useState([emptyTruck()]);
-
-  const [error, setError]            = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [trucks, setTrucks]           = useState([emptyTruck()]);
+  const [truckAbierto, setTruckAbierto] = useState(0);
+  const [truckDocs, setTruckDocs]     = useState<Array<{ vtv: File | null; seguro: File | null }>>([{ vtv: null, seguro: null }]);
+  const [licenciaDoc, setLicenciaDoc] = useState<File | null>(null);
+  const [dniDoc, setDniDoc]           = useState<File | null>(null);
+  // Conductor de flota (paso 3)
+  const [conductorNombre, setConductorNombre]     = useState("");
+  const [conductorDni, setConductorDni]           = useState("");
+  const [conductorTelefono, setConductorTelefono] = useState("");
+  const [conductorLicencia, setConductorLicencia] = useState<File | null>(null);
+  const [conductorDniDoc, setConductorDniDoc]     = useState<File | null>(null);
+  const [error, setError]             = useState("");
+  const [isPending, startTransition]  = useTransition();
 
   const perfilInfo = PERFILES.find((p) => p.id === perfil);
   const esCamion   = perfil === "camionero" || perfil === "flota";
+
+  const handleBack = () => from === "dashboard" ? router.push("/dashboard") : router.push("/");
 
   const resetForm = () => {
     setNombre(""); setDni(""); setTelefono(""); setEmail(""); setPassword("");
@@ -60,9 +80,8 @@ function LoginInner() {
     setAceptaTerminos(false); setError("");
   };
 
-  // ── Navegación ───────────────────────────────────────────────────────────
-  const irAInicio   = () => { setPaso("inicio"); setPerfil(null); setTipoDador(null); setSubPaso("personal"); setError(""); };
-  const irAPerfil   = () => { setPaso("perfil"); setTipoDador(null); setSubPaso("personal"); setError(""); };
+  const irAInicio  = () => { setPaso("inicio"); setPerfil(null); setTipoDador(null); setSubPaso("personal"); setError(""); };
+  const irAPerfil  = () => { setPaso("perfil"); setTipoDador(null); setSubPaso("personal"); setError(""); };
 
   const handleSeleccionarPerfil = (p: Perfil) => {
     setPerfil(p); setTipoDador(null); setSubPaso("personal"); setError("");
@@ -73,17 +92,23 @@ function LoginInner() {
     setTipoDador(tipo); setPaso("registro"); setError("");
   };
 
-  // ── Validar paso personal ─────────────────────────────────────────────────
   const validarPersonal = (): string | null => {
     if (!nombre.trim())  return "Ingresá tu nombre completo.";
-    if (esCamion && !dni.trim()) return "Ingresá tu DNI.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Ingresá un email válido.";
+    if (perfil === "dador" && tipoDador === "personal") {
+      if (!/^\d{7,8}$/.test(dni.replace(/\./g, ""))) return "El DNI debe tener 7 u 8 dígitos numéricos.";
+    }
+    if (esCamion) {
+      if (!/^\d{7,8}$/.test(dni.replace(/\./g, ""))) return "El DNI debe tener 7 u 8 dígitos numéricos.";
+      if (telefono && !/^\+?\d{8,15}$/.test(telefono.replace(/\s/g, ""))) return "El teléfono debe tener entre 8 y 15 dígitos.";
+    }
+    if (!esCamion && telefono && !/^\+?\d{8,15}$/.test(telefono.replace(/\s/g, ""))) return "El teléfono debe tener entre 8 y 15 dígitos.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Email inválido.";
     if (password.length < 8) return "La contraseña debe tener al menos 8 caracteres.";
-    if (perfil === "flota" && !razonSocial.trim()) return "Ingresá la razón social de la empresa.";
-    if (perfil === "flota" && !cuit.trim()) return "Ingresá el CUIT de la empresa.";
+    if (perfil === "flota" && !razonSocial.trim()) return "Ingresá la razón social.";
+    if (perfil === "flota" && !/^\d{2}-\d{8}-\d$/.test(cuit)) return "El CUIT debe tener el formato XX-XXXXXXXX-X.";
     if (perfil === "dador" && tipoDador === "empresa" && !razonSocial.trim()) return "Ingresá la razón social.";
-    if (perfil === "dador" && tipoDador === "empresa" && !cuit.trim()) return "Ingresá el CUIT.";
-    if (!aceptaTerminos) return "Tenés que aceptar los términos para continuar.";
+    if (perfil === "dador" && tipoDador === "empresa" && !/^\d{2}-\d{8}-\d$/.test(cuit)) return "El CUIT debe tener el formato XX-XXXXXXXX-X.";
+    if (!aceptaTerminos) return "Aceptá los términos para continuar.";
     return null;
   };
 
@@ -94,352 +119,524 @@ function LoginInner() {
     setError(""); setSubPaso("camion");
   };
 
-  // ── Registro ──────────────────────────────────────────────────────────────
   const handleRegistro = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
-    // Validar camiones si aplica
     if (esCamion) {
       for (const t of trucks) {
         if (!t.patente.trim()) { setError("Todos los camiones deben tener patente."); return; }
+        if (!/^[A-Za-z0-9]{6,7}$/.test(t.patente.replace(/\s/g, ""))) { setError(`Patente inválida: ${t.patente}. Debe tener 6 o 7 caracteres alfanuméricos (ej: AB123CD).`); return; }
         if (!t.truck_type)     { setError("Seleccioná el tipo para cada camión."); return; }
+        if (REQUIERE_PATENTE_REMOLQUE.has(t.truck_type) && !t.patente_remolque.trim()) {
+          setError(`Los ${t.truck_type}s necesitan también la patente del remolque/acoplado.`); return;
+        }
+        if (t.patente_remolque && !/^[A-Za-z0-9]{6,7}$/.test(t.patente_remolque.replace(/\s/g, ""))) {
+          setError(`Patente del remolque inválida. Debe tener 6 o 7 caracteres alfanuméricos.`); return;
+        }
+        if (t.capacity_kg && (isNaN(Number(t.capacity_kg)) || Number(t.capacity_kg) <= 0)) { setError("La capacidad debe ser un número positivo."); return; }
+        const añoN = Number(t.año);
+        if (t.año && (isNaN(añoN) || añoN < 1950 || añoN > new Date().getFullYear() + 1)) { setError("El año del camión no es válido."); return; }
       }
     }
-
     startTransition(async () => {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email, password, name: nombre, role: perfil,
-          tipo_dador:   tipoDador    || null,
-          phone:        telefono     || null,
-          dni:          dni          || null,
-          razon_social: razonSocial  || null,
-          cuit:         cuit         || null,
-          address:      direccion    || null,
-          trucks:       esCamion ? trucks : undefined,
+          tipo_dador: tipoDador || null, phone: telefono || null, dni: dni || null,
+          razon_social: razonSocial || null, cuit: cuit || null, address: direccion || null,
+          trucks: esCamion ? trucks : undefined,
         }),
       });
-
       if (!res.ok) {
         const { error: msg } = await res.json();
         setError(msg ?? "Error al crear la cuenta.");
         if (esCamion) setSubPaso("personal");
         return;
       }
-
       const result = await signIn("credentials", { email, password, redirect: false });
-      if (result?.error) setError("Cuenta creada, pero hubo un error al ingresar. Intentá desde iniciar sesión.");
+      if (result?.error) setError("Cuenta creada. Iniciá sesión.");
       else { router.push("/dashboard"); router.refresh(); }
     });
   };
 
-  // ── Login (sin rol) ───────────────────────────────────────────────────────
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("Ingresá un email válido."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("Email inválido."); return; }
     startTransition(async () => {
       const result = await signIn("credentials", { email, password, redirect: false });
-      if (result?.error) setError("Email o contraseña incorrectos. Intentá de nuevo.");
+      if (result?.error) setError("Email o contraseña incorrectos.");
       else { router.push("/dashboard"); router.refresh(); }
     });
   };
 
-  // ── Truck helpers ─────────────────────────────────────────────────────────
-  const updateTruck = (i: number, field: string, value: string) => {
+  const updateTruck = (i: number, field: string, value: string) =>
     setTrucks((prev) => prev.map((t, idx) => idx === i ? { ...t, [field]: value } : t));
+  const addTruck = () => {
+    setTrucks((prev) => { const next = [...prev, emptyTruck()]; setTruckAbierto(next.length - 1); return next; });
+    setTruckDocs((prev) => [...prev, { vtv: null, seguro: null }]);
   };
-  const addTruck    = () => setTrucks((prev) => [...prev, emptyTruck()]);
-  const removeTruck = (i: number) => setTrucks((prev) => prev.filter((_, idx) => idx !== i));
+  const removeTruck = (i: number) => {
+    setTrucks((prev) => prev.filter((_, idx) => idx !== i));
+    setTruckDocs((prev) => prev.filter((_, idx) => idx !== i));
+    setTruckAbierto((prev) => Math.max(0, prev > i ? prev - 1 : prev === i ? Math.max(0, i - 1) : prev));
+  };
+  const updateTruckDoc = (i: number, field: "vtv" | "seguro", file: File | null) =>
+    setTruckDocs((prev) => prev.map((d, idx) => idx === i ? { ...d, [field]: file } : d));
 
-  return (
-    <div style={{ minHeight: "100vh", background: "var(--color-background-tertiary)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 16px" }}>
-      <Link href="/" style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", textDecoration: "none", marginBottom: 32 }}>
-        Carga<span style={{ color: "var(--color-brand)" }}>Back</span>
-      </Link>
+  // ── Panel izquierdo (branding) ─────────────────────────────────────────────
+  const panelIzq = (
+    <div style={{ background: "linear-gradient(160deg, #0a1510 0%, #0f6e56 70%, #1d9e75 100%)", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "40px 36px", minHeight: "100vh" }}>
+      <button onClick={handleBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}>
+        <div style={{ fontSize: 36, fontWeight: 800, color: "#fff", letterSpacing: -1 }}>
+          Carga<span style={{ color: "#6ee7b7" }}>Back</span>
+        </div>
+      </button>
 
-      <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 32, width: "100%", maxWidth: paso === "inicio" || paso === "perfil" ? 520 : 500, transition: "max-width 0.2s ease" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 36 }}>
+        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: 0 }}>
+          La red logística más grande de Argentina.
+        </p>
 
-        {/* ── Pantalla de inicio ── */}
+        {/* Stats 2×2 */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {[
+            { valor: "3.400+", label: "Camioneros activos" },
+            { valor: "1.200+", label: "Cargas por mes" },
+            { valor: "94%",    label: "Viajes con retorno" },
+            { valor: "12 min", label: "Tiempo de match" },
+          ].map((s) => (
+            <div key={s.label} style={{ background: "rgba(255,255,255,0.07)", border: "0.5px solid rgba(255,255,255,0.12)", borderRadius: 12, padding: "16px 14px" }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "#6ee7b7", letterSpacing: -1, lineHeight: 1 }}>{s.valor}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 5, lineHeight: 1.3 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Testimonio */}
+        <div style={{ background: "rgba(255,255,255,0.07)", border: "0.5px solid rgba(255,255,255,0.12)", borderRadius: 14, padding: "20px 18px" }}>
+          <div style={{ fontSize: 22, color: "#6ee7b7", marginBottom: 10, lineHeight: 1 }}>"</div>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.65, margin: "0 0 16px", fontStyle: "italic" }}>
+            Antes volvía vacío de Buenos Aires siempre. Ahora en 20 minutos encuentro carga para el regreso. Cambió todo.
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#1d9e75,#6ee7b7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>C</div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>Carlos M.</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>Camionero · Rosario</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>© 2026 CargaBack · Argentina</p>
+    </div>
+  );
+
+  // ── Panel derecho (formulario) ──────────────────────────────────────────────
+  const panelDer = (
+    <div style={{ background: "#fff", display: "flex", flexDirection: "column", minHeight: "100vh", overflowY: "auto" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "40px 64px" }}>
+
+        {/* ── Inicio ── */}
         {paso === "inicio" && (
-          <>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 6 }}>Bienvenido a CargaBack</h1>
-            <p style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 28 }}>¿Qué querés hacer?</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ maxWidth: 380, width: "100%" }}>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0a1510", marginBottom: 8, letterSpacing: -0.5 }}>Bienvenido</h1>
+            <p style={{ fontSize: 15, color: "var(--color-text-secondary)", marginBottom: 32 }}>¿Qué querés hacer?</p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <button onClick={() => { resetForm(); setPaso("login"); }}
-                style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 20px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", cursor: "pointer", textAlign: "left", width: "100%" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-brand)"; e.currentTarget.style.background = "var(--color-brand-light)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border-secondary)"; e.currentTarget.style.background = "var(--color-background-secondary)"; }}>
-                <span style={{ fontSize: 26 }}>👤</span>
+                style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderRadius: 12, border: "1.5px solid var(--color-border-secondary)", background: "#fff", cursor: "pointer", textAlign: "left", width: "100%", transition: "all 0.15s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-brand)"; e.currentTarget.style.boxShadow = "0 0 0 3px #1d9e7515"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border-secondary)"; e.currentTarget.style.boxShadow = "none"; }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>👤</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>Iniciar sesión</div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>Ya tengo una cuenta en CargaBack</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#0a1510" }}>Iniciar sesión</div>
+                  <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", marginTop: 2 }}>Ya tengo una cuenta</div>
                 </div>
-                <span style={{ color: "var(--color-text-tertiary)" }}>→</span>
+                <span style={{ color: "var(--color-text-tertiary)", fontSize: 18 }}>→</span>
               </button>
+
               <button onClick={() => { resetForm(); setPaso("perfil"); }}
-                style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 20px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-brand)", background: "var(--color-brand-light)", cursor: "pointer", textAlign: "left", width: "100%" }}>
-                <span style={{ fontSize: 26 }}>✨</span>
+                style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderRadius: 12, border: "1.5px solid var(--color-brand)", background: "var(--color-brand-light)", cursor: "pointer", textAlign: "left", width: "100%" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--color-brand)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>✨</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-brand-dark)" }}>Registrarse gratis</div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>Crear una cuenta nueva</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-brand-dark)" }}>Registrarse gratis</div>
+                  <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 2 }}>Crear cuenta nueva</div>
                 </div>
-                <span style={{ color: "var(--color-brand)" }}>→</span>
+                <span style={{ color: "var(--color-brand)", fontSize: 18 }}>→</span>
               </button>
             </div>
-          </>
+          </div>
         )}
 
-        {/* ── Login directo (sin selección de rol) ── */}
+        {/* ── Login ── */}
         {paso === "login" && (
-          <>
-            <Cabecera titulo="Iniciá sesión" subtitulo="Ingresá con tu email y contraseña" onVolver={irAInicio} />
-            <form onSubmit={handleLogin} noValidate>
-              <Campo label="Email"      id="email"    type="email"    autoComplete="email"            value={email}    onChange={setEmail}    placeholder="tu@email.com" />
+          <div style={{ maxWidth: 400, width: "100%" }}>
+            <BtnVolver onClick={irAInicio} />
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 4, letterSpacing: -0.5 }}>Iniciá sesión</h1>
+            <p style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 28 }}>Ingresá con tu email y contraseña</p>
+
+            <form onSubmit={handleLogin} noValidate style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <Campo label="Email" id="email" type="email" autoComplete="email" value={email} onChange={setEmail} placeholder="tu@email.com" />
               <CampoPassword label="Contraseña" value={password} onChange={setPassword} mostrar={mostrarPwd} onToggle={() => setMostrarPwd(!mostrarPwd)} placeholder="Tu contraseña" />
-              <div style={{ textAlign: "right", marginBottom: 16 }}>
-                <button type="button" style={{ background: "none", border: "none", fontSize: 12, color: "var(--color-brand)", cursor: "pointer", padding: 0 }} onClick={() => alert("Próximamente: recuperación de contraseña.")}>
+              <div style={{ textAlign: "right", marginBottom: 20 }}>
+                <button type="button" style={{ background: "none", border: "none", fontSize: 13, color: "var(--color-brand)", cursor: "pointer", padding: 0, fontWeight: 500 }}
+                  onClick={() => alert("Próximamente: recuperación de contraseña.")}>
                   ¿Olvidaste tu contraseña?
                 </button>
               </div>
               {error && <MensajeError mensaje={error} />}
-              <BotonSubmit isPending={isPending} label="Ingresar" labelPending="Verificando..." />
+              <BtnPrimario isPending={isPending} label="Ingresar" labelPending="Verificando..." />
             </form>
-            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", textAlign: "center", marginTop: 16 }}>
+
+            <Divider />
+            <p style={{ textAlign: "center", fontSize: 14, color: "var(--color-text-secondary)" }}>
               ¿No tenés cuenta?{" "}
-              <button onClick={() => { resetForm(); setPaso("perfil"); }} style={btnTextoStyle}>Registrate gratis</button>
+              <button onClick={() => { resetForm(); setPaso("perfil"); }} style={linkBtnStyle}>Registrate gratis</button>
             </p>
-          </>
+          </div>
         )}
 
-        {/* ── Selección de perfil (solo registro) ── */}
+        {/* ── Selección de perfil ── */}
         {paso === "perfil" && (
-          <>
-            <Cabecera titulo="Crear cuenta" subtitulo="¿Cuál describe mejor tu rol?" onVolver={irAInicio} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {PERFILES.map((p) => (
+          <div style={{ maxWidth: 520, width: "100%" }}>
+            <BtnVolver onClick={irAInicio} />
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 4, letterSpacing: -0.5 }}>Crear cuenta</h1>
+            <p style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 24 }}>¿Cuál describe mejor tu rol?</p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {([
+                {
+                  id: "camionero" as Perfil,
+                  icono: "🚛", titulo: "Soy camionero independiente",
+                  color: "#0f6e56", bg: "#e1f5ee", border: "#1d9e75",
+                  features: ["Encontrá cargas para tu vuelta en minutos", "Ofertá tu precio directamente", "Cobro seguro garantizado por la plataforma"],
+                },
+                {
+                  id: "flota" as Perfil,
+                  icono: "🏢", titulo: "Tengo una empresa de flota",
+                  color: "#185fa5", bg: "#e6f1fb", border: "#185fa5",
+                  features: ["Gestioná múltiples camiones desde un panel", "Asignación automática de cargas por ruta", "Reportes y métricas de rendimiento"],
+                },
+                {
+                  id: "dador" as Perfil,
+                  icono: "📦", titulo: "Tengo cargas para enviar",
+                  color: "#7c3aed", bg: "#f3f0ff", border: "#7c3aed",
+                  features: ["Publicá tu carga en menos de 2 minutos", "Recibí ofertas de camioneros verificados", "Seguimiento en tiempo real de cada envío"],
+                },
+              ]).map((p) => (
                 <button key={p.id} onClick={() => handleSeleccionarPerfil(p.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", cursor: "pointer", textAlign: "left", width: "100%" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-brand)"; e.currentTarget.style.background = "var(--color-brand-light)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border-secondary)"; e.currentTarget.style.background = "var(--color-background-secondary)"; }}>
-                  <span style={{ fontSize: 24 }}>{p.icono}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{p.titulo}</div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{p.subtitulo}</div>
+                  style={{ display: "block", padding: 0, borderRadius: 14, border: `1.5px solid ${p.border}33`, background: "#fff", cursor: "pointer", textAlign: "left", width: "100%", overflow: "hidden", transition: "box-shadow 0.15s, border-color 0.15s" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 20px ${p.border}22`; e.currentTarget.style.borderColor = p.border; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = `${p.border}33`; }}>
+                  {/* Header de la card */}
+                  <div style={{ background: p.bg, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 28 }}>{p.icono}</span>
+                      <span style={{ fontSize: 16, fontWeight: 800, color: p.color }}>{p.titulo}</span>
+                    </div>
+                    <span style={{ fontSize: 18, color: p.color, opacity: 0.7 }}>→</span>
                   </div>
-                  <span style={{ color: "var(--color-text-tertiary)", fontSize: 16 }}>→</span>
+                  {/* Features */}
+                  <div style={{ padding: "14px 20px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
+                    {p.features.map((f) => (
+                      <div key={f} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ color: p.color, fontSize: 12, flexShrink: 0 }}>✓</span>
+                        <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{f}</span>
+                      </div>
+                    ))}
+                  </div>
                 </button>
               ))}
             </div>
-            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", textAlign: "center", marginTop: 20 }}>
+
+            <Divider />
+            <p style={{ textAlign: "center", fontSize: 14, color: "var(--color-text-secondary)" }}>
               ¿Ya tenés cuenta?{" "}
-              <button onClick={() => { resetForm(); setPaso("login"); }} style={btnTextoStyle}>Iniciá sesión</button>
+              <button onClick={() => { resetForm(); setPaso("login"); }} style={linkBtnStyle}>Iniciá sesión</button>
             </p>
-          </>
+          </div>
         )}
 
         {/* ── Dador: personal o empresa ── */}
-        {paso === "dador-tipo" && perfilInfo && (
-          <>
-            <Cabecera titulo="Crear cuenta" subtitulo="¿Cómo vas a operar?" onVolver={irAPerfil} />
+        {paso === "dador-tipo" && (
+          <div style={{ maxWidth: 420, width: "100%" }}>
+            <BtnVolver onClick={irAPerfil} />
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 4, letterSpacing: -0.5 }}>Dador de carga</h1>
+            <p style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 28 }}>¿Cómo vas a operar?</p>
+
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {([
-                { id: "personal" as TipoDador, icono: "👤", titulo: "Persona física",   subtitulo: "Publico cargas a título personal" },
-                { id: "empresa"  as TipoDador, icono: "🏢", titulo: "Empresa / S.R.L.", subtitulo: "Opero con razón social y CUIT empresarial" },
+                { id: "personal" as TipoDador, icono: "👤", titulo: "Persona física",   sub: "Publico cargas a título personal" },
+                { id: "empresa"  as TipoDador, icono: "🏢", titulo: "Empresa / S.R.L.", sub: "Opero con razón social y CUIT" },
               ] as const).map((op) => (
                 <button key={op.id} onClick={() => handleSeleccionarTipoDador(op.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", cursor: "pointer", textAlign: "left", width: "100%" }}
+                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", borderRadius: 12, border: "1.5px solid var(--color-border-secondary)", background: "#fff", cursor: "pointer", textAlign: "left", width: "100%" }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-brand)"; e.currentTarget.style.background = "var(--color-brand-light)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border-secondary)"; e.currentTarget.style.background = "var(--color-background-secondary)"; }}>
-                  <span style={{ fontSize: 24 }}>{op.icono}</span>
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border-secondary)"; e.currentTarget.style.background = "#fff"; }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 10, background: "var(--color-background-secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{op.icono}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{op.titulo}</div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{op.subtitulo}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0a1510" }}>{op.titulo}</div>
+                    <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 2 }}>{op.sub}</div>
                   </div>
-                  <span style={{ color: "var(--color-text-tertiary)", fontSize: 16 }}>→</span>
+                  <span style={{ color: "var(--color-text-tertiary)", fontSize: 18 }}>→</span>
                 </button>
               ))}
             </div>
-          </>
+          </div>
         )}
 
         {/* ── Registro: datos personales ── */}
         {paso === "registro" && perfilInfo && subPaso === "personal" && (
-          <>
-            <Cabecera
-              titulo="Crear cuenta" subtitulo={`${perfilInfo.icono} ${perfilInfo.titulo}`}
-              onVolver={perfil === "dador" ? () => setPaso("dador-tipo") : irAPerfil}
-              badge={esCamion ? { actual: 1, total: 2 } : undefined}
-            />
+          <div style={{ maxWidth: 520, width: "100%" }}>
+            <BtnVolver onClick={perfil === "dador" ? () => setPaso("dador-tipo") : irAPerfil} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+              <div>
+                <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 4, letterSpacing: -0.5 }}>Crear cuenta</h1>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
+                  {perfilInfo.icono} {perfilInfo.titulo}
+                </div>
+              </div>
+              {esCamion && <PasosBadge actual={1} total={2} />}
+            </div>
+
             <form onSubmit={esCamion ? handleSiguiente : handleRegistro} noValidate>
-              <Campo label="Nombre completo" id="nombre"   type="text" autoComplete="name" value={nombre}   onChange={setNombre}   placeholder="Juan Rodríguez" />
-              {esCamion && <Campo label="DNI" id="dni" type="text" value={dni} onChange={setDni} placeholder="12345678" />}
-              <Campo label="Teléfono" id="telefono" type="tel" autoComplete="tel" value={telefono} onChange={setTelefono} placeholder="+54 9 11 1234-5678" />
-              <Campo label="Email"    id="email"    type="email" autoComplete="email" value={email} onChange={setEmail} placeholder="tu@email.com" />
+              <div style={{ display: "grid", gridTemplateColumns: esCamion ? "1fr 1fr" : "1fr", gap: "0 16px" }}>
+                <Campo
+                  label={perfil === "dador" && tipoDador === "empresa" ? "Nombre del responsable" : perfil === "flota" ? "Nombre del responsable" : "Nombre completo"}
+                  id="nombre" type="text" autoComplete="name" value={nombre} onChange={setNombre}
+                  placeholder={perfil === "dador" && tipoDador === "empresa" ? "María González" : "Juan Rodríguez"}
+                  style={{ gridColumn: "1 / -1" }} />
+                {esCamion && <Campo label="DNI" id="dni" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" />}
+                {perfil === "dador" && tipoDador === "personal" && (
+                  <Campo label="DNI" id="dni-dador" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" />
+                )}
+                {esCamion && <Campo label="Teléfono" id="tel" type="tel" value={telefono} onChange={(v) => setTelefono(v.replace(/[^\d+\s]/g, ""))} placeholder="+54 9 11 1234-5678" maxLength={15} inputMode="tel" />}
+                {!esCamion && <Campo label="Teléfono" id="tel" type="tel" value={telefono} onChange={(v) => setTelefono(v.replace(/[^\d+\s]/g, ""))} placeholder="+54 9 11 1234-5678" maxLength={15} inputMode="tel" />}
+                <Campo label="Email" id="email" type="email" autoComplete="email" value={email} onChange={setEmail} placeholder="tu@email.com" style={{ gridColumn: "1 / -1" }} />
+              </div>
 
-              {perfil === "flota" && (
-                <>
-                  <Separador label="Empresa" />
-                  <Campo label="Razón social" id="razon_social" type="text" value={razonSocial} onChange={setRazonSocial} placeholder="Transportes S.A." />
-                  <Campo label="CUIT"         id="cuit"         type="text" value={cuit}         onChange={setCuit}         placeholder="20-12345678-9" />
-                </>
-              )}
+              {perfil === "flota" && <>
+                <Separador label="Empresa" />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                  <Campo label="Razón social" id="rs" type="text" value={razonSocial} onChange={setRazonSocial} placeholder="Transportes S.A." style={{ gridColumn: "1 / -1" }} />
+                  <Campo label="CUIT" id="cuit" type="text" value={cuit} onChange={(v) => setCuit(formatCuit(v))} placeholder="20-12345678-9" maxLength={13} inputMode="numeric" />
+                </div>
+              </>}
 
-              {perfil === "dador" && tipoDador === "empresa" && (
-                <>
-                  <Separador label="Empresa" />
-                  <Campo label="Razón social" id="razon_social" type="text" value={razonSocial} onChange={setRazonSocial} placeholder="Mi Empresa S.R.L." />
-                  <Campo label="CUIT"         id="cuit"         type="text" value={cuit}         onChange={setCuit}         placeholder="20-12345678-9" />
-                  <Campo label="Dirección"    id="direccion"    type="text" value={direccion}    onChange={setDireccion}    placeholder="Av. Corrientes 1234, CABA" />
-                </>
-              )}
+              {perfil === "dador" && tipoDador === "empresa" && <>
+                <Separador label="Empresa" />
+                <Campo label="Razón social" id="rs" type="text" value={razonSocial} onChange={setRazonSocial} placeholder="Mi Empresa S.R.L." />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                  <Campo label="CUIT" id="cuit" type="text" value={cuit} onChange={(v) => setCuit(formatCuit(v))} placeholder="20-12345678-9" maxLength={13} inputMode="numeric" />
+                  <Campo label="Dirección" id="dir" type="text" value={direccion} onChange={setDireccion} placeholder="Av. Corrientes 1234" />
+                </div>
+              </>}
 
-              <Separador label="Acceso" />
+              <Separador label="Contraseña" />
               <CampoPassword label="Contraseña" value={password} onChange={setPassword} mostrar={mostrarPwd} onToggle={() => setMostrarPwd(!mostrarPwd)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" />
               {password.length > 0 && <IndicadorFuerza password={password} />}
 
+              {/* ── Documentos personales ── */}
+              {(esCamion) && (<>
+                <Separador label="Documentos del conductor" />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                  <CampoArchivo label="📷 Foto del registro / licencia" id="doc-licencia" file={licenciaDoc} onChange={setLicenciaDoc} accept=".pdf,.jpg,.jpeg,.png" />
+                  <CampoArchivo label="📷 Foto del DNI (frente)" id="doc-dni" file={dniDoc} onChange={setDniDoc} accept=".jpg,.jpeg,.png,.pdf" />
+                </div>
+              </>)}
+              {perfil === "dador" && (<>
+                <Separador label="Documento de identidad" />
+                <CampoArchivo label="📷 Foto del DNI (frente)" id="doc-dni-dador" file={dniDoc} onChange={setDniDoc} accept=".jpg,.jpeg,.png,.pdf" />
+              </>)}
+
               {error && <MensajeError mensaje={error} />}
 
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 16 }}>
-                <input type="checkbox" id="terminos" checked={aceptaTerminos} onChange={(e) => setAceptaTerminos(e.target.checked)} style={{ marginTop: 2, accentColor: "var(--color-brand)", cursor: "pointer" }} />
-                <label htmlFor="terminos" style={{ fontSize: 12, color: "var(--color-text-secondary)", cursor: "pointer" }}>
-                  Acepto los <span style={{ color: "var(--color-brand)" }}>términos y condiciones</span> y la <span style={{ color: "var(--color-brand)" }}>política de privacidad</span>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 20 }}>
+                <input type="checkbox" id="terminos" checked={aceptaTerminos} onChange={(e) => setAceptaTerminos(e.target.checked)} style={{ marginTop: 3, accentColor: "var(--color-brand)", cursor: "pointer", width: 15, height: 15 }} />
+                <label htmlFor="terminos" style={{ fontSize: 13, color: "var(--color-text-secondary)", cursor: "pointer", lineHeight: 1.4 }}>
+                  Acepto los <span style={{ color: "var(--color-brand)", fontWeight: 600 }}>términos y condiciones</span> y la <span style={{ color: "var(--color-brand)", fontWeight: 600 }}>política de privacidad</span>
                 </label>
               </div>
 
-              <BotonSubmit isPending={isPending} label={esCamion ? "Siguiente →" : "Crear cuenta"} labelPending={esCamion ? "Siguiente →" : "Creando cuenta..."} />
+              <BtnPrimario isPending={isPending} label={esCamion ? "Siguiente →" : "Crear cuenta"} labelPending="Procesando..." />
             </form>
-            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", textAlign: "center", marginTop: 16 }}>
+
+            <Divider />
+            <p style={{ textAlign: "center", fontSize: 14, color: "var(--color-text-secondary)" }}>
               ¿Ya tenés cuenta?{" "}
-              <button onClick={() => { resetForm(); setPaso("login"); }} style={btnTextoStyle}>Iniciá sesión</button>
+              <button onClick={() => { resetForm(); setPaso("login"); }} style={linkBtnStyle}>Iniciá sesión</button>
             </p>
-          </>
+          </div>
         )}
 
         {/* ── Registro: camiones ── */}
-        {paso === "registro" && perfilInfo && subPaso === "camion" && (
-          <>
-            <Cabecera
-              titulo={perfil === "flota" ? "Camiones de la flota" : "Tu camión"}
-              subtitulo={`${perfilInfo.icono} ${perfilInfo.titulo}`}
-              onVolver={() => { setSubPaso("personal"); setError(""); }}
-              badge={{ actual: 2, total: 2 }}
-            />
+        {paso === "registro" && perfilInfo && subPaso === "camion" && esCamion && (
+          <div style={{ maxWidth: 600, width: "100%" }}>
+            <BtnVolver onClick={() => { setSubPaso("personal"); setError(""); }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+              <div>
+                <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 4, letterSpacing: -0.5 }}>
+                  {perfil === "flota" ? "Tu flota" : "Tu camión"}
+                </h1>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
+                  {perfilInfo.icono} {perfilInfo.titulo}
+                </div>
+              </div>
+              <PasosBadge actual={2} total={2} />
+            </div>
 
             <form onSubmit={handleRegistro} noValidate>
-              {trucks.map((truck, i) => (
-                <div key={i} style={{ border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "16px 16px 8px", marginBottom: 16, position: "relative" }}>
-                  {perfil === "flota" && (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>Camión {i + 1}</span>
-                      {trucks.length > 1 && (
-                        <button type="button" onClick={() => removeTruck(i)} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 12, cursor: "pointer", padding: 0 }}>Eliminar</button>
-                      )}
-                    </div>
-                  )}
+              {trucks.map((truck, i) => {
+                const abierto = truckAbierto === i;
+                const titulo  = truck.patente ? `${truck.patente}${truck.marca ? " · " + truck.marca : ""}` : `Camión ${i + 1}`;
+                return (
+                  <div key={i} style={{ border: `1.5px solid ${abierto ? "var(--color-brand)" : "var(--color-border-secondary)"}`, borderRadius: 12, marginBottom: 10, overflow: "hidden", transition: "border-color 0.2s" }}>
+                    {/* Header del accordion */}
+                    <button type="button" onClick={() => setTruckAbierto(abierto ? -1 : i)}
+                      style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: abierto ? "var(--color-brand-light)" : "var(--color-background-secondary)", border: "none", cursor: "pointer", textAlign: "left" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 18 }}>🚛</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: abierto ? "var(--color-brand-dark)" : "var(--color-text-primary)" }}>{titulo}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        {trucks.length > 1 && (
+                          <span onClick={(e) => { e.stopPropagation(); removeTruck(i); }} style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, cursor: "pointer", padding: "2px 8px", borderRadius: 6, background: "#fef2f2" }}>
+                            Eliminar
+                          </span>
+                        )}
+                        <span style={{ fontSize: 18, color: "var(--color-text-tertiary)", transform: abierto ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", display: "inline-block" }}>⌄</span>
+                      </div>
+                    </button>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                    <Campo label="Patente" id={`patente-${i}`} type="text" value={truck.patente} onChange={(v) => updateTruck(i, "patente", v)} placeholder="AB 123 CD" />
-                    <Campo label="Año"     id={`año-${i}`}     type="number" value={truck.año} onChange={(v) => updateTruck(i, "año", v)} placeholder="2018" />
-                    <Campo label="Marca"   id={`marca-${i}`}   type="text" value={truck.marca} onChange={(v) => updateTruck(i, "marca", v)} placeholder="Mercedes-Benz" />
-                    <Campo label="Modelo"  id={`modelo-${i}`}  type="text" value={truck.modelo} onChange={(v) => updateTruck(i, "modelo", v)} placeholder="Actros 2651" />
+                    {/* Contenido del accordion */}
+                    {abierto && (
+                      <div style={{ padding: "20px 18px 8px" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                          <Campo label="Patente del camión" id={`pat-${i}`} type="text" value={truck.patente} onChange={(v) => updateTruck(i, "patente", v.toUpperCase())} placeholder="AB123CD" />
+                          <Campo label="Año"     id={`año-${i}`} type="number" value={truck.año}          onChange={(v) => updateTruck(i, "año", v)}          placeholder="2018" />
+                          <Campo label="Marca"   id={`mrc-${i}`} type="text"   value={truck.marca}        onChange={(v) => updateTruck(i, "marca", v)}        placeholder="Mercedes-Benz" />
+                          <Campo label="Modelo"  id={`mdl-${i}`} type="text"   value={truck.modelo}       onChange={(v) => updateTruck(i, "modelo", v)}       placeholder="Actros 2651" />
+                        </div>
+                        <div style={{ marginBottom: 14 }}>
+                          <label style={labelStyle}>Tipo de camión</label>
+                          <select value={truck.truck_type} onChange={(e) => updateTruck(i, "truck_type", e.target.value)} style={{ ...inputStyle, appearance: "none" as React.CSSProperties["appearance"] }}>
+                            <option value="">Seleccioná un tipo</option>
+                            {TIPO_CAMION.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                          </select>
+                        </div>
+                        <Campo label="Capacidad de carga (kg)" id={`cap-${i}`} type="number" value={truck.capacity_kg} onChange={(v) => updateTruck(i, "capacity_kg", v)} placeholder="20000" />
+                        {REQUIERE_PATENTE_REMOLQUE.has(truck.truck_type) && (
+                          <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 14px", marginBottom: 14 }}>
+                            <p style={{ fontSize: 12, color: "#92400e", margin: "0 0 10px", lineHeight: 1.4 }}>
+                              ⚠ Los <strong>{truck.truck_type}s</strong> circulan con dos patentes: la del camión (tractora) y la del remolque/acoplado.
+                            </p>
+                            <Campo label="Patente del remolque / acoplado" id={`rem-${i}`} type="text" value={truck.patente_remolque} onChange={(v) => updateTruck(i, "patente_remolque", v.toUpperCase())} placeholder="AB123CD" />
+                          </div>
+                        )}
+                        <Separador label="Documentación" />
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                          <Campo label="VTV — vencimiento"   id={`vtv-${i}`} type="date" value={truck.vtv_vence}     onChange={(v) => updateTruck(i, "vtv_vence", v)} />
+                          <Campo label="N° póliza de seguro" id={`pol-${i}`} type="text" value={truck.seguro_poliza} onChange={(v) => updateTruck(i, "seguro_poliza", v)} placeholder="POL-123456" />
+                        </div>
+                        <Campo label="Seguro — vencimiento" id={`sv-${i}`} type="date" value={truck.seguro_vence} onChange={(v) => updateTruck(i, "seguro_vence", v)} />
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                          <CampoArchivo label="📄 Documento VTV" id={`vtv-doc-${i}`} file={truckDocs[i]?.vtv ?? null} onChange={(f) => updateTruckDoc(i, "vtv", f)} accept=".pdf,.jpg,.jpeg,.png" />
+                          <CampoArchivo label="📄 Documento del seguro" id={`seg-doc-${i}`} file={truckDocs[i]?.seguro ?? null} onChange={(f) => updateTruckDoc(i, "seguro", f)} accept=".pdf,.jpg,.jpeg,.png" />
+                        </div>
+                      </div>
+                    )}
                   </div>
-
-                  <div style={{ marginBottom: 14 }}>
-                    <label style={labelStyle}>Tipo de camión</label>
-                    <select value={truck.truck_type} onChange={(e) => updateTruck(i, "truck_type", e.target.value)} style={{ ...inputStyle, appearance: "none" as React.CSSProperties["appearance"] }}>
-                      <option value="">Seleccioná un tipo</option>
-                      {TIPO_CAMION.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-                    </select>
-                  </div>
-
-                  <Campo label="Capacidad de carga (kg)" id={`cap-${i}`} type="number" value={truck.capacity_kg} onChange={(v) => updateTruck(i, "capacity_kg", v)} placeholder="20000" />
-
-                  <Separador label="Documentación" />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                    <Campo label="VTV — vencimiento"   id={`vtv-${i}`}    type="date" value={truck.vtv_vence}     onChange={(v) => updateTruck(i, "vtv_vence", v)} />
-                    <Campo label="N° póliza de seguro" id={`poliza-${i}`} type="text" value={truck.seguro_poliza} onChange={(v) => updateTruck(i, "seguro_poliza", v)} placeholder="POL-123456" />
-                  </div>
-                  <Campo label="Seguro — vencimiento" id={`svence-${i}`} type="date" value={truck.seguro_vence} onChange={(v) => updateTruck(i, "seguro_vence", v)} />
-                </div>
-              ))}
+                );
+              })}
 
               {perfil === "flota" && (
-                <button type="button" onClick={addTruck} style={{ width: "100%", padding: "9px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", background: "none", color: "var(--color-brand)", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 16 }}>
+                <button type="button" onClick={addTruck} style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1.5px dashed var(--color-brand)", background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 16 }}>
                   + Agregar otro camión
                 </button>
               )}
 
               {error && <MensajeError mensaje={error} />}
-              <BotonSubmit isPending={isPending} label="Crear cuenta" labelPending="Creando cuenta..." />
+              <BtnPrimario isPending={isPending} label="Crear cuenta" labelPending="Creando cuenta..." />
             </form>
-          </>
+          </div>
         )}
       </div>
-
-      <p style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 20, textAlign: "center" }}>
-        🔒 Conexión segura · Tus datos están protegidos
-      </p>
     </div>
+  );
+
+  return (
+    <>
+      <style>{`
+        .login-grid { display: grid; grid-template-columns: 400px 1fr; min-height: 100vh; }
+        @media (max-width: 768px) {
+          .login-grid { grid-template-columns: 1fr; }
+          .login-panel-izq { display: none !important; }
+        }
+      `}</style>
+      <div className="login-grid">
+        <div className="login-panel-izq">{panelIzq}</div>
+        {panelDer}
+      </div>
+    </>
   );
 }
 
 export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginInner />
-    </Suspense>
-  );
+  return <Suspense><LoginInner /></Suspense>;
 }
 
 // ── Sub-componentes ───────────────────────────────────────────────────────────
 
-function Cabecera({ titulo, subtitulo, onVolver, badge }: {
-  titulo: string; subtitulo: string; onVolver: () => void;
-  badge?: { actual: number; total: number };
-}) {
+function BtnVolver({ onClick }: { onClick: () => void }) {
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: badge ? 12 : 0 }}>
-        <button onClick={onVolver} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-tertiary)", fontSize: 20, padding: 0, lineHeight: 1 }}>←</button>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text-primary)" }}>{titulo}</div>
-          <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{subtitulo}</div>
-        </div>
+    <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "var(--color-background-secondary)", border: "1.5px solid var(--color-border-secondary)", cursor: "pointer", color: "var(--color-text-primary)", fontSize: 14, padding: "8px 16px", marginBottom: 24, fontWeight: 600, borderRadius: 8 }}>
+      ← Volver
+    </button>
+  );
+}
+
+function PasosBadge({ actual, total }: { actual: number; total: number }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+      <span style={{ fontSize: 12, color: "var(--color-text-tertiary)", fontWeight: 600 }}>Paso {actual}/{total}</span>
+      <div style={{ display: "flex", gap: 4 }}>
+        {Array.from({ length: total }, (_, i) => (
+          <div key={i} style={{ width: 24, height: 4, borderRadius: 2, background: i < actual ? "var(--color-brand)" : "var(--color-border-secondary)" }} />
+        ))}
       </div>
-      {badge && (
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {Array.from({ length: badge.total }, (_, i) => (
-            <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i < badge.actual ? "var(--color-brand)" : "var(--color-border-secondary)" }} />
-          ))}
-          <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginLeft: 4, whiteSpace: "nowrap" }}>{badge.actual}/{badge.total}</span>
-        </div>
-      )}
     </div>
   );
+}
+
+function Divider() {
+  return <div style={{ borderTop: "0.5px solid var(--color-border-tertiary)", margin: "24px 0" }} />;
 }
 
 function Separador({ label }: { label: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0 14px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 16px" }}>
       <div style={{ flex: 1, height: "0.5px", background: "var(--color-border-tertiary)" }} />
-      <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", whiteSpace: "nowrap" }}>{label}</span>
+      <span style={{ fontSize: 12, color: "var(--color-text-tertiary)", whiteSpace: "nowrap", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</span>
       <div style={{ flex: 1, height: "0.5px", background: "var(--color-border-tertiary)" }} />
     </div>
   );
 }
 
-function Campo({ label, id, type, value, onChange, placeholder, autoComplete }: {
+function Campo({ label, id, type, value, onChange, placeholder, autoComplete, maxLength, inputMode, style: extraStyle }: {
   label: string; id: string; type: string; value: string;
   onChange: (v: string) => void; placeholder?: string; autoComplete?: string;
+  maxLength?: number; inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  style?: React.CSSProperties;
 }) {
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 16, ...extraStyle }}>
       <label htmlFor={id} style={labelStyle}>{label}</label>
-      <input id={id} type={type} autoComplete={autoComplete} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
+      <input id={id} type={type} autoComplete={autoComplete} value={value} maxLength={maxLength} inputMode={inputMode}
+        onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
     </div>
   );
 }
@@ -449,12 +646,14 @@ function CampoPassword({ label, value, onChange, mostrar, onToggle, placeholder,
   mostrar: boolean; onToggle: () => void; placeholder?: string; autoComplete?: string;
 }) {
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 16 }}>
       <label style={labelStyle}>{label}</label>
       <div style={{ position: "relative" }}>
-        <input type={mostrar ? "text" : "password"} autoComplete={autoComplete} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ ...inputStyle, paddingRight: 56 }} />
-        <button type="button" onClick={onToggle} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-tertiary)", fontSize: 12, padding: 0 }}>
-          {mostrar ? "Ocultar" : "Ver"}
+        <input type={mostrar ? "text" : "password"} autoComplete={autoComplete} value={value}
+          onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+          style={{ ...inputStyle, paddingRight: 64 }} />
+        <button type="button" onClick={onToggle} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-brand)", fontSize: 12, padding: 0, fontWeight: 600 }}>
+          {mostrar ? "Ocultar" : "Mostrar"}
         </button>
       </div>
     </div>
@@ -464,35 +663,83 @@ function CampoPassword({ label, value, onChange, mostrar, onToggle, placeholder,
 function IndicadorFuerza({ password }: { password: string }) {
   const score = passwordStrength(password);
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
-        {[1, 2, 3, 4].map((n) => <div key={n} style={{ flex: 1, height: 3, borderRadius: 2, background: score >= n ? strengthColor(score) : "var(--color-border-secondary)", transition: "background 0.2s" }} />)}
+        {[1, 2, 3, 4].map((n) => <div key={n} style={{ flex: 1, height: 4, borderRadius: 2, background: score >= n ? strengthColor(score) : "var(--color-border-secondary)" }} />)}
       </div>
-      <span style={{ fontSize: 11, color: strengthColor(score) }}>{strengthLabel(score)}</span>
+      <span style={{ fontSize: 12, color: strengthColor(score), fontWeight: 600 }}>{strengthLabel(score)}</span>
     </div>
   );
 }
 
 function MensajeError({ mensaje }: { mensaje: string }) {
   return (
-    <div style={{ fontSize: 13, color: "#b91c1c", background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 14 }}>
-      {mensaje}
+    <div style={{ fontSize: 13, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontWeight: 500 }}>
+      ⚠ {mensaje}
     </div>
   );
 }
 
-function BotonSubmit({ isPending, label, labelPending }: { isPending: boolean; label: string; labelPending: string }) {
+function BtnPrimario({ isPending, label, labelPending }: { isPending: boolean; label: string; labelPending: string }) {
   return (
-    <button type="submit" disabled={isPending} style={{ width: "100%", fontSize: 14, padding: "10px", borderRadius: "var(--border-radius-md)", background: isPending ? "#a7d7c5" : "var(--color-brand)", border: "none", color: "#fff", fontWeight: 600, cursor: isPending ? "not-allowed" : "pointer" }}>
+    <button type="submit" disabled={isPending} style={{ width: "100%", fontSize: 15, padding: "13px", borderRadius: 12, background: isPending ? "#a7d7c5" : "var(--color-brand)", border: "none", color: "#fff", fontWeight: 700, cursor: isPending ? "not-allowed" : "pointer", letterSpacing: 0.2, boxShadow: isPending ? "none" : "0 4px 14px #1d9e7530" }}>
       {isPending ? labelPending : label}
     </button>
   );
 }
 
 // ── Estilos ───────────────────────────────────────────────────────────────────
-const btnTextoStyle: React.CSSProperties = { background: "none", border: "none", color: "var(--color-brand)", fontWeight: 500, cursor: "pointer", fontSize: 13, padding: 0 };
-const labelStyle: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 };
-const inputStyle: React.CSSProperties = { width: "100%", fontSize: 14, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" };
+const linkBtnStyle: React.CSSProperties = { background: "none", border: "none", color: "var(--color-brand)", fontWeight: 700, cursor: "pointer", fontSize: 14, padding: 0 };
+
+const labelStyle: React.CSSProperties = {
+  display: "block", fontSize: 13, fontWeight: 700,
+  color: "#0a1510", marginBottom: 7, letterSpacing: 0.1,
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%", fontSize: 15, padding: "11px 14px",
+  borderRadius: 10, border: "1.5px solid var(--color-border-secondary)",
+  background: "#fff", color: "#0a1510", outline: "none",
+  boxSizing: "border-box", transition: "border-color 0.15s",
+};
+
+function CampoArchivo({ label, id, file, onChange, accept }: {
+  label: string; id: string; file: File | null;
+  onChange: (f: File | null) => void; accept?: string;
+}) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label htmlFor={id} style={labelStyle}>{label}</label>
+      <label htmlFor={id} style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "10px 14px", borderRadius: 10,
+        border: `1.5px dashed ${file ? "var(--color-brand)" : "var(--color-border-secondary)"}`,
+        background: file ? "var(--color-brand-light)" : "var(--color-background-secondary)",
+        cursor: "pointer", transition: "border-color 0.15s, background 0.15s",
+      }}>
+        <span style={{ fontSize: 18 }}>{file ? "✅" : "📎"}</span>
+        <span style={{ fontSize: 13, color: file ? "var(--color-brand-dark)" : "var(--color-text-tertiary)", fontWeight: file ? 600 : 400, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {file ? file.name : "Seleccioná un archivo (PDF, JPG, PNG)"}
+        </span>
+        {file && (
+          <span onClick={(e) => { e.preventDefault(); onChange(null); }}
+            style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, flexShrink: 0 }}>
+            ✕
+          </span>
+        )}
+      </label>
+      <input id={id} type="file" accept={accept} style={{ display: "none" }}
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)} />
+    </div>
+  );
+}
+
+function formatCuit(v: string): string {
+  const digits = v.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2)  return digits;
+  if (digits.length <= 10) return `${digits.slice(0,2)}-${digits.slice(2)}`;
+  return `${digits.slice(0,2)}-${digits.slice(2,10)}-${digits.slice(10)}`;
+}
 
 function passwordStrength(pwd: string): number {
   let s = 0;
