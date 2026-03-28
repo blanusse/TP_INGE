@@ -41,7 +41,7 @@ const CARGAS_PUBLICADAS: Carga[] = [
 type NavItem = "Mis cargas" | "Historial" | "Camioneros" | "Mensajes" | "Facturación" | "Mi perfil";
 type TabItem = "Todas" | "Con ofertas" | "Sin ofertas";
 
-interface Oferta { id: number; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; nota: string; }
+interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; nota: string; }
 interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; }
 
 interface LoadDB {
@@ -368,7 +368,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
 
 // ── Modal: Ver ofertas ────────────────────────────────────────────────────────
 
-interface OfertaSeleccionada { oferta: Oferta; cargaTitulo: string; cargaId: string; }
+interface OfertaSeleccionada { oferta: Oferta; cargaTitulo: string; cargaId: string; offerId: string; }
 
 function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
   carga: Carga;
@@ -376,9 +376,9 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
   onRechazar: (nombre: string) => void;
   onIniciarPago: (sel: OfertaSeleccionada) => void;
 }) {
-  const [rechazadas, setRechazadas] = useState<number[]>([]);
-  const [ofertas, setOfertas] = useState<Oferta[]>(carga.ofertasDetalle);
+  const [ofertas, setOfertas] = useState<Oferta[]>([]);
   const [loadingOfertas, setLoadingOfertas] = useState(true);
+  const [rechazando, setRechazando] = useState<string | null>(null);
 
   React.useEffect(() => {
     fetch(`/api/offers?loadId=${carga.id}`)
@@ -388,58 +388,68 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
       .finally(() => setLoadingOfertas(false));
   }, [carga.id]);
 
+  const rechazar = async (o: Oferta) => {
+    setRechazando(o.offerId);
+    try {
+      await fetch(`/api/offers/${o.offerId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "rejected" }),
+      });
+      setOfertas((prev) => prev.filter((x) => x.offerId !== o.offerId));
+      onRechazar(o.nombre);
+    } finally {
+      setRechazando(null);
+    }
+  };
+
   return (
     <Modal title={`Ofertas para: ${carga.titulo}`} onClose={onClose}>
       {loadingOfertas && <div style={{ textAlign: "center", padding: 24, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando ofertas...</div>}
       {!loadingOfertas && ofertas.length === 0 && (
         <div style={{ textAlign: "center", padding: 24, color: "var(--color-text-tertiary)", fontSize: 14 }}>Sin ofertas todavía.</div>
       )}
-      {!loadingOfertas && ofertas.map((o) => {
-        const estaRechazada = rechazadas.includes(o.id);
-        return (
-          <div key={o.id} style={{
-            border: "0.5px solid var(--color-border-tertiary)",
-            borderRadius: "var(--border-radius-md)", padding: 14, marginBottom: 10,
-            background: estaRechazada ? "var(--color-background-secondary)" : "var(--color-background-primary)",
-            opacity: estaRechazada ? 0.5 : 1,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--color-background-info)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "var(--color-text-info)" }}>{o.iniciales}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{o.nombre}</div>
-                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
-                  <Stars value={o.rating} /> {o.rating} · {o.viajes} viajes
-                </div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-brand-dark)" }}>${o.precio.toLocaleString("es-AR")}</div>
-                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Oferta</div>
+      {!loadingOfertas && ofertas.map((o) => (
+        <div key={o.offerId} style={{
+          border: "0.5px solid var(--color-border-tertiary)",
+          borderRadius: "var(--border-radius-md)", padding: 14, marginBottom: 10,
+          background: "var(--color-background-primary)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--color-background-info)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "var(--color-text-info)" }}>{o.iniciales}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{o.nombre}</div>
+              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
+                <Stars value={o.rating} /> {o.rating} · {o.viajes} viajes
               </div>
             </div>
-            {o.nota && (
-              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: "6px 10px", background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-md)", marginBottom: 10 }}>
-                &ldquo;{o.nota}&rdquo;
-              </div>
-            )}
-            {!estaRechazada && (
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => { setRechazadas((prev) => [...prev, o.id]); onRechazar(o.nombre); }}
-                  style={{ flex: 1, fontSize: 12, padding: "6px", borderRadius: "var(--border-radius-md)", border: "0.5px solid #fecaca", background: "#fef2f2", color: "#b91c1c", cursor: "pointer" }}
-                >
-                  Rechazar
-                </button>
-                <button
-                  onClick={() => { onIniciarPago({ oferta: o, cargaTitulo: carga.titulo, cargaId: carga.id }); onClose(); }}
-                  style={{ flex: 2, fontSize: 12, padding: "6px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}
-                >
-                  Aceptar oferta →
-                </button>
-              </div>
-            )}
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-brand-dark)" }}>${o.precio.toLocaleString("es-AR")}</div>
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Oferta</div>
+            </div>
           </div>
-        );
-      })}
+          {o.nota && (
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: "6px 10px", background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-md)", marginBottom: 10 }}>
+              &ldquo;{o.nota}&rdquo;
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              disabled={rechazando === o.offerId}
+              onClick={() => rechazar(o)}
+              style={{ flex: 1, fontSize: 12, padding: "6px", borderRadius: "var(--border-radius-md)", border: "0.5px solid #fecaca", background: "#fef2f2", color: "#b91c1c", cursor: "pointer", opacity: rechazando === o.offerId ? 0.6 : 1 }}
+            >
+              {rechazando === o.offerId ? "..." : "Rechazar"}
+            </button>
+            <button
+              onClick={() => { onIniciarPago({ oferta: o, cargaTitulo: carga.titulo, cargaId: carga.id, offerId: o.offerId }); onClose(); }}
+              style={{ flex: 2, fontSize: 12, padding: "6px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}
+            >
+              Aceptar oferta →
+            </button>
+          </div>
+        </div>
+      ))}
       <button onClick={onClose} style={{ width: "100%", marginTop: 8, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
         Cerrar
       </button>
@@ -537,48 +547,77 @@ function ModalPago({ sel, onClose, onPagado }: {
 
 // ── Modal: Chat ───────────────────────────────────────────────────────────────
 
-interface MensajeChat { id: string; emisor: "yo" | "otro"; texto: string; hora: string; }
+interface MensajeChat { id: string; senderId: string; texto: string; hora: string; }
 
-function ModalChat({ sel, onClose }: { sel: OfertaSeleccionada; onClose: () => void }) {
-  const [mensajes, setMensajes] = useState<MensajeChat[]>([
-    { id: "1", emisor: "otro", texto: `Hola! Vi que aceptaste mi oferta para ${sel.cargaTitulo.split("—")[1]?.trim() ?? sel.cargaTitulo}. ¿Me confirmás la dirección exacta de carga?`, hora: "Ahora" },
-  ]);
+function ModalChat({ sel, onClose, userId }: { sel: OfertaSeleccionada; onClose: () => void; userId: string }) {
+  const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
   const [texto, setTexto] = useState("");
+  const [enviando, setEnviando] = useState(false);
   const listRef = React.useRef<HTMLDivElement>(null);
 
-  const enviar = () => {
-    if (!texto.trim()) return;
-    const nuevo: MensajeChat = { id: Date.now().toString(), emisor: "yo", texto: texto.trim(), hora: new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) };
-    setMensajes((prev) => [...prev, nuevo]);
-    setTexto("");
-    setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
+  React.useEffect(() => {
+    fetch(`/api/messages?offerId=${sel.offerId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.messages) {
+          setMensajes(d.messages.map((m: { id: string; senderId: string; content: string; hora: string }) => ({
+            id: m.id, senderId: m.senderId, texto: m.content, hora: m.hora,
+          })));
+          setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }), 50);
+        }
+      })
+      .catch(() => {});
+  }, [sel.offerId]);
+
+  const enviar = async () => {
+    if (!texto.trim() || enviando) return;
+    setEnviando(true);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ offerId: sel.offerId, content: texto.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const m = data.message;
+        setMensajes((prev) => [...prev, { id: m.id, senderId: m.senderId, texto: m.content, hora: m.hora }]);
+        setTexto("");
+        setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
+      }
+    } finally {
+      setEnviando(false);
+    }
   };
 
   return (
     <Modal title={`Chat con ${sel.oferta.nombre}`} onClose={onClose}>
-      {/* Info viaje */}
       <div style={{ background: "var(--color-brand-light)", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 14, fontSize: 12, color: "var(--color-brand-dark)", fontWeight: 500 }}>
         🚛 {sel.cargaTitulo} · ${sel.oferta.precio.toLocaleString("es-AR")} · Pago en escrow
       </div>
 
-      {/* Lista mensajes */}
       <div ref={listRef} style={{ height: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14, paddingRight: 4 }}>
-        {mensajes.map((m) => (
-          <div key={m.id} style={{ display: "flex", justifyContent: m.emisor === "yo" ? "flex-end" : "flex-start" }}>
-            <div style={{
-              maxWidth: "75%", padding: "9px 13px", borderRadius: m.emisor === "yo" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-              background: m.emisor === "yo" ? "var(--color-brand)" : "var(--color-background-secondary)",
-              color: m.emisor === "yo" ? "#fff" : "var(--color-text-primary)",
-              fontSize: 13, lineHeight: 1.5,
-            }}>
-              {m.texto}
-              <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{m.hora}</div>
+        {mensajes.length === 0 && (
+          <div style={{ textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13, marginTop: 60 }}>Sin mensajes todavía. ¡Iniciá la conversación!</div>
+        )}
+        {mensajes.map((m) => {
+          const esYo = m.senderId === userId;
+          return (
+            <div key={m.id} style={{ display: "flex", justifyContent: esYo ? "flex-end" : "flex-start" }}>
+              <div style={{
+                maxWidth: "75%", padding: "9px 13px", borderRadius: esYo ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                background: esYo ? "var(--color-brand)" : "var(--color-background-secondary)",
+                color: esYo ? "#fff" : "var(--color-text-primary)",
+                fontSize: 13, lineHeight: 1.5,
+              }}>
+                {m.texto}
+                <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{m.hora}</div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Input */}
       <div style={{ display: "flex", gap: 8 }}>
         <input
           value={texto}
@@ -587,7 +626,7 @@ function ModalChat({ sel, onClose }: { sel: OfertaSeleccionada; onClose: () => v
           placeholder="Escribí un mensaje..."
           style={{ flex: 1, fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }}
         />
-        <button onClick={enviar} style={{ padding: "9px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 14 }}>
+        <button onClick={enviar} disabled={enviando} style={{ padding: "9px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: enviando ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 14, opacity: enviando ? 0.7 : 1 }}>
           →
         </button>
       </div>
@@ -884,8 +923,9 @@ export default function DadorDashboard() {
   const [cargas, setCargas] = useState<Carga[]>([]);
   const [loadingCargas, setLoadingCargas] = useState(true);
 
-  const userName = session?.user?.name ?? "Usuario";
+  const userName  = session?.user?.name  ?? "Usuario";
   const userEmail = session?.user?.email ?? "";
+  const userId    = session?.user?.id    ?? "";
   const initials = userName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
   const primerNombre = userName.split(" ")[0];
 
@@ -991,6 +1031,7 @@ export default function DadorDashboard() {
       {modalChat && (
         <ModalChat
           sel={modalChat}
+          userId={userId}
           onClose={() => { setModalChat(null); mostrarToast("Viaje confirmado. ¡Éxito con el envío!"); fetchCargas(); }}
         />
       )}

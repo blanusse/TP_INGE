@@ -618,122 +618,15 @@ function SeccionMensajes() {
   );
 }
 
-const NOTIFICACIONES_DATA = [
-  { id: 1,  tipo: "oferta",  titulo: "Oferta aceptada",           cuerpo: "AgroQuímica Del Centro aceptó tu oferta para Fertilizantes — Córdoba → Mendoza.",       hace: "Hace 2 horas",  leida: false },
-  { id: 2,  tipo: "viaje",   titulo: "Viaje completado",          cuerpo: "El viaje Fertilizantes — Córdoba → Mendoza fue marcado como entregado.",                  hace: "Hace 3 horas",  leida: false },
-  { id: 3,  tipo: "mensaje", titulo: "Nuevo mensaje",             cuerpo: "Transportes Pampeanos te envió un mensaje sobre la carga Granos — Rosario → Córdoba.",    hace: "Hace 5 horas",  leida: false },
-  { id: 4,  tipo: "alerta",  titulo: "Vencimiento próximo",       cuerpo: "Tu VTV vence en 12 días (15/04/2026). Renovar a tiempo evita rechazos de carga.",         hace: "Hace 6 horas",  leida: false },
-  { id: 5,  tipo: "pago",    titulo: "Pago acreditado",           cuerpo: "Se acreditaron $400.000 por el viaje Fertilizantes — Córdoba → Mendoza.",                 hace: "Hace 1 día",    leida: true  },
-  { id: 6,  tipo: "oferta",  titulo: "Contraoferta recibida",     cuerpo: "Del Campo S.A. realizó una contraoferta de $185.000 para Soja — Rosario → Buenos Aires.", hace: "Hace 1 día",    leida: true  },
-  { id: 7,  tipo: "sistema", titulo: "3 cargas nuevas",           cuerpo: "Hay 3 cargas nuevas que coinciden con tus rutas habituales. ¡Revisalas ahora!",           hace: "Hace 2 días",   leida: true  },
-  { id: 8,  tipo: "viaje",   titulo: "Carga confirmada",          cuerpo: "Granos — Rosario → Córdoba fue confirmada. Salida programada el 02/04/2026.",              hace: "Hace 2 días",   leida: true  },
-  { id: 9,  tipo: "pago",    titulo: "Pago pendiente de cobro",   cuerpo: "Tenés $210.000 pendientes de acreditación por el viaje Granos — Rosario → Córdoba.",      hace: "Hace 3 días",   leida: true  },
-  { id: 10, tipo: "sistema", titulo: "Calificación recibida",     cuerpo: "AgroExport SA te calificó con 5 estrellas. Tu rating sube a 4.9 ⭐",                      hace: "Hace 4 días",   leida: true  },
-];
-
-const NOTIF_COLORS: Record<string, { bg: string; color: string; icon: string }> = {
-  oferta:  { bg: "#dcfce7", color: "#15803d", icon: "✓" },
-  viaje:   { bg: "#dbeafe", color: "#1d4ed8", icon: "🚛" },
-  pago:    { bg: "#fef9c3", color: "#a16207", icon: "$" },
-  sistema: { bg: "#f3e8ff", color: "#7e22ce", icon: "★" },
-  mensaje: { bg: "#e0f2fe", color: "#0369a1", icon: "✉" },
-  alerta:  { bg: "#fff7ed", color: "#c2410c", icon: "⚠" },
-};
-
-type FiltroNotif = "Todas" | "Sin leer" | "Pagos";
 
 function SeccionNotificaciones() {
-  const [notifs, setNotifs] = useState(NOTIFICACIONES_DATA);
-  const [filtro, setFiltro] = useState<FiltroNotif>("Todas");
-  const sinLeer = notifs.filter((n) => !n.leida).length;
-  const hoy     = notifs.filter((n) => n.hace.includes("hora")).length;
-
-  const notifsFiltradas = notifs.filter((n) => {
-    if (filtro === "Sin leer") return !n.leida;
-    if (filtro === "Pagos")    return n.tipo === "pago";
-    return true;
-  });
-
   return (
     <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760 }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>Notificaciones</div>
-        {sinLeer > 0 && (
-          <button
-            onClick={() => setNotifs((prev) => prev.map((n) => ({ ...n, leida: true })))}
-            style={{ fontSize: 13, padding: "7px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}
-          >
-            Marcar todas como leídas
-          </button>
-        )}
-      </div>
-
-      {/* Resumen */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
-        {[
-          { valor: sinLeer, label: "Sin leer",    color: "#16a34a", bg: "#f0fdf4" },
-          { valor: hoy,     label: "Hoy",         color: "#3b82f6", bg: "#eff6ff" },
-          { valor: notifs.length, label: "Total", color: "#7e22ce", bg: "#f5f3ff" },
-        ].map(({ valor, label, color, bg }) => (
-          <div key={label} style={{ background: bg, border: `1px solid ${color}33`, borderRadius: "var(--border-radius-lg)", padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-            <span style={{ fontSize: 28, fontWeight: 700, color }}>{valor}</span>
-            <span style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.3 }}>{label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Filtros */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-        {(["Todas", "Sin leer", "Pagos"] as FiltroNotif[]).map((f) => (
-          <button key={f} onClick={() => setFiltro(f)} style={{
-            fontSize: 13, padding: "6px 16px", borderRadius: 20, cursor: "pointer",
-            border: filtro === f ? "1.5px solid var(--color-brand)" : "0.5px solid var(--color-border-secondary)",
-            background: filtro === f ? "var(--color-brand-light)" : "transparent",
-            color: filtro === f ? "var(--color-brand-dark)" : "var(--color-text-secondary)",
-            fontWeight: filtro === f ? 600 : 400,
-          }}>{f}</button>
-        ))}
-      </div>
-
-      {/* Lista */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {notifsFiltradas.map((n) => {
-          const c = NOTIF_COLORS[n.tipo];
-          return (
-            <div
-              key={n.id}
-              onClick={() => setNotifs((prev) => prev.map((x) => x.id === n.id ? { ...x, leida: true } : x))}
-              style={{
-                display: "flex", gap: 14, alignItems: "flex-start",
-                background: n.leida ? "var(--color-background-primary)" : "#f0faf2",
-                border: `0.5px solid ${n.leida ? "var(--color-border-tertiary)" : "#bbf7d0"}`,
-                borderRadius: "var(--border-radius-lg)",
-                padding: "16px 18px", cursor: "pointer",
-                transition: "background 0.15s",
-              }}
-            >
-              <div style={{ width: 38, height: 38, borderRadius: "50%", background: c.bg, color: c.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, flexShrink: 0 }}>{c.icon}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-                  <div style={{ fontSize: 14, fontWeight: n.leida ? 400 : 600, color: "var(--color-text-primary)" }}>{n.titulo}</div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginLeft: 12, flexShrink: 0 }}>{n.hace}</div>
-                </div>
-                <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{n.cuerpo}</div>
-              </div>
-              {!n.leida && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--color-brand)", flexShrink: 0, marginTop: 4 }} />}
-            </div>
-          );
-        })}
-        {notifsFiltradas.length === 0 && (
-          <div style={{ textAlign: "center", padding: "48px 0", color: "var(--color-text-tertiary)", fontSize: 14 }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>🔔</div>
-            No hay notificaciones en esta categoría.
-          </div>
-        )}
-        {filtro === "Todas" && notifs.every((n) => n.leida) && (
-          <div style={{ textAlign: "center", padding: "40px 0", color: "var(--color-text-tertiary)", fontSize: 14 }}>Todo al día ✓</div>
-        )}
+      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 20 }}>Notificaciones</div>
+      <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+        <div style={{ fontSize: 32, marginBottom: 10 }}>🔔</div>
+        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>No tenés notificaciones</div>
+        <div>Las notificaciones de ofertas, pagos y viajes aparecerán aquí.</div>
       </div>
     </main>
   );
