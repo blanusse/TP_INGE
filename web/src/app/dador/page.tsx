@@ -6,35 +6,6 @@ import { signOut, useSession } from "next-auth/react";
 
 // ── Datos ────────────────────────────────────────────────────────────────────
 
-const CARGAS_PUBLICADAS: Carga[] = [
-  {
-    id: "mock-1", titulo: "Granos — Buenos Aires → Rosario",
-    hace: "Publicado hace 3 horas", peso: "22.000 kg",
-    tipoCamion: "Granelero", retiro: "28/03/2026", ofertas: 3,
-    camioneros: ["AR", "LG", "+1"],
-    ofertasDetalle: [
-      { id: 1, nombre: "Alejandro Rodríguez", iniciales: "AR", rating: 4.9, viajes: 52, precio: 270000, nota: "Disponible desde el 28 temprano." },
-      { id: 2, nombre: "Luis González", iniciales: "LG", rating: 4.6, viajes: 89, precio: 285000, nota: "" },
-      { id: 3, nombre: "Roberto Paz", iniciales: "RP", rating: 4.3, viajes: 21, precio: 260000, nota: "Salida flexible, camión propio." },
-    ],
-  },
-  {
-    id: "mock-2", titulo: "Electrodomésticos — Córdoba → Santiago de Chile",
-    hace: "Publicado hace 1 día", peso: "8.400 kg",
-    tipoCamion: "Furgón cerrado", retiro: "30/03/2026", ofertas: 1,
-    camioneros: ["MF"],
-    ofertasDetalle: [
-      { id: 1, nombre: "Martín Ferreyra", iniciales: "MF", rating: 4.7, viajes: 38, precio: 600000, nota: "Hago el cruce de Andes seguido." },
-    ],
-  },
-  {
-    id: "mock-3", titulo: "Materiales de construcción — Mendoza → Lima",
-    hace: "Publicado hace 2 días", peso: "15.000 kg",
-    tipoCamion: "Plataforma", retiro: "01/04/2026", ofertas: 0,
-    camioneros: [], ofertasDetalle: [],
-  },
-];
-
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
