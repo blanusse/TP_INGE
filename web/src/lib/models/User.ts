@@ -1,0 +1,26 @@
+import mongoose, { Schema, model, models } from "mongoose";
+
+export interface IUser {
+  _id: mongoose.Types.ObjectId;
+  email: string;
+  name: string;
+  password_hash: string;
+  role: "driver" | "shipper" | "carrier_admin";
+  phone?: string;
+  dni?: string;
+  created_at: Date;
+}
+
+const UserSchema = new Schema<IUser>(
+  {
+    email:         { type: String, required: true, unique: true, lowercase: true, trim: true },
+    name:          { type: String, required: true, trim: true },
+    password_hash: { type: String, required: true },
+    role:          { type: String, enum: ["driver", "shipper", "carrier_admin"], required: true },
+    phone:         String,
+    dni:           String,
+  },
+  { timestamps: { createdAt: "created_at", updatedAt: false } }
+);
+
+export const User = models.User || model<IUser>("User", UserSchema);

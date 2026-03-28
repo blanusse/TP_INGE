@@ -142,12 +142,6 @@ function LoginInner() {
     if (perfil === "flota" && !/^\d{2}-\d{8}-\d$/.test(cuit)) return "El CUIT debe tener el formato XX-XXXXXXXX-X.";
     if (perfil === "dador" && tipoDador === "empresa" && !razonSocial.trim()) return "Ingresá la razón social.";
     if (perfil === "dador" && tipoDador === "empresa" && !/^\d{2}-\d{8}-\d$/.test(cuit)) return "El CUIT debe tener el formato XX-XXXXXXXX-X.";
-    if (esCamion) {
-      if (!licenciaDoc) return "Adjuntá la foto del registro/licencia (frente).";
-      if (!licenciaDocDorso) return "Adjuntá la foto del registro/licencia (dorso).";
-      if (!dniDoc) return "Adjuntá la foto del DNI (frente).";
-      if (!dniDocDorso) return "Adjuntá la foto del DNI (dorso).";
-    }
     if (!aceptaTerminos) return "Aceptá los términos para continuar.";
     return null;
   };
@@ -180,11 +174,6 @@ function LoginInner() {
         const añoN = Number(t.año);
         if (isNaN(añoN) || añoN < 1950 || añoN > new Date().getFullYear() + 1) { setError("El año del camión no es válido."); return; }
         if (t.capacity_kg && (isNaN(Number(t.capacity_kg)) || Number(t.capacity_kg) <= 0)) { setError("La capacidad debe ser un número positivo."); return; }
-        if (!t.vtv_vence) { setError(`Ingresá el vencimiento de la VTV (camión ${i + 1}).`); return; }
-        if (!t.seguro_poliza.trim()) { setError(`Ingresá el número de póliza del seguro (camión ${i + 1}).`); return; }
-        if (!t.seguro_vence) { setError(`Ingresá el vencimiento del seguro (camión ${i + 1}).`); return; }
-        if (!truckDocs[i]?.vtv) { setError(`Adjuntá el documento de VTV (camión ${i + 1}).`); return; }
-        if (!truckDocs[i]?.seguro) { setError(`Adjuntá el documento del seguro (camión ${i + 1}).`); return; }
       }
     }
     startTransition(async () => {
