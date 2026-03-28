@@ -244,11 +244,42 @@ function BadgeOfertas({ n }: { n: number }) {
 
 // ── Modal: Publicar carga ─────────────────────────────────────────────────────
 
+interface PriceEstimate { distanceKm: number; minPrice: number; suggestedPrice: number; maxPrice: number; }
+
 function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublicar: (c: Carga) => void }) {
   const [form, setForm] = useState({ origen: "", destino: "", tipoCarga: "General", tipoCamion: "Cualquiera", peso: "", precio: "", retiro: "", descripcion: "" });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState<string | null>(null);
+  const [estimate, setEstimate]     = useState<PriceEstimate | null>(null);
+  const [loadingEst, setLoadingEst] = useState(false);
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Recalcular estimado cuando cambian origen, destino o tipo de carga
+  React.useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (form.origen.length < 3 || form.destino.length < 3) { setEstimate(null); return; }
+    timerRef.current = setTimeout(async () => {
+      setLoadingEst(true);
+      try {
+        const params = new URLSearchParams({ origen: form.origen, destino: form.destino, tipoCarga: form.tipoCarga });
+        const res  = await fetch(`/api/estimate-price?${params}`);
+        const data = await res.json();
+        if (res.ok) setEstimate(data);
+        else setEstimate(null);
+      } catch {
+        setEstimate(null);
+      } finally {
+        setLoadingEst(false);
+      }
+    }, 700);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [form.origen, form.destino, form.tipoCarga]);
+
+  const precioNum  = parseInt(form.precio) || 0;
+  const bajoMinimo = estimate && precioNum > 0 && precioNum < estimate.minPrice;
+  const sobreMax   = estimate && precioNum > 0 && precioNum > estimate.maxPrice * 2;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,23 +306,42 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
             <label style={labelStyle}>Origen *</label>
-            <InputUbicacion
-              id="origen"
-              value={form.origen}
-              onChange={(v) => set("origen", v)}
-              placeholder="Ciudad o dirección de retiro"
-            />
+            <InputUbicacion id="origen" value={form.origen} onChange={(v) => set("origen", v)} placeholder="Ciudad o dirección de retiro" />
           </div>
           <div>
             <label style={labelStyle}>Destino *</label>
-            <InputUbicacion
-              id="destino"
-              value={form.destino}
-              onChange={(v) => set("destino", v)}
-              placeholder="Ciudad o dirección de entrega"
-            />
+            <InputUbicacion id="destino" value={form.destino} onChange={(v) => set("destino", v)} placeholder="Ciudad o dirección de entrega" />
           </div>
         </div>
+
+        {/* Estimado de distancia y precio */}
+        {(loadingEst || estimate) && (
+          <div style={{ marginBottom: 12, padding: "10px 14px", background: "#f0fdf4", border: "0.5px solid #bbf7d0", borderRadius: "var(--border-radius-md)", fontSize: 12 }}>
+            {loadingEst ? (
+              <span style={{ color: "var(--color-text-tertiary)" }}>Calculando distancia y precio de referencia...</span>
+            ) : estimate && (
+              <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
+                <div>
+                  <span style={{ color: "#15803d", fontWeight: 600 }}>📍 {estimate.distanceKm.toLocaleString("es-AR")} km</span>
+                  <span style={{ color: "var(--color-text-tertiary)", marginLeft: 6 }}>en línea recta</span>
+                </div>
+                <div style={{ color: "#15803d" }}>
+                  Precio de mercado: <strong>${estimate.minPrice.toLocaleString("es-AR")}</strong> — <strong>${estimate.maxPrice.toLocaleString("es-AR")}</strong>
+                </div>
+                <div style={{ color: "#15803d", fontWeight: 600 }}>
+                  Sugerido: ${estimate.suggestedPrice.toLocaleString("es-AR")}
+                  <button
+                    type="button"
+                    onClick={() => set("precio", String(estimate.suggestedPrice))}
+                    style={{ marginLeft: 8, fontSize: 11, padding: "2px 8px", borderRadius: 20, border: "none", background: "#16a34a", color: "#fff", cursor: "pointer" }}
+                  >
+                    Usar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
@@ -315,7 +365,22 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
           </div>
           <div>
             <label style={labelStyle}>Precio base (ARS) *</label>
-            <input required type="number" value={form.precio} onChange={(e) => set("precio", e.target.value)} placeholder="ej: 280000" style={inputStyle} />
+            <input
+              required type="number" value={form.precio}
+              onChange={(e) => set("precio", e.target.value)}
+              placeholder={estimate ? `Sugerido: $${estimate.suggestedPrice.toLocaleString("es-AR")}` : "ej: 280000"}
+              style={{ ...inputStyle, borderColor: bajoMinimo ? "#ef4444" : sobreMax ? "#f59e0b" : undefined }}
+            />
+            {bajoMinimo && estimate && (
+              <div style={{ fontSize: 11, color: "#b91c1c", marginTop: 4 }}>
+                ⚠ Mínimo para esta ruta: ${estimate.minPrice.toLocaleString("es-AR")}. Los camioneros no aceptarán menos.
+              </div>
+            )}
+            {sobreMax && estimate && (
+              <div style={{ fontSize: 11, color: "#92400e", marginTop: 4 }}>
+                El precio está muy por encima del rango de mercado.
+              </div>
+            )}
           </div>
           <div>
             <label style={labelStyle}>Fecha de retiro *</label>
@@ -329,6 +394,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
         </div>
 
         {error && <div style={{ fontSize: 13, color: "#b91c1c", background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
+
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
             Cancelar

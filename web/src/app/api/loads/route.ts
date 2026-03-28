@@ -76,6 +76,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Origen y destino son obligatorios." }, { status: 400 });
   }
 
+  const PRECIO_MINIMO_ABSOLUTO = 30_000;
+  if (body.precio && parseInt(body.precio) < PRECIO_MINIMO_ABSOLUTO) {
+    return NextResponse.json({
+      error: `El precio mínimo permitido es $${PRECIO_MINIMO_ABSOLUTO.toLocaleString("es-AR")} ARS. Si tu precio de referencia es más bajo, el mercado no lo tomará en serio y atraerás menos camioneros.`,
+    }, { status: 400 });
+  }
+
   await connectDB();
 
   const shipper = await Shipper.findOne({ user_id: session.user.id }).lean();
