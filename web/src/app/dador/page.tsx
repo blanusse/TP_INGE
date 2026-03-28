@@ -35,21 +35,10 @@ const CARGAS_PUBLICADAS: Carga[] = [
   },
 ];
 
-const HISTORIAL = [
-  { id: 1, titulo: "Granos — Buenos Aires → Rosario", fecha: "15/03/2026", camionero: "Martín Ferreyra", precio: 275000, rating: 5 },
-  { id: 2, titulo: "Vidrio — Córdoba → Buenos Aires", fecha: "02/03/2026", camionero: "Jorge López", precio: 420000, rating: 4 },
-  { id: 3, titulo: "Ropa — Buenos Aires → Mendoza", fecha: "18/02/2026", camionero: "Alejandro Rodríguez", precio: 310000, rating: 5 },
-];
-
-const CAMIONEROS_FAVORITOS = [
-  { id: 1, nombre: "Alejandro Rodríguez", iniciales: "AR", rating: 4.9, viajes: 52, camion: "Granelero", zona: "Buenos Aires" },
-  { id: 2, nombre: "Martín Ferreyra", iniciales: "MF", rating: 4.7, viajes: 38, camion: "Furgón cerrado", zona: "Córdoba" },
-  { id: 3, nombre: "Jorge López", iniciales: "JL", rating: 4.5, viajes: 64, camion: "Plataforma", zona: "Mendoza" },
-];
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Mis cargas" | "Historial" | "Camioneros" | "Facturación" | "Mi perfil";
+type NavItem = "Mis cargas" | "Historial" | "Camioneros" | "Mensajes" | "Facturación" | "Mi perfil";
 type TabItem = "Todas" | "Con ofertas" | "Sin ofertas";
 
 interface Oferta { id: number; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; nota: string; }
@@ -734,52 +723,33 @@ function SeccionHistorial() {
   return (
     <main style={{ padding: 20, flex: 1 }}>
       <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)", marginBottom: 16 }}>Historial de envíos</div>
-      {HISTORIAL.map((h) => (
-        <div key={h.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{h.titulo}</div>
-              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{h.fecha} · {h.camionero}</div>
-            </div>
-            <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, fontWeight: 500, background: "var(--color-brand-light)", color: "var(--color-brand-dark)" }}>Completado ✓</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>${h.precio.toLocaleString("es-AR")}</div>
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-              Tu calificación: <Stars value={h.rating} /> {h.rating}/5
-            </div>
-          </div>
-        </div>
-      ))}
-      <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, textAlign: "center" }}>
-        <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginBottom: 4 }}>Total gastado este mes</div>
-        <div style={{ fontSize: 28, fontWeight: 600, color: "var(--color-text-primary)" }}>${(1005000).toLocaleString("es-AR")}</div>
+      <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+        No tenés envíos completados todavía.
       </div>
     </main>
   );
 }
 
-function SeccionCamioneros({ onToast }: { onToast: (m: string) => void }) {
+function SeccionCamioneros() {
   return (
     <main style={{ padding: 20, flex: 1 }}>
       <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis camioneros de confianza</div>
-      {CAMIONEROS_FAVORITOS.map((c) => (
-        <div key={c.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10, display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "var(--color-brand-dark)", flexShrink: 0 }}>{c.iniciales}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{c.nombre}</div>
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
-              <Stars value={c.rating} /> {c.rating} · {c.viajes} viajes · {c.camion} · {c.zona}
-            </div>
-          </div>
-          <button
-            onClick={() => onToast(`Invitación enviada a ${c.nombre}.`)}
-            style={{ fontSize: 12, padding: "6px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-brand)", background: "transparent", color: "var(--color-brand-dark)", cursor: "pointer", fontWeight: 500 }}
-          >
-            Invitar a cotizar
-          </button>
-        </div>
-      ))}
+      <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+        Tus camioneros de confianza aparecerán aquí una vez que completes viajes.
+      </div>
+    </main>
+  );
+}
+
+function SeccionMensajes() {
+  return (
+    <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760 }}>
+      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 20 }}>Mensajes</div>
+      <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>✉</div>
+        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>No tenés mensajes todavía</div>
+        <div>Los chats con camioneros aparecerán aquí una vez que aceptes una oferta.</div>
+      </div>
     </main>
   );
 }
@@ -946,7 +916,7 @@ export default function DadorDashboard() {
             Carga<span style={{ color: "var(--color-brand)" }}>Back</span>
           </Link>
           <nav style={{ display: "flex", gap: 2 }}>
-            {(["Mis cargas", "Historial", "Camioneros", "Facturación"] as NavItem[]).map((item) => (
+            {(["Mis cargas", "Historial", "Camioneros", "Mensajes", "Facturación"] as NavItem[]).map((item) => (
               <button key={item} onClick={() => setNavActivo(item)} style={{
                 fontSize: 15, padding: "8px 14px", borderRadius: "var(--border-radius-md)",
                 border: "none", cursor: "pointer",
@@ -990,7 +960,8 @@ export default function DadorDashboard() {
           />
         )}
         {navActivo === "Historial" && <SeccionHistorial />}
-        {navActivo === "Camioneros" && <SeccionCamioneros onToast={mostrarToast} />}
+        {navActivo === "Camioneros" && <SeccionCamioneros />}
+        {navActivo === "Mensajes" && <SeccionMensajes />}
         {navActivo === "Facturación" && <SeccionFacturacion />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>

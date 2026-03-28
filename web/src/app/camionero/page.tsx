@@ -6,91 +6,9 @@ import { signOut, useSession } from "next-auth/react";
 
 // ── Datos ────────────────────────────────────────────────────────────────────
 
-const CARGAS_DISPONIBLES = [
-  {
-    id: 1, titulo: "Granos — Buenos Aires → Rosario",
-    empresa: "Empresa Agro San Martín", hace: "Publicado hace 3 horas",
-    precio: 285000, peso: "22.000 kg", camion: "Granelero",
-    retiro: "28/03", distancia: "~320 km", rating: 4.9,
-    viajes: 52, badge: "Paga puntual", destacado: true,
-  },
-  {
-    id: 2, titulo: "Electrodomésticos — Córdoba → Santiago de Chile",
-    empresa: "Importaciones Del Valle", hace: "Publicado hace 1 día",
-    precio: 620000, peso: "8.400 kg", camion: "Furgón",
-    retiro: "30/03", distancia: "~1.200 km", rating: 4.2,
-    viajes: 18, badge: null, destacado: false,
-  },
-  {
-    id: 3, titulo: "Materiales de construcción — Mendoza → Lima",
-    empresa: "Constructora Andina", hace: "Publicado hace 2 días",
-    precio: 890000, peso: "15.000 kg", camion: "Plataforma",
-    retiro: "01/04", distancia: "~2.600 km", rating: 4.7,
-    viajes: 34, badge: "Nuevo en plataforma", destacado: false,
-  },
-  {
-    id: 4, titulo: "Frutas frescas — Tucumán → Buenos Aires",
-    empresa: "Finca Los Nogales", hace: "Publicado hace 5 horas",
-    precio: 340000, peso: "18.000 kg", camion: "Refrigerado",
-    retiro: "29/03", distancia: "~1.100 km", rating: 4.6,
-    viajes: 27, badge: "Paga puntual", destacado: false,
-  },
-];
-
-const MIS_OFERTAS = [
-  {
-    id: 1, titulo: "Granos — Buenos Aires → Rosario",
-    empresa: "Empresa Agro San Martín", precioBase: 285000,
-    miOferta: 270000, fecha: "25/03/2026", estado: "pendiente" as const,
-    nota: "Disponible a partir del 28 a la mañana.",
-  },
-  {
-    id: 2, titulo: "Fertilizantes — Córdoba → Mendoza",
-    empresa: "AgroQuímica Del Centro", precioBase: 420000,
-    miOferta: 400000, fecha: "22/03/2026", estado: "aceptada" as const,
-    nota: "",
-  },
-  {
-    id: 3, titulo: "Vinos — Mendoza → Buenos Aires",
-    empresa: "Bodega Clos de Chacras", precioBase: 230000,
-    miOferta: 215000, fecha: "18/03/2026", estado: "rechazada" as const,
-    nota: "Puedo salir el mismo día.",
-  },
-];
-
-const EN_CURSO = [
-  {
-    id: 1, titulo: "Fertilizantes — Córdoba → Mendoza",
-    empresa: "AgroQuímica Del Centro", precio: 400000,
-    etapa: "En camino", progreso: 65, salida: "23/03 08:00",
-    llegadaEstimada: "29/03 16:00", km: "780 km",
-    coordActual: "Sobre Ruta 7, km 245",
-  },
-  {
-    id: 2, titulo: "Electrodomésticos — Rosario → Tucumán",
-    empresa: "Importadora Sur", precio: 310000,
-    etapa: "Cargando", progreso: 5, salida: "29/03 07:00",
-    llegadaEstimada: "31/03 18:00", km: "1.050 km",
-    coordActual: "Depósito Rosario - Puerto Norte",
-  },
-];
-
-const VIAJES_PROXIMOS = [
-  { id: 3, titulo: "Granos — Rosario → Córdoba", empresa: "Acopios Del Norte", precio: 210000, salida: "02/04/2026", llegadaEstimada: "02/04/2026", km: "390 km", camion: "Granelero", etapa: "Confirmado" },
-  { id: 4, titulo: "Vinos — Mendoza → Buenos Aires", empresa: "Bodega Clos de Chacras", precio: 285000, salida: "05/04/2026", llegadaEstimada: "06/04/2026", km: "1.040 km", camion: "Furgón", etapa: "Confirmado" },
-  { id: 5, titulo: "Materiales — San Juan → Tucumán", empresa: "Constructora Andina", precio: 340000, salida: "10/04/2026", llegadaEstimada: "11/04/2026", km: "870 km", camion: "Plataforma", etapa: "Pendiente confirmación" },
-];
-
-const VIAJES_COMPLETADOS = [
-  { id: 6, titulo: "Fertilizantes — Córdoba → Mendoza", empresa: "AgroQuímica Del Centro", precio: 400000, salida: "10/03/2026", llegadaEstimada: "12/03/2026", km: "780 km", rating: 5 },
-  { id: 7, titulo: "Electrodomésticos — Rosario → Tucumán", empresa: "Importadora Sur", precio: 310000, salida: "22/02/2026", llegadaEstimada: "24/02/2026", km: "1.050 km", rating: 4 },
-  { id: 8, titulo: "Granos — Buenos Aires → Rosario", empresa: "Empresa Agro San Martín", precio: 250000, salida: "05/02/2026", llegadaEstimada: "05/02/2026", km: "320 km", rating: 5 },
-  { id: 9, titulo: "Fruta — Tucumán → Buenos Aires", empresa: "Finca Los Nogales", precio: 295000, salida: "18/01/2026", llegadaEstimada: "20/01/2026", km: "1.100 km", rating: 5 },
-];
-
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Buscar cargas" | "Mis ofertas" | "Mis viajes" | "Notificaciones" | "Mi perfil";
+type NavItem = "Buscar cargas" | "Mis ofertas" | "Mis viajes" | "Mensajes" | "Notificaciones" | "Mi perfil";
 type SortKey = "Mayor precio" | "Menor precio" | "Más cercano" | "Fecha de retiro";
 
 interface ModalOfertaState {
@@ -217,7 +135,7 @@ function dbLoadToCard(load: Record<string, unknown>): CargaCard {
     precio:    (load.price_base as number) ?? 0,
     peso:      load.weight_kg ? `${(load.weight_kg as number).toLocaleString("es-AR")} kg` : "—",
     camion:    load.truck_type_required ? (TRUCK_LABEL_CAM[load.truck_type_required as string] ?? "Cualquiera") : "Cualquiera",
-    retiro:    load.ready_at ? new Date(load.ready_at as string).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : "—",
+    retiro:    load.ready_at ? new Date(load.ready_at as string).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—",
     distancia: "—",
     rating:    0,
     viajes:    0,
@@ -500,33 +418,56 @@ function SeccionBuscar({
   );
 }
 
-function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
-  const [ofertas, setOfertas] = useState(MIS_OFERTAS);
+interface MiOferta {
+  id: string;
+  titulo: string;
+  empresa: string;
+  precioBase: number;
+  miOferta: number;
+  fecha: string;
+  estado: "pending" | "accepted" | "rejected";
+  nota: string;
+}
 
-  const cancelar = (id: number) => {
-    setOfertas((prev) => prev.filter((o) => o.id !== id));
-    onToast("Oferta cancelada.");
+function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
+  const [ofertas, setOfertas] = useState<MiOferta[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/offers/mine")
+      .then((r) => r.json())
+      .then((d) => { if (d.offers) setOfertas(d.offers); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const estadoLabel: Record<string, string> = { pending: "Pendiente", accepted: "Aceptada", rejected: "Rechazada" };
+  const estadoStyle: Record<string, { bg: string; color: string }> = {
+    pending:  { bg: "#fef3c7", color: "#92400e" },
+    accepted: { bg: "var(--color-brand-light)", color: "var(--color-brand-dark)" },
+    rejected: { bg: "#fee2e2", color: "#b91c1c" },
   };
 
   return (
     <main style={{ padding: 20, flex: 1 }}>
       <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis ofertas</div>
-      {ofertas.length === 0 && (
-        <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>No tenés ofertas activas.</div>
+      {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+      {!loading && ofertas.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>No enviaste ofertas todavía.</div>
       )}
-      {ofertas.map((o) => (
+      {!loading && ofertas.map((o) => (
         <div key={o.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{o.titulo}</div>
               <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{o.empresa} · {o.fecha}</div>
             </div>
-            <Badge estado={o.estado} />
+            <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: estadoStyle[o.estado]?.bg, color: estadoStyle[o.estado]?.color }}>{estadoLabel[o.estado]}</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
             <div>
               <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Precio base del dador</div>
-              <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>${o.precioBase.toLocaleString("es-AR")}</div>
+              <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{o.precioBase ? `$${o.precioBase.toLocaleString("es-AR")}` : "—"}</div>
             </div>
             <div>
               <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Tu oferta</div>
@@ -536,13 +477,6 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
           {o.nota && (
             <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 10, padding: "8px 10px", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)" }}>
               &ldquo;{o.nota}&rdquo;
-            </div>
-          )}
-          {o.estado === "pendiente" && (
-            <div style={{ marginTop: 10, textAlign: "right" }}>
-              <button onClick={() => cancelar(o.id)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid #fecaca", background: "#fef2f2", color: "#b91c1c", cursor: "pointer" }}>
-                Cancelar oferta
-              </button>
             </div>
           )}
         </div>
@@ -630,35 +564,16 @@ function Calendario({ eventos }: { eventos: { fecha: string; tipo: "salida" | "l
 function SeccionMisViajes() {
   const [tab, setTab] = useState<TabViajes>("En curso");
 
-  const eventosCalendario = [
-    ...EN_CURSO.map((v) => ([
-      { fecha: v.salida.split(" ")[0].replace(/\//g, "/"), tipo: "salida" as const, titulo: v.titulo },
-      { fecha: v.llegadaEstimada.split(" ")[0].replace(/\//g, "/"), tipo: "llegada" as const, titulo: v.titulo },
-    ])).flat(),
-    ...VIAJES_PROXIMOS.map((v) => ([
-      { fecha: v.salida, tipo: "salida" as const, titulo: v.titulo },
-      { fecha: v.llegadaEstimada, tipo: "llegada" as const, titulo: v.titulo },
-    ])).flat(),
-  ];
-
-  const ETAPA_STYLE: Record<string, { bg: string; color: string }> = {
-    "En camino":              { bg: "var(--color-brand-light)", color: "var(--color-brand-dark)" },
-    "Cargando":               { bg: "#faeeda", color: "#854f0b" },
-    "Confirmado":             { bg: "#dbeafe", color: "#1d4ed8" },
-    "Pendiente confirmación": { bg: "#f3e8ff", color: "#7e22ce" },
-  };
-
   return (
     <main style={{ padding: "20px 24px", flex: 1 }}>
-      {/* Header */}
       <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis viajes</div>
 
       {/* Tab cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
         {([
-          { t: "En curso" as TabViajes,    icon: "🚛", color: "#f59e0b", bg: "#fffbeb", count: EN_CURSO.length,          desc: "Viaje activo ahora" },
-          { t: "Próximos" as TabViajes,    icon: "📅", color: "#3b82f6", bg: "#eff6ff", count: VIAJES_PROXIMOS.length,   desc: "Confirmados" },
-          { t: "Completados" as TabViajes, icon: "✓",  color: "#16a34a", bg: "#f0fdf4", count: VIAJES_COMPLETADOS.length, desc: "Historial" },
+          { t: "En curso" as TabViajes,    icon: "🚛", color: "#f59e0b", bg: "#fffbeb", count: 0, desc: "Viaje activo ahora" },
+          { t: "Próximos" as TabViajes,    icon: "📅", color: "#3b82f6", bg: "#eff6ff", count: 0, desc: "Confirmados" },
+          { t: "Completados" as TabViajes, icon: "✓",  color: "#16a34a", bg: "#f0fdf4", count: 0, desc: "Historial" },
         ]).map(({ t, icon, color, bg, count, desc }) => (
           <button key={t} onClick={() => setTab(t)} style={{
             border: tab === t ? `2px solid ${color}` : "1.5px solid var(--color-border-tertiary)",
@@ -680,89 +595,24 @@ function SeccionMisViajes() {
         ))}
       </div>
 
-      {/* Layout: lista + calendario */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
-        <div>
-
-          {/* EN CURSO */}
-          {tab === "En curso" && EN_CURSO.map((v) => (
-            <div key={v.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: "4px solid var(--color-brand)", borderRadius: "var(--border-radius-lg)", padding: 18, marginBottom: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)" }}>{v.titulo.split(" — ")[1] ?? v.titulo}</div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{v.titulo.split(" — ")[0]} · {v.empresa}</div>
-                </div>
-                <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: ETAPA_STYLE[v.etapa]?.bg ?? "#eee", color: ETAPA_STYLE[v.etapa]?.color ?? "#333" }}>{v.etapa}</span>
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                  <span style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Progreso</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-brand-dark)" }}>{v.progreso}%</span>
-                </div>
-                <div style={{ height: 8, background: "var(--color-background-secondary)", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${v.progreso}%`, background: "var(--color-brand)", borderRadius: 4 }} />
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 12 }}>
-                {[["Salida", v.salida], ["Llegada est.", v.llegadaEstimada], ["Distancia", v.km], ["Posición", v.coordActual]].map(([l, val]) => (
-                  <div key={l}><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{l}</div><div style={{ fontSize: 12, color: "var(--color-text-primary)" }}>{val}</div></div>
-                ))}
-              </div>
-              <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Ver mapa</button>
-                <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Contactar dador</button>
-              </div>
-            </div>
-          ))}
-
-          {/* PRÓXIMOS */}
-          {tab === "Próximos" && VIAJES_PROXIMOS.map((v) => (
-            <div key={v.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: "4px solid #3b82f6", borderRadius: "var(--border-radius-lg)", padding: 18, marginBottom: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)" }}>{v.titulo.split(" — ")[1] ?? v.titulo}</div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{v.titulo.split(" — ")[0]} · {v.empresa}</div>
-                </div>
-                <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: ETAPA_STYLE[v.etapa]?.bg ?? "#eee", color: ETAPA_STYLE[v.etapa]?.color ?? "#333" }}>{v.etapa}</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 12 }}>
-                {[["Salida", v.salida], ["Llegada est.", v.llegadaEstimada], ["Distancia", v.km], ["Camión", v.camion]].map(([l, val]) => (
-                  <div key={l}><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{l}</div><div style={{ fontSize: 12, color: "var(--color-text-primary)" }}>{val}</div></div>
-                ))}
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-brand-dark)" }}>${v.precio.toLocaleString("es-AR")}</div>
-                <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Ver detalles</button>
-              </div>
-            </div>
-          ))}
-
-          {/* COMPLETADOS */}
-          {tab === "Completados" && VIAJES_COMPLETADOS.map((v) => (
-            <div key={v.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: "4px solid #6b7280", borderRadius: "var(--border-radius-lg)", padding: 18, marginBottom: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)" }}>{v.titulo.split(" — ")[1] ?? v.titulo}</div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{v.titulo.split(" — ")[0]} · {v.empresa}</div>
-                </div>
-                <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: "var(--color-brand-light)", color: "var(--color-brand-dark)" }}>Completado ✓</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 12 }}>
-                {[["Salida", v.salida], ["Llegada", v.llegadaEstimada], ["Distancia", v.km]].map(([l, val]) => (
-                  <div key={l}><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{l}</div><div style={{ fontSize: 12, color: "var(--color-text-primary)" }}>{val}</div></div>
-                ))}
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>${v.precio.toLocaleString("es-AR")}</div>
-                <div style={{ fontSize: 13, color: "#f59e0b" }}>{"★".repeat(v.rating)}{"☆".repeat(5 - v.rating)} {v.rating}/5</div>
-              </div>
-            </div>
-          ))}
-
+        <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+          No tenés viajes en esta categoría todavía.
         </div>
+        <Calendario eventos={[]} />
+      </div>
+    </main>
+  );
+}
 
-        {/* Calendario */}
-        <Calendario eventos={eventosCalendario} />
+function SeccionMensajes() {
+  return (
+    <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760 }}>
+      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 20 }}>Mensajes</div>
+      <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>✉</div>
+        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>No tenés mensajes todavía</div>
+        <div>Los chats con dadores de carga aparecerán aquí una vez que se acepte una oferta.</div>
       </div>
     </main>
   );
@@ -1262,7 +1112,7 @@ export default function CamioneroDashboard() {
             Carga<span style={{ color: "var(--color-brand)" }}>Back</span>
           </Link>
           <nav style={{ display: "flex", gap: 2 }}>
-            {(["Buscar cargas", "Mis ofertas", "Mis viajes", "Notificaciones"] as NavItem[]).map((item) => (
+            {(["Buscar cargas", "Mis ofertas", "Mis viajes", "Mensajes", "Notificaciones"] as NavItem[]).map((item) => (
               <button key={item} onClick={() => setNavActivo(item)} style={{
                 fontSize: 16, padding: "9px 16px", borderRadius: "var(--border-radius-md)",
                 border: "none", cursor: "pointer",
@@ -1299,6 +1149,7 @@ export default function CamioneroDashboard() {
         )}
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "Mis viajes" && <SeccionMisViajes />}
+        {navActivo === "Mensajes" && <SeccionMensajes />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} rolLabel={rolLabel} />}
       </div>
