@@ -495,29 +495,32 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
   );
 }
 
-// ── Modal: Pago en escrow ──────────────────────────────────────────────────────
+// ── Modal: Pago con MercadoPago ───────────────────────────────────────────────
 
-function ModalPago({ sel, onClose, onPagado }: {
+function ModalPago({ sel, onClose }: {
   sel: OfertaSeleccionada;
   onClose: () => void;
-  onPagado: () => void;
 }) {
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<"confirm" | "processing" | "done">("confirm");
+  const [error, setError]     = useState<string | null>(null);
 
   const handlePagar = async () => {
-    setStep("processing");
     setLoading(true);
+    setError(null);
     try {
-      // Aceptar la oferta en DB
-      await fetch(`/api/offers/${sel.offerId}`, {
-        method: "PATCH",
+      const res = await fetch("/api/payments/create-preference", {
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "accept" }),
+        body:    JSON.stringify({ offerId: sel.offerId }),
       });
-      // Simula procesamiento de pago (en prod: Stripe / MercadoPago)
-      await new Promise((r) => setTimeout(r, 1800));
-      setStep("done");
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Error al iniciar el pago."); return; }
+
+      // En producción usamos init_point; en sandbox usamos sandbox_init_point
+      const url = data.sandbox_init_point ?? data.init_point;
+      window.location.href = url;
+    } catch {
+      setError("Error de conexión. Intentá de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -525,69 +528,60 @@ function ModalPago({ sel, onClose, onPagado }: {
 
   return (
     <Modal title="Confirmar pago" onClose={onClose}>
-      {step === "confirm" && (
-        <>
-          {/* Resumen */}
-          <div style={{ background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 20 }}>
-            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 4 }}>Carga</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>{sel.cargaTitulo}</div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Camionero</div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{sel.oferta.nombre}</div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-brand-dark)" }}>${sel.oferta.precio.toLocaleString("es-AR")}</div>
-                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>ARS</div>
-              </div>
-            </div>
+      {/* Resumen */}
+      <div style={{ background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 20 }}>
+        <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 4 }}>Carga</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>{sel.cargaTitulo}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Camionero</div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{sel.oferta.nombre}</div>
           </div>
-
-          {/* Explicación escrow */}
-          <div style={{ background: "#eff6ff", border: "0.5px solid #bfdbfe", borderRadius: "var(--border-radius-lg)", padding: 14, marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8", marginBottom: 8 }}>ℹ ¿Cómo funciona el pago?</div>
-            <div style={{ fontSize: 12, color: "#1e40af", lineHeight: 1.6 }}>
-              1. Vos pagás <strong>${sel.oferta.precio.toLocaleString("es-AR")}</strong> ahora. El dinero queda reservado en CargaBack.<br />
-              2. El camionero inicia el viaje con la garantía de cobro.<br />
-              3. Al confirmar la entrega, CargaBack libera el pago al camionero.<br />
-              Si el viaje no se concreta, recibís el reembolso completo.
-            </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-brand-dark)" }}>${sel.oferta.precio.toLocaleString("es-AR")}</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>ARS</div>
           </div>
+        </div>
+      </div>
 
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
-              Cancelar
-            </button>
-            <button onClick={handlePagar} style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
-              Pagar ${sel.oferta.precio.toLocaleString("es-AR")} →
-            </button>
-          </div>
-        </>
-      )}
+      {/* Escrow info */}
+      <div style={{ background: "#eff6ff", border: "0.5px solid #bfdbfe", borderRadius: "var(--border-radius-lg)", padding: 14, marginBottom: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8", marginBottom: 8 }}>ℹ ¿Cómo funciona el pago?</div>
+        <div style={{ fontSize: 12, color: "#1e40af", lineHeight: 1.6 }}>
+          1. Vas a ser redirigido a <strong>Mercado Pago</strong> para completar el pago.<br />
+          2. El dinero queda retenido en CargaBack hasta confirmar la entrega.<br />
+          3. El camionero cobra al confirmar que el viaje fue completado.<br />
+          Si el viaje no se concreta, recibís el reembolso completo.
+        </div>
+      </div>
 
-      {step === "processing" && (
-        <div style={{ textAlign: "center", padding: "32px 0" }}>
-          <div style={{ fontSize: 36, marginBottom: 16 }}>⏳</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>Procesando pago...</div>
-          <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>No cerrés esta ventana.</div>
+      {error && (
+        <div style={{ background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: "var(--border-radius-md)", padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#b91c1c" }}>
+          {error}
         </div>
       )}
 
-      {step === "done" && (
-        <div style={{ textAlign: "center", padding: "24px 0" }}>
-          <div style={{ width: 60, height: 60, borderRadius: "50%", background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>✓</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 6 }}>¡Pago confirmado!</div>
-          <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 24 }}>
-            ${sel.oferta.precio.toLocaleString("es-AR")} reservados. El camionero fue notificado.
-          </div>
-          <button
-            onClick={onPagado}
-            style={{ width: "100%", fontSize: 14, padding: "11px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}
-          >
-            Ir al chat con {sel.oferta.nombre} →
-          </button>
-        </div>
-      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
+          Cancelar
+        </button>
+        <button
+          onClick={handlePagar}
+          disabled={loading}
+          style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: loading ? "#9ca3af" : "#009ee3", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+        >
+          {loading ? "Redirigiendo..." : (
+            <>
+              <span style={{ fontSize: 16 }}>💳</span>
+              Pagar con Mercado Pago
+            </>
+          )}
+        </button>
+      </div>
+
+      <div style={{ marginTop: 12, textAlign: "center", fontSize: 11, color: "var(--color-text-tertiary)" }}>
+        Procesado de forma segura por Mercado Pago
+      </div>
     </Modal>
   );
 }
@@ -1228,7 +1222,6 @@ export default function DadorDashboard() {
         <ModalPago
           sel={modalPago}
           onClose={() => setModalPago(null)}
-          onPagado={() => { const sel = modalPago; setModalPago(null); setModalChat(sel); }}
         />
       )}
       {modalChat && (

@@ -147,9 +147,11 @@ function dbLoadToCard(load: Record<string, unknown>): CargaCard {
 function SeccionBuscar({
   onOfertar,
   onAlerta,
+  excluirIds,
 }: {
   onOfertar: (c: ModalOfertaState) => void;
   onAlerta: () => void;
+  excluirIds: Set<string | number>;
 }) {
   const [tipos, setTipos] = useState<string[]>([]);
   const [tiposCamion, setTiposCamion] = useState<string[]>([]);
@@ -199,7 +201,7 @@ function SeccionBuscar({
 
   const [minKm, maxKm] = DIST_RANGOS[distanciaRango];
 
-  const todasCargas: CargaCard[] = cargasDB;
+  const todasCargas: CargaCard[] = cargasDB.filter((c) => !excluirIds.has(c.id));
 
   const cargas = todasCargas
     .filter((c) => {
@@ -1067,7 +1069,7 @@ function SeccionPerfil({ onToast, userName, userEmail, rolLabel }: {
 function ModalOfertar({ info, onClose, onEnviar }: {
   info: ModalOfertaState;
   onClose: () => void;
-  onEnviar: () => void;
+  onEnviar: (cargaId: string | number) => void;
 }) {
   const [precio, setPrecio] = useState(info.precioBase.toString());
   const [nota, setNota] = useState("");
@@ -1094,7 +1096,7 @@ function ModalOfertar({ info, onClose, onEnviar }: {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Error al enviar la oferta."); return; }
-      onEnviar();
+      onEnviar(info.cargaId);
       onClose();
     } finally {
       setLoading(false);
@@ -1178,6 +1180,7 @@ export default function CamioneroDashboard() {
   const [navActivo, setNavActivo] = useState<NavItem>("Buscar cargas");
   const [modalOferta, setModalOferta] = useState<ModalOfertaState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
 
   const userName = session?.user?.name ?? "Usuario";
   const userEmail = session?.user?.email ?? "";
@@ -1233,6 +1236,7 @@ export default function CamioneroDashboard() {
           <SeccionBuscar
             onOfertar={(c) => setModalOferta(c)}
             onAlerta={() => mostrarToast("¡Alerta guardada! Te avisamos cuando aparezca una carga que te interese.")}
+            excluirIds={ofertadasIds}
           />
         )}
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
@@ -1247,7 +1251,10 @@ export default function CamioneroDashboard() {
         <ModalOfertar
           info={modalOferta}
           onClose={() => setModalOferta(null)}
-          onEnviar={() => mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta.")}
+          onEnviar={(cargaId) => {
+            setOfertadasIds((prev) => new Set([...prev, cargaId]));
+            mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta.");
+          }}
         />
       )}
 
