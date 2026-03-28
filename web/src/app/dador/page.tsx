@@ -56,7 +56,7 @@ interface Oferta { id: number; nombre: string; iniciales: string; rating: number
 interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; }
 
 interface LoadDB {
-  id: string;
+  _id: string;
   pickup_city: string;
   dropoff_city: string;
   cargo_type: string | null;
@@ -91,7 +91,7 @@ function loadToCard(load: LoadDB & { offers_count?: number }): Carga {
     ? `Publicado hace ${diffH} hora${diffH > 1 ? "s" : ""}`
     : "Publicado hace unos minutos";
   return {
-    id:         load.id,
+    id:         load._id,
     titulo,
     hace,
     peso:       load.weight_kg ? `${load.weight_kg.toLocaleString("es-AR")} kg` : "—",

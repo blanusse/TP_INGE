@@ -1,5 +1,8 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
+
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -16,11 +19,9 @@ export default auth((req) => {
 
   // ── 2. Routing por rol: cada usuario solo accede a su sección ─────────────
   if (loggedIn && role) {
-    // Dador intentando entrar a zona de camionero → redirigir a su dashboard
     if (pathname.startsWith("/camionero") && role === "dador") {
       return NextResponse.redirect(new URL("/dador", req.url));
     }
-    // Camionero/flota intentando entrar a zona de dador → redirigir a su dashboard
     if (pathname.startsWith("/dador") && (role === "camionero" || role === "flota")) {
       return NextResponse.redirect(new URL("/camionero", req.url));
     }
