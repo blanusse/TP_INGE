@@ -29,7 +29,7 @@ export async function GET() {
   const shipperUsers = await User.find({ _id: { $in: userIds } }, "name").lean();
   const userNameMap  = Object.fromEntries(shipperUsers.map((u) => [u._id.toString(), u.name as string]));
 
-  // Check which completed trips the driver has already rated
+  // Determinar qué viajes completados ya fueron calificados por este camionero
   const completedOfferIds = offers
     .filter((o) => loadMap[o.load_id.toString()]?.status === "delivered")
     .map((o) => o._id);
@@ -40,29 +40,53 @@ export async function GET() {
   }).lean();
   const ratedOfferIds = new Set(existingRatings.map((r) => r.offer_id.toString()));
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const trips = offers.map((o) => {
     const load = loadMap[o.load_id.toString()];
     if (!load) return null;
+
     const shipperDoc = shippers.find((s) => s._id.toString() === load.shipper_id.toString());
     const empresa = shipperDoc?.razon_social ??
       (shipperDoc ? userNameMap[shipperDoc.user_id.toString()] ?? "Dador" : "Dador");
+
+    const readyAt = load.ready_at ? new Date(load.ready_at) : null;
+
+    // Clasificación considerando la fecha de retiro:
+    // - "próximo" si el status es "matched" O si es "in_transit" con fecha de retiro futura
+    // - "en curso" si es "in_transit" y la fecha ya pasó (o no tiene fecha)
+    let clasificacion: "enCurso" | "proximos" | "completados";
+    if (load.status === "delivered") {
+      clasificacion = "completados";
+    } else if (load.status === "in_transit") {
+      clasificacion = readyAt && readyAt > today ? "proximos" : "enCurso";
+    } else {
+      // matched
+      clasificacion = "proximos";
+    }
+
     return {
       offerId:       o._id.toString(),
       loadId:        load._id.toString(),
       titulo:        `${load.cargo_type ?? "Carga"} — ${load.pickup_city} → ${load.dropoff_city}`,
       empresa,
       precio:        o.price,
-      fechaRetiro:   load.ready_at ? new Date(load.ready_at).toLocaleDateString("es-AR") : "—",
+      fechaRetiro:   readyAt ? readyAt.toLocaleDateString("es-AR") : "—",
       pickupCity:    load.pickup_city,
       dropoffCity:   load.dropoff_city,
+      // Dirección exacta — disponible porque la oferta está aceptada
+      pickupExact:   load.pickup_exact ?? null,
+      dropoffExact:  load.dropoff_exact ?? null,
       status:        load.status,
+      clasificacion,
       yaCalifiqué:   ratedOfferIds.has(o._id.toString()),
     };
   }).filter(Boolean);
 
   return NextResponse.json({
-    enCurso:     trips.filter((t) => t!.status === "in_transit"),
-    proximos:    trips.filter((t) => t!.status === "matched"),
-    completados: trips.filter((t) => t!.status === "delivered"),
+    enCurso:     trips.filter((t) => t!.clasificacion === "enCurso"),
+    proximos:    trips.filter((t) => t!.clasificacion === "proximos"),
+    completados: trips.filter((t) => t!.clasificacion === "completados"),
   });
 }

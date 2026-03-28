@@ -101,16 +101,18 @@ function Toast({ mensaje, onClose }: { mensaje: string; onClose: () => void }) {
 
 // ── Autocomplete de ubicación ─────────────────────────────────────────────────
 
-interface GeoResult { label: string; full: string; }
+interface GeoResult { label: string; zone: string; full: string; lat: number; lon: number; }
 
 function InputUbicacion({
   value,
   onChange,
+  onSelect,
   placeholder,
   id,
 }: {
   value: string;
   onChange: (v: string) => void;
+  onSelect?: (r: GeoResult) => void;
   placeholder: string;
   id: string;
 }) {
@@ -147,6 +149,7 @@ function InputUbicacion({
 
   const seleccionar = (r: GeoResult) => {
     onChange(r.label);
+    onSelect?.(r);
     setSugerencias([]);
     setAbierto(false);
   };
@@ -246,8 +249,12 @@ function BadgeOfertas({ n }: { n: number }) {
 
 interface PriceEstimate { distanceKm: number; minPrice: number; suggestedPrice: number; maxPrice: number; }
 
+interface UbicacionMeta { zone: string; lat: number; lon: number; }
+
 function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublicar: (c: Carga) => void }) {
   const [form, setForm] = useState({ origen: "", destino: "", tipoCarga: "General", tipoCamion: "Cualquiera", peso: "", precio: "", retiro: "", descripcion: "" });
+  const [origenMeta,  setOrigenMeta]  = useState<UbicacionMeta | null>(null);
+  const [destinoMeta, setDestinoMeta] = useState<UbicacionMeta | null>(null);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [estimate, setEstimate]     = useState<PriceEstimate | null>(null);
@@ -289,7 +296,17 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
       const res = await fetch("/api/loads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          // Zona aproximada (barrio/ciudad) — visible a todos los camioneros
+          origenZona:  origenMeta?.zone  ?? undefined,
+          destinoZona: destinoMeta?.zone ?? undefined,
+          // Coordenadas para calcular distancias
+          origenLat:   origenMeta?.lat   ?? undefined,
+          origenLon:   origenMeta?.lon   ?? undefined,
+          destinoLat:  destinoMeta?.lat  ?? undefined,
+          destinoLon:  destinoMeta?.lon  ?? undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Error al publicar."); return; }
@@ -306,11 +323,25 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
             <label style={labelStyle}>Origen *</label>
-            <InputUbicacion id="origen" value={form.origen} onChange={(v) => set("origen", v)} placeholder="Ciudad o dirección de retiro" />
+            <InputUbicacion
+              id="origen"
+              value={form.origen}
+              onChange={(v) => { set("origen", v); setOrigenMeta(null); }}
+              onSelect={(r) => { set("origen", r.label); setOrigenMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
+              placeholder="Dirección exacta de retiro"
+            />
+            {origenMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}>📍 Zona visible a camioneros: <strong>{origenMeta.zone}</strong></div>}
           </div>
           <div>
             <label style={labelStyle}>Destino *</label>
-            <InputUbicacion id="destino" value={form.destino} onChange={(v) => set("destino", v)} placeholder="Ciudad o dirección de entrega" />
+            <InputUbicacion
+              id="destino"
+              value={form.destino}
+              onChange={(v) => { set("destino", v); setDestinoMeta(null); }}
+              onSelect={(r) => { set("destino", r.label); setDestinoMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
+              placeholder="Dirección exacta de entrega"
+            />
+            {destinoMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}>📍 Zona visible a camioneros: <strong>{destinoMeta.zone}</strong></div>}
           </div>
         </div>
 

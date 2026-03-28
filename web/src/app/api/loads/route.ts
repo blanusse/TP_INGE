@@ -92,9 +92,17 @@ export async function POST(req: NextRequest) {
 
   const load = await Load.create({
     shipper_id:          shipper._id,
-    pickup_city:         body.origen,
-    dropoff_city:        body.destino,
-    cargo_type:          body.tipoCarga  || undefined,
+    // Si viene zona separada la guardamos como pickup_city (visible a todos);
+    // la dirección exacta queda en pickup_exact (solo para el camionero aceptado).
+    pickup_city:         body.origenZona   || body.origen,
+    dropoff_city:        body.destinoZona  || body.destino,
+    pickup_exact:        body.origen       || undefined,
+    dropoff_exact:       body.destino      || undefined,
+    pickup_lat:          body.origenLat    != null ? parseFloat(body.origenLat)   : undefined,
+    pickup_lon:          body.origenLon    != null ? parseFloat(body.origenLon)   : undefined,
+    dropoff_lat:         body.destinoLat   != null ? parseFloat(body.destinoLat)  : undefined,
+    dropoff_lon:         body.destinoLon   != null ? parseFloat(body.destinoLon)  : undefined,
+    cargo_type:          body.tipoCarga    || undefined,
     truck_type_required: TRUCK_TYPE_MAP[body.tipoCamion] ?? undefined,
     weight_kg:           body.peso    ? parseFloat(body.peso)  : undefined,
     price_base:          body.precio  ? parseInt(body.precio)  : undefined,

@@ -116,8 +116,21 @@ const TRUCK_LABEL_CAM: Record<string, string> = {
   cisterna: "Cisterna", acoplado: "Granelero", otros: "Otros",
 };
 
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function dbLoadToCard(load: Record<string, unknown>): CargaCard {
   const tipoCarga = (load.cargo_type as string) ?? "Carga";
+  // pickup_city / dropoff_city son la zona aproximada (sin calle exacta)
   const titulo = `${tipoCarga} — ${load.pickup_city} → ${load.dropoff_city}`;
   const now = new Date();
   const created = new Date(load.created_at as string);
@@ -127,6 +140,18 @@ function dbLoadToCard(load: Record<string, unknown>): CargaCard {
     : diffH > 0 ? `Publicado hace ${diffH} hora${diffH > 1 ? "s" : ""}`
     : "Publicado hace unos minutos";
   const shipper = load.shipper as Record<string, string> | null;
+
+  // Calcular distancia real si hay coordenadas
+  let distancia = "—";
+  const pLat = load.pickup_lat as number | null;
+  const pLon = load.pickup_lon as number | null;
+  const dLat = load.dropoff_lat as number | null;
+  const dLon = load.dropoff_lon as number | null;
+  if (pLat != null && pLon != null && dLat != null && dLon != null) {
+    const km = Math.round(haversineKm(pLat, pLon, dLat, dLon));
+    distancia = `${km.toLocaleString("es-AR")} km`;
+  }
+
   return {
     id:        (load._id ?? load.id) as string,
     titulo,
@@ -136,7 +161,7 @@ function dbLoadToCard(load: Record<string, unknown>): CargaCard {
     peso:      load.weight_kg ? `${(load.weight_kg as number).toLocaleString("es-AR")} kg` : "—",
     camion:    load.truck_type_required ? (TRUCK_LABEL_CAM[load.truck_type_required as string] ?? "Cualquiera") : "Cualquiera",
     retiro:    load.ready_at ? new Date(load.ready_at as string).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—",
-    distancia: "—",
+    distancia,
     rating:    0,
     viajes:    0,
     badge:     null,
@@ -641,6 +666,8 @@ interface TripData {
   fechaRetiro: string;
   pickupCity: string;
   dropoffCity: string;
+  pickupExact: string | null;
+  dropoffExact: string | null;
   status: string;
   yaCalifiqué: boolean;
 }
@@ -754,6 +781,11 @@ function SeccionMisViajes() {
     const [origen, destino] = ruta.split(" → ");
     const completado = t.status === "delivered";
     const yaCalif = calificados.has(t.offerId);
+
+    // Mostrar dirección exacta si existe y es distinta a la zona
+    const retiroExacto  = t.pickupExact  && t.pickupExact  !== t.pickupCity  ? t.pickupExact  : null;
+    const entregaExacta = t.dropoffExact && t.dropoffExact !== t.dropoffCity ? t.dropoffExact : null;
+
     return (
       <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: `4px solid ${completado ? "#16a34a" : tab === "En curso" ? "#f59e0b" : "#3b82f6"}`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
@@ -770,6 +802,15 @@ function SeccionMisViajes() {
             <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Retiro: {t.fechaRetiro}</div>
           </div>
         </div>
+
+        {/* Direcciones exactas — visibles solo con oferta aceptada */}
+        {(retiroExacto || entregaExacta) && (
+          <div style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+            {retiroExacto  && <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>📍 <strong>Retiro:</strong> {retiroExacto}</div>}
+            {entregaExacta && <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>📍 <strong>Entrega:</strong> {entregaExacta}</div>}
+          </div>
+        )}
+
         {completado && (
           <div style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "flex-end" }}>
             {yaCalif ? (
@@ -1002,32 +1043,22 @@ function SeccionNotificaciones() {
   );
 }
 
-const EARNINGS_DATA = [
-  { mes: "Oct", monto: 180000 },
-  { mes: "Nov", monto: 220000 },
-  { mes: "Dic", monto: 195000 },
-  { mes: "Ene", monto: 310000 },
-  { mes: "Feb", monto: 275000 },
-  { mes: "Mar", monto: 400000 },
-];
-
-const CARGO_TYPES = [
-  { tipo: "Granos",       pct: 45, color: "#16a34a" },
-  { tipo: "Fertilizantes", pct: 25, color: "#3b82f6" },
-  { tipo: "Líquidos",      pct: 18, color: "#f59e0b" },
-  { tipo: "Otros",         pct: 12, color: "#8b5cf6" },
-];
-
-const TOP_ROUTES = [
-  { ruta: "Córdoba → Mendoza",      viajes: 22, km: "790 km" },
-  { ruta: "Rosario → Buenos Aires", viajes: 18, km: "300 km" },
-  { ruta: "Rosario → Córdoba",      viajes: 15, km: "390 km" },
-  { ruta: "Buenos Aires → Tandil",  viajes: 9,  km: "360 km" },
-];
-
 type TabPerfil = "Perfil" | "Estadísticas";
 
-interface CamioneroStats { viajesCompletados: number; calificacionPromedio: number | null; memberSince: string; }
+interface EarningsMes   { mes: string; monto: number; }
+interface TipoCargaStat { tipo: string; pct: number; count: number; color: string; }
+interface RutaStat      { ruta: string; viajes: number; }
+
+interface CamioneroStats {
+  viajesCompletados: number;
+  calificacionPromedio: number | null;
+  memberSince: string;
+  ingresosUltimos6Meses: EarningsMes[];
+  tiposCarga: TipoCargaStat[];
+  rutasFrecuentes: RutaStat[];
+  totalIngresos6m: number;
+  viajes6m: number;
+}
 
 function SeccionPerfil({ onToast, userName, userEmail, rolLabel }: {
   onToast: (m: string) => void;
@@ -1041,7 +1072,6 @@ function SeccionPerfil({ onToast, userName, userEmail, rolLabel }: {
   const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
   const [stats, setStats] = useState<CamioneroStats | null>(null);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
-  const maxEarning = Math.max(...EARNINGS_DATA.map((e) => e.monto));
 
   useEffect(() => {
     fetch("/api/stats/camionero")
@@ -1165,85 +1195,114 @@ function SeccionPerfil({ onToast, userName, userEmail, rolLabel }: {
       {tabPerfil === "Estadísticas" && (
         <div style={{ padding: "20px 40px 32px", maxWidth: 840 }}>
 
-          {/* KPIs */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
-            {[
-              { val: "$1.580.000", label: "Ingresos últimos 6 meses", color: "#16a34a" },
-              { val: "38.700 km", label: "KMs recorridos",            color: "#3b82f6" },
-              { val: "$12.440",   label: "Ingreso promedio / km",     color: "#f59e0b" },
-              { val: "64 viajes", label: "Viajes últimos 6 meses",    color: "#8b5cf6" },
-            ].map(({ val, label, color }) => (
-              <div key={label} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "16px 18px" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color, marginBottom: 4 }}>{val}</div>
-                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", lineHeight: 1.4 }}>{label}</div>
-              </div>
-            ))}
-          </div>
+          {!stats && (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando estadísticas...</div>
+          )}
 
-          {/* Gráfico ingresos + tipos de carga */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-
-            {/* Bar chart ingresos */}
-            <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 18 }}>Ingresos mensuales</div>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 110 }}>
-                {EARNINGS_DATA.map((e) => {
-                  const heightPct = (e.monto / maxEarning) * 100;
-                  const isMax = e.monto === maxEarning;
-                  return (
-                    <div key={e.mes} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%", justifyContent: "flex-end" }}>
-                      <div style={{ fontSize: 10, color: isMax ? "var(--color-brand-dark)" : "var(--color-text-tertiary)", fontWeight: isMax ? 700 : 400 }}>
-                        ${(e.monto / 1000).toFixed(0)}k
-                      </div>
-                      <div style={{ width: "100%", height: `${heightPct}%`, background: isMax ? "var(--color-brand)" : "var(--color-brand-light)", borderRadius: "4px 4px 0 0", transition: "height 0.3s", minHeight: 4 }} />
-                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{e.mes}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Tipos de carga */}
-            <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 18 }}>Tipos de carga transportada</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {CARGO_TYPES.map((c) => (
-                  <div key={c.tipo}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                      <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{c.tipo}</span>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: c.color }}>{c.pct}%</span>
-                    </div>
-                    <div style={{ height: 8, background: "var(--color-background-secondary)", borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${c.pct}%`, background: c.color, borderRadius: 4 }} />
-                    </div>
+          {stats && (
+            <>
+              {/* KPIs */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
+                {[
+                  { val: stats.totalIngresos6m > 0 ? `$${stats.totalIngresos6m.toLocaleString("es-AR")}` : "Sin datos", label: "Ingresos últimos 6 meses", color: "#16a34a" },
+                  { val: stats.viajes6m > 0 ? `${stats.viajes6m} viaje${stats.viajes6m !== 1 ? "s" : ""}` : "Sin datos", label: "Viajes últimos 6 meses", color: "#8b5cf6" },
+                  { val: stats.viajes6m > 0 ? `$${Math.round(stats.totalIngresos6m / stats.viajes6m).toLocaleString("es-AR")}` : "—", label: "Ingreso promedio / viaje", color: "#f59e0b" },
+                ].map(({ val, label, color }) => (
+                  <div key={label} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "16px 18px" }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color, marginBottom: 4 }}>{val}</div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", lineHeight: 1.4 }}>{label}</div>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
 
-          {/* Rutas más frecuentes */}
-          <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 16 }}>Rutas más frecuentes</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-              {TOP_ROUTES.map((r, i) => (
-                <div key={r.ruta} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: i < TOP_ROUTES.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
-                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--color-brand-light)", color: "var(--color-brand-dark)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{r.ruta}</div>
-                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 2 }}>{r.km}</div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-brand-dark)" }}>{r.viajes}</div>
-                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>viajes</div>
-                  </div>
-                  <div style={{ width: 80, height: 6, background: "var(--color-background-secondary)", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${(r.viajes / TOP_ROUTES[0].viajes) * 100}%`, background: "var(--color-brand)", borderRadius: 3 }} />
-                  </div>
+              {/* Gráfico ingresos + tipos de carga */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+
+                {/* Bar chart ingresos */}
+                <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 18 }}>Ingresos mensuales</div>
+                  {stats.ingresosUltimos6Meses.every((e) => e.monto === 0) ? (
+                    <div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-text-tertiary)", fontSize: 13 }}>
+                      Todavía no hay ingresos registrados.
+                    </div>
+                  ) : (() => {
+                    const maxEarning = Math.max(...stats.ingresosUltimos6Meses.map((e) => e.monto), 1);
+                    return (
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 110 }}>
+                        {stats.ingresosUltimos6Meses.map((e) => {
+                          const heightPct = (e.monto / maxEarning) * 100;
+                          const isMax = e.monto === maxEarning && e.monto > 0;
+                          return (
+                            <div key={e.mes} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%", justifyContent: "flex-end" }}>
+                              {e.monto > 0 && (
+                                <div style={{ fontSize: 10, color: isMax ? "var(--color-brand-dark)" : "var(--color-text-tertiary)", fontWeight: isMax ? 700 : 400 }}>
+                                  ${(e.monto / 1000).toFixed(0)}k
+                                </div>
+                              )}
+                              <div style={{ width: "100%", height: `${Math.max(heightPct, 2)}%`, background: isMax ? "var(--color-brand)" : e.monto > 0 ? "var(--color-brand-light)" : "var(--color-background-secondary)", borderRadius: "4px 4px 0 0", transition: "height 0.3s" }} />
+                              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{e.mes}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
-              ))}
-            </div>
-          </div>
+
+                {/* Tipos de carga */}
+                <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 18 }}>Tipos de carga transportada</div>
+                  {stats.tiposCarga.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-text-tertiary)", fontSize: 13 }}>
+                      Sin viajes completados todavía.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {stats.tiposCarga.map((c) => (
+                        <div key={c.tipo}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                            <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{c.tipo}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: c.color }}>{c.pct}%</span>
+                          </div>
+                          <div style={{ height: 8, background: "var(--color-background-secondary)", borderRadius: 4, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${c.pct}%`, background: c.color, borderRadius: 4 }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Rutas más frecuentes */}
+              <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 16 }}>Rutas más frecuentes</div>
+                {stats.rutasFrecuentes.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-text-tertiary)", fontSize: 13 }}>
+                    Sin rutas completadas todavía.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                    {stats.rutasFrecuentes.map((r, i) => (
+                      <div key={r.ruta} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: i < stats.rutasFrecuentes.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                        <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--color-brand-light)", color: "var(--color-brand-dark)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{r.ruta}</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-brand-dark)" }}>{r.viajes}</div>
+                          <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>viaje{r.viajes !== 1 ? "s" : ""}</div>
+                        </div>
+                        <div style={{ width: 80, height: 6, background: "var(--color-background-secondary)", borderRadius: 3, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${(r.viajes / stats.rutasFrecuentes[0].viajes) * 100}%`, background: "var(--color-brand)", borderRadius: 3 }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
         </div>
       )}

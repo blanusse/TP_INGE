@@ -68,12 +68,18 @@ export async function GET(req: NextRequest) {
   if (distanceKm > 800) factorDistancia = 0.85;
   else if (distanceKm > 400) factorDistancia = 0.92;
 
-  const suggestedPrice = Math.round(distanceKm * tarifaBase * factorDistancia / 1000) * 1000;
+  const suggestedPrice = Math.max(
+    Math.round(distanceKm * tarifaBase * factorDistancia / 1000) * 1000,
+    PRECIO_MINIMO_ABSOLUTO
+  );
   const minPrice = Math.max(
     Math.round(distanceKm * (tarifaBase * 0.6) / 1000) * 1000,
     PRECIO_MINIMO_ABSOLUTO
   );
-  const maxPrice = Math.round(distanceKm * (tarifaBase * 1.4) / 1000) * 1000;
+  const maxPrice = Math.max(
+    Math.round(distanceKm * (tarifaBase * 1.4) / 1000) * 1000,
+    PRECIO_MINIMO_ABSOLUTO
+  );
 
   return NextResponse.json({
     distanceKm,
