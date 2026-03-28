@@ -210,7 +210,7 @@ function dbLoadToCard(load: Record<string, unknown>): CargaCard {
     : "Publicado hace unos minutos";
   const shipper = load.shipper as Record<string, string> | null;
   return {
-    id:        load.id as string,
+    id:        (load._id ?? load.id) as string,
     titulo,
     empresa:   shipper?.razon_social ?? "Dador de carga",
     hace,
