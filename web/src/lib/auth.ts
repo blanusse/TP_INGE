@@ -1,12 +1,12 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
 import { supabase } from "@/lib/supabase";
 
 // Roles en la DB → roles del frontend
-const dbRoleToFrontend: Record<string, "camionero" | "dador"> = {
-  driver: "camionero",
-  shipper: "dador",
+const dbRoleToFrontend: Record<string, "camionero" | "dador" | "flota"> = {
+  driver:         "camionero",
+  shipper:        "dador",
+  carrier_admin:  "flota",
 };
 
 export type UserRole = "camionero" | "dador" | "flota";
@@ -36,25 +36,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const { data: user } = await supabase
+        // Supabase Auth valida email + password
+        const { data: { user: authUser }, error } = await supabase.auth.signInWithPassword({
+          email: credentials.email as string,
+          password: credentials.password as string,
+        });
+
+        if (error || !authUser) return null;
+
+        // Leer nombre y rol desde public.users
+        const { data: userData } = await supabase
           .from("users")
-          .select("id, email, name, role, password_hash")
-          .eq("email", credentials.email)
+          .select("name, role")
+          .eq("id", authUser.id)
           .single();
 
-        if (!user?.password_hash) return null;
-
-        const passwordOk = await bcrypt.compare(
-          credentials.password as string,
-          user.password_hash
-        );
-        if (!passwordOk) return null;
+        if (!userData) return null;
 
         return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: dbRoleToFrontend[user.role] ?? "camionero",
+          id: authUser.id,
+          email: authUser.email,
+          name: userData.name,
+          role: dbRoleToFrontend[userData.role] ?? "camionero",
         };
       },
     }),

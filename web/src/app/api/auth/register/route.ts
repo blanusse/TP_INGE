@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -10,35 +9,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Faltan datos." }, { status: 400 });
   }
 
-  // Verificar email duplicado
-  const { data: existing } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", email)
-    .single();
+  const dbRole = role === "dador" ? "shipper" : role === "flota" ? "carrier_admin" : "driver";
 
-  if (existing) {
-    return NextResponse.json({ error: "Ya existe una cuenta con ese email." }, { status: 409 });
+  // ── Crear usuario en Supabase Auth ───────────────────────────────────────
+  const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+
+  if (authError || !authData.user) {
+    console.error("[register] auth.signUp error:", authError);
+    if (authError?.message?.toLowerCase().includes("already registered")) {
+      return NextResponse.json({ error: "Ya existe una cuenta con ese email." }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Error al crear la cuenta." }, { status: 500 });
   }
 
-  const password_hash = await bcrypt.hash(password, 12);
-  const dbRole = role === "dador" ? "shipper" : "driver";
+  const userId = authData.user.id;
 
-  // ── Crear usuario ────────────────────────────────────────────────────────
-  const { data: user, error: userError } = await supabase
+  // ── Insertar en public.users (sin password_hash — lo maneja Supabase Auth) ──
+  const { error: userError } = await supabaseAdmin
     .from("users")
-    .insert({ email, name, phone: phone ?? null, dni: dni ?? null, role: dbRole, password_hash })
-    .select("id")
-    .single();
+    .insert({ id: userId, email, name, phone: phone ?? null, dni: dni ?? null, role: dbRole });
 
-  if (userError || !user) {
+  if (userError) {
+    console.error("[register] public.users insert error:", userError);
+    await supabaseAdmin.auth.admin.deleteUser(userId);
     return NextResponse.json({ error: "Error al crear la cuenta." }, { status: 500 });
   }
 
   // ── Camionero / Flota: crear camiones ───────────────────────────────────
   if ((role === "camionero" || role === "flota") && Array.isArray(trucks) && trucks.length > 0) {
     const rows = trucks.map((t: Record<string, string>) => ({
-      owner_id:      user.id,
+      owner_id:      userId,
       patente:       t.patente,
       marca:         t.marca         || null,
       modelo:        t.modelo        || null,
@@ -50,39 +50,55 @@ export async function POST(req: NextRequest) {
       seguro_vence:  t.seguro_vence  || null,
     }));
 
-    const { error: truckError } = await supabase.from("trucks").insert(rows);
+    const { error: truckError } = await supabaseAdmin.from("trucks").insert(rows);
     if (truckError) {
-      await supabase.from("users").delete().eq("id", user.id);
+      await supabaseAdmin.from("users").delete().eq("id", userId);
+      await supabaseAdmin.auth.admin.deleteUser(userId);
       return NextResponse.json({ error: "Error al guardar los datos del camión." }, { status: 500 });
     }
   }
 
   // ── Dador empresa: crear shipper ─────────────────────────────────────────
   if (role === "dador" && tipo_dador === "empresa") {
-    const { error: shipperError } = await supabase
+    const { error: shipperError } = await supabaseAdmin
       .from("shippers")
-      .insert({ user_id: user.id, cuit, razon_social, address: address ?? null });
+      .insert({ user_id: userId, cuit, razon_social, address: address ?? null, tipo: "empresa" });
 
     if (shipperError) {
-      await supabase.from("users").delete().eq("id", user.id);
+      await supabaseAdmin.from("users").delete().eq("id", userId);
+      await supabaseAdmin.auth.admin.deleteUser(userId);
       return NextResponse.json({ error: "Error al guardar los datos de la empresa." }, { status: 500 });
+    }
+  }
+
+  // ── Dador personal: crear shipper ────────────────────────────────────────
+  if (role === "dador" && tipo_dador === "personal") {
+    const { error: shipperError } = await supabaseAdmin
+      .from("shippers")
+      .insert({ user_id: userId, cuil: dni ?? null, tipo: "persona" });
+
+    if (shipperError) {
+      await supabaseAdmin.from("users").delete().eq("id", userId);
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      return NextResponse.json({ error: "Error al guardar los datos del dador." }, { status: 500 });
     }
   }
 
   // ── Flota: crear empresa y vincular ──────────────────────────────────────
   if (role === "flota") {
-    const { data: company, error: companyError } = await supabase
+    const { data: company, error: companyError } = await supabaseAdmin
       .from("companies")
       .insert({ razon_social, cuit, contact_name: name, contact_email: email, contact_phone: phone ?? null })
       .select("id")
       .single();
 
     if (companyError || !company) {
-      await supabase.from("users").delete().eq("id", user.id);
+      await supabaseAdmin.from("users").delete().eq("id", userId);
+      await supabaseAdmin.auth.admin.deleteUser(userId);
       return NextResponse.json({ error: "Error al guardar los datos de la empresa." }, { status: 500 });
     }
 
-    await supabase.from("company_drivers").insert({ company_id: company.id, driver_id: user.id });
+    await supabaseAdmin.from("company_drivers").insert({ company_id: company.id, driver_id: userId });
   }
 
   return NextResponse.json({ ok: true }, { status: 201 });
