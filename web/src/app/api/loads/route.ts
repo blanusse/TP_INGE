@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import { Load } from "@/lib/models/Load";
 import { Shipper } from "@/lib/models/Shipper";
 import { Offer } from "@/lib/models/Offer";
+import { User } from "@/lib/models/User";
 
 const TRUCK_TYPE_MAP: Record<string, string | null> = {
   "Cualquiera":     null,
@@ -27,19 +28,40 @@ export async function GET() {
     .sort({ created_at: -1 })
     .lean();
 
-  // Agregar conteo de ofertas por carga
   const loadIds = loads.map((l) => l._id);
+
+  // Conteo de ofertas pendientes
   const offerCounts = await Offer.aggregate([
-    { $match: { load_id: { $in: loadIds }, status: "pending" } },
+    { $match: { load_id: { $in: loadIds }, status: { $in: ["pending", "countered"] } } },
     { $group: { _id: "$load_id", count: { $sum: 1 } } },
   ]);
   const countMap = Object.fromEntries(offerCounts.map((o) => [o._id.toString(), o.count]));
+
+  // Oferta aceptada para cargas matched
+  const matchedLoadIds = loads.filter((l) => l.status === "matched").map((l) => l._id);
+  let acceptedOfferMap: Record<string, { offerId: string; driverId: string; precio: number }> = {};
+  if (matchedLoadIds.length > 0) {
+    const acceptedOffers = await Offer.find({ load_id: { $in: matchedLoadIds }, status: "accepted" }).lean();
+    // Enriquecer con nombre del camionero
+    const driverIds = acceptedOffers.map((o) => o.driver_id);
+    const drivers = await User.find({ _id: { $in: driverIds } }, "name").lean();
+    const driverMap = Object.fromEntries(drivers.map((d) => [d._id.toString(), d.name as string]));
+    acceptedOfferMap = Object.fromEntries(
+      acceptedOffers.map((o) => [o.load_id.toString(), {
+        offerId: o._id.toString(),
+        driverId: o.driver_id.toString(),
+        driverName: driverMap[o.driver_id.toString()] ?? "Camionero",
+        precio: o.price,
+      }])
+    );
+  }
 
   const result = loads.map((l) => ({
     ...l,
     _id: l._id.toString(),
     shipper_id: l.shipper_id.toString(),
     offers_count: countMap[l._id.toString()] ?? 0,
+    accepted_offer: acceptedOfferMap[l._id.toString()] ?? null,
   }));
 
   return NextResponse.json({ loads: result });

@@ -13,7 +13,8 @@ type NavItem = "Mis cargas" | "Historial" | "Camioneros" | "Mensajes" | "Factura
 type TabItem = "Todas" | "Con ofertas" | "Sin ofertas";
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; }
-interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; }
+interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
+interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; }
 
 interface LoadDB {
   _id: string;
@@ -27,6 +28,8 @@ interface LoadDB {
   description: string | null;
   status: string;
   created_at: string;
+  offers_count?: number;
+  accepted_offer?: AcceptedOffer | null;
 }
 
 const TRUCK_LABEL: Record<string, string> = {
@@ -38,7 +41,7 @@ const TRUCK_LABEL: Record<string, string> = {
   otros:       "Otros",
 };
 
-function loadToCard(load: LoadDB & { offers_count?: number }): Carga {
+function loadToCard(load: LoadDB): Carga {
   const tipoCarga = load.cargo_type ?? "Carga";
   const titulo = `${tipoCarga} — ${load.pickup_city} → ${load.dropoff_city}`;
   const now = new Date();
@@ -51,15 +54,17 @@ function loadToCard(load: LoadDB & { offers_count?: number }): Carga {
     ? `Publicado hace ${diffH} hora${diffH > 1 ? "s" : ""}`
     : "Publicado hace unos minutos";
   return {
-    id:         load._id,
+    id:           load._id,
     titulo,
     hace,
-    peso:       load.weight_kg ? `${load.weight_kg.toLocaleString("es-AR")} kg` : "—",
-    tipoCamion: load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required] ?? load.truck_type_required) : "Cualquiera",
-    retiro:     load.ready_at ? new Date(load.ready_at).toLocaleDateString("es-AR") : "—",
-    ofertas:    load.offers_count ?? 0,
-    camioneros: [],
+    peso:         load.weight_kg ? `${load.weight_kg.toLocaleString("es-AR")} kg` : "—",
+    tipoCamion:   load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required] ?? load.truck_type_required) : "Cualquiera",
+    retiro:       load.ready_at ? new Date(load.ready_at).toLocaleDateString("es-AR") : "—",
+    ofertas:      load.offers_count ?? 0,
+    camioneros:   [],
     ofertasDetalle: [],
+    status:       load.status,
+    acceptedOffer: load.accepted_offer ?? null,
   };
 }
 
@@ -687,27 +692,77 @@ function SeccionMisCargas({
   loading,
   onVerOfertas,
   onDestacado,
+  onIniciarPago,
 }: {
   cargas: Carga[];
   loading: boolean;
   onVerOfertas: (c: Carga) => void;
   onDestacado: (titulo: string) => void;
+  onIniciarPago: (sel: OfertaSeleccionada) => void;
 }) {
   const [tab, setTab] = useState<TabItem>("Todas");
 
-  const cargasFiltradas = tab === "Con ofertas" ? cargas.filter((c) => c.ofertas > 0)
-    : tab === "Sin ofertas" ? cargas.filter((c) => c.ofertas === 0)
-    : cargas;
+  const publicadas = cargas.filter((c) => c.status !== "matched");
+  const matched    = cargas.filter((c) => c.status === "matched");
 
-  const activas = cargas.filter((c) => c.ofertas === 0).length;
-  const conOfertas = cargas.filter((c) => c.ofertas > 0).length;
+  const cargasBase = tab === "Con ofertas" ? publicadas.filter((c) => c.ofertas > 0)
+    : tab === "Sin ofertas" ? publicadas.filter((c) => c.ofertas === 0)
+    : publicadas;
+
+  const activas = publicadas.filter((c) => c.ofertas === 0).length;
+  const conOfertas = publicadas.filter((c) => c.ofertas > 0).length;
 
   const metricas = [
-    { label: "Cargas activas",     valor: String(cargas.length),   sub: "Publicadas" },
-    { label: "Con ofertas",        valor: String(conOfertas),       sub: "Esperando decisión" },
-    { label: "Sin ofertas",        valor: String(activas),          sub: "Buscando camionero" },
-    { label: "Completados",        valor: "38",                     sub: "Último mes" },
+    { label: "Publicadas",   valor: String(publicadas.length), sub: "Buscando camionero" },
+    { label: "Con ofertas",  valor: String(conOfertas),        sub: "Esperando decisión" },
+    { label: "Sin ofertas",  valor: String(activas),           sub: "Sin postulantes aún" },
+    { label: "Confirmadas",  valor: String(matched.length),    sub: "Esperando pago" },
   ];
+
+  const CargaCard = ({ c }: { c: Carga }) => {
+    const partes = c.titulo.split(" — ");
+    const tipoCarga = partes[0];
+    const ruta = partes[1] ?? c.titulo;
+    const [origen, destino] = ruta.split(" → ");
+    return (
+      <div key={c.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: `4px solid var(--color-brand)`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{origen}</span>
+              <span style={{ fontSize: 18, color: "var(--color-brand)", fontWeight: 700 }}>→</span>
+              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{destino}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tipoCarga} · {c.hace}</div>
+          </div>
+          <BadgeOfertas n={c.ofertas} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
+          {[["Peso", c.peso], ["Tipo de camión", c.tipoCamion], ["Fecha de retiro", c.retiro]].map(([label, val]) => (
+            <div key={label}>
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
+              <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{val}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
+          {c.ofertas > 0 ? (
+            <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+              {c.ofertas} {c.ofertas === 1 ? "camionero ofertó" : "camioneros ofertaron"}
+            </span>
+          ) : (
+            <span style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Esperando camioneros...</span>
+          )}
+          <button
+            onClick={() => c.ofertas > 0 ? onVerOfertas(c) : onDestacado(c.titulo)}
+            style={{ fontSize: 13, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: c.ofertas > 0 ? "none" : "0.5px solid var(--color-border-secondary)", background: c.ofertas > 0 ? "var(--color-brand)" : "transparent", color: c.ofertas > 0 ? "#fff" : "var(--color-text-primary)", cursor: "pointer", fontWeight: c.ofertas > 0 ? 600 : 400 }}
+          >
+            {c.ofertas > 0 ? "Ver ofertas →" : "Destacar carga →"}
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <main style={{ padding: 20, flex: 1 }}>
@@ -722,84 +777,87 @@ function SeccionMisCargas({
         ))}
       </div>
 
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)" }}>Cargas publicadas</div>
-        <div style={{ display: "flex" }}>
-          {(["Todas", "Con ofertas", "Sin ofertas"] as TabItem[]).map((t) => (
-            <button key={t} onClick={() => setTab(t)} style={{
-              fontSize: 13, padding: "7px 14px", border: "none", cursor: "pointer", background: "transparent",
-              borderBottom: tab === t ? "2px solid var(--color-brand)" : "2px solid transparent",
-              color: tab === t ? "var(--color-brand)" : "var(--color-text-secondary)",
-              fontWeight: tab === t ? 500 : 400,
-            }}>{t}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* Cards */}
       {loading && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
-      {!loading && cargasFiltradas.length === 0 && (
-        <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>
-          <div style={{ fontSize: 32, marginBottom: 10 }}>📦</div>
-          No tenés cargas publicadas. Usá el botón &ldquo;+ Publicar carga&rdquo; para comenzar.
+
+      {/* Cargas con camionero confirmado — esperando pago */}
+      {!loading && matched.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#16a34a", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 16 }}>✓</span> Camionero confirmado — pendiente de pago
+          </div>
+          {matched.map((c) => {
+            const ao = c.acceptedOffer;
+            const partes = c.titulo.split(" — ");
+            const tipoCarga = partes[0];
+            const ruta = partes[1] ?? c.titulo;
+            const [origen, destino] = ruta.split(" → ");
+            return (
+              <div key={c.id} style={{ background: "var(--color-background-primary)", border: "1.5px solid #16a34a", borderLeft: "4px solid #16a34a", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{origen}</span>
+                      <span style={{ fontSize: 18, color: "#16a34a", fontWeight: 700 }}>→</span>
+                      <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{destino}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tipoCarga} · {c.hace}</div>
+                  </div>
+                  <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: "#f0fdf4", color: "#16a34a" }}>Confirmado ✓</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
+                  {[["Peso", c.peso], ["Tipo de camión", c.tipoCamion], ["Fecha de retiro", c.retiro]].map(([label, val]) => (
+                    <div key={label}>
+                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
+                      <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+                {ao && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, padding: "10px 14px", background: "#f0fdf4", borderRadius: "var(--border-radius-md)", border: "0.5px solid #bbf7d0" }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: "#15803d", marginBottom: 2 }}>Camionero: <strong>{ao.driverName}</strong></div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#15803d" }}>${ao.precio.toLocaleString("es-AR")}</div>
+                    </div>
+                    <button
+                      onClick={() => onIniciarPago({ offerId: ao.offerId, cargaTitulo: c.titulo, cargaId: c.id, oferta: { nombre: ao.driverName, precio: ao.precio, offerId: ao.offerId, id: 0, iniciales: ao.driverName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0,2), rating: 0, viajes: 0, nota: "" } })}
+                      style={{ fontSize: 13, padding: "9px 20px", borderRadius: "var(--border-radius-md)", border: "none", background: "#16a34a", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+                    >
+                      Pagar →
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
-      {!loading && cargasFiltradas.map((c) => {
-        const partes = c.titulo.split(" — ");
-        const tipoCarga = partes[0];
-        const ruta = partes[1] ?? c.titulo;
-        const [origen, destino] = ruta.split(" → ");
-        return (
-          <div key={c.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: "4px solid var(--color-brand)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
-            {/* Ruta — lo principal */}
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{origen}</span>
-                  <span style={{ fontSize: 18, color: "var(--color-brand)", fontWeight: 700 }}>→</span>
-                  <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{destino}</span>
-                </div>
-                <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tipoCarga} · {c.hace}</div>
-              </div>
-              <BadgeOfertas n={c.ofertas} />
-            </div>
 
-            {/* Detalles secundarios */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
-              {[["Peso", c.peso], ["Tipo de camión", c.tipoCamion], ["Fecha de retiro", c.retiro]].map(([label, val]) => (
-                <div key={label}>
-                  <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
-                  <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{val}</div>
-                </div>
+      {/* Cargas publicadas buscando camionero */}
+      {!loading && (
+        <>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)" }}>Cargas publicadas</div>
+            <div style={{ display: "flex" }}>
+              {(["Todas", "Con ofertas", "Sin ofertas"] as TabItem[]).map((t) => (
+                <button key={t} onClick={() => setTab(t)} style={{
+                  fontSize: 13, padding: "7px 14px", border: "none", cursor: "pointer", background: "transparent",
+                  borderBottom: tab === t ? "2px solid var(--color-brand)" : "2px solid transparent",
+                  color: tab === t ? "var(--color-brand)" : "var(--color-text-secondary)",
+                  fontWeight: tab === t ? 500 : 400,
+                }}>{t}</button>
               ))}
             </div>
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
-              {c.ofertas > 0 ? (
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <div style={{ display: "flex" }}>
-                    {c.camioneros.map((ini, idx) => (
-                      <div key={idx} style={{ width: 22, height: 22, borderRadius: "50%", border: "1.5px solid var(--color-background-primary)", background: "var(--color-background-info)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "var(--color-text-info)", marginLeft: idx === 0 ? 0 : -5 }}>{ini}</div>
-                    ))}
-                  </div>
-                  <span style={{ fontSize: 12, color: "var(--color-text-secondary)", marginLeft: 8 }}>
-                    {c.ofertas} {c.ofertas === 1 ? "camionero ofertó" : "camioneros ofertaron"}
-                  </span>
-                </div>
-              ) : (
-                <span style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Esperando camioneros...</span>
-              )}
-              <button
-                onClick={() => c.ofertas > 0 ? onVerOfertas(c) : onDestacado(c.titulo)}
-                style={{ fontSize: 13, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: c.ofertas > 0 ? "var(--color-brand)" : "transparent", color: c.ofertas > 0 ? "#fff" : "var(--color-text-primary)", border2: c.ofertas > 0 ? "none" : "0.5px solid var(--color-border-secondary)", cursor: "pointer", fontWeight: c.ofertas > 0 ? 600 : 400 } as React.CSSProperties}
-              >
-                {c.ofertas > 0 ? "Ver ofertas →" : "Destacar carga →"}
-              </button>
-            </div>
           </div>
-        );
-      })}
+          {cargasBase.length === 0 ? (
+            <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>📦</div>
+              No tenés cargas publicadas. Usá el botón &ldquo;+ Publicar carga&rdquo; para comenzar.
+            </div>
+          ) : (
+            cargasBase.map((c) => <CargaCard key={c.id} c={c} />)
+          )}
+        </>
+      )}
     </main>
   );
 }
@@ -882,47 +940,102 @@ function SeccionMensajesDador({ userId }: { userId: string }) {
   );
 }
 
+interface Factura { id: string; offerId: string; fecha: string; concepto: string; camionero: string; monto: number; estado: string; }
+
+function descargarFactura(f: Factura) {
+  const contenido = [
+    "========================================",
+    "         CARGABACK — COMPROBANTE",
+    "========================================",
+    `N° Factura : ${f.id}`,
+    `Fecha      : ${f.fecha}`,
+    `Concepto   : ${f.concepto}`,
+    `Camionero  : ${f.camionero}`,
+    `Monto      : $${f.monto.toLocaleString("es-AR")} ARS`,
+    `Estado     : ${f.estado}`,
+    "========================================",
+  ].join("\n");
+  const blob = new Blob([contenido], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${f.id}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function SeccionFacturacion() {
-  const facturas = [
-    { id: "F-2026-038", fecha: "28/03/2026", concepto: "Granos BA→Rosario", monto: 275000, estado: "Pagada" },
-    { id: "F-2026-029", fecha: "15/03/2026", concepto: "Vidrio Córdoba→BsAs", monto: 420000, estado: "Pagada" },
-    { id: "F-2026-021", fecha: "02/03/2026", concepto: "Ropa BsAs→Mendoza", monto: 310000, estado: "Pagada" },
-  ];
+  const [facturas, setFacturas] = useState<Factura[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/invoices")
+      .then((r) => r.json())
+      .then((d) => { if (d.invoices) setFacturas(d.invoices); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const totalMes = facturas.reduce((acc, f) => acc + f.monto, 0);
+
+  const descargarTodas = () => facturas.forEach((f) => descargarFactura(f));
+
   return (
     <main style={{ padding: 20, flex: 1 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)" }}>Facturación</div>
-        <button style={{ fontSize: 13, padding: "6px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
-          Descargar todas
-        </button>
+        {facturas.length > 0 && (
+          <button onClick={descargarTodas} style={{ fontSize: 13, padding: "6px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
+            ↓ Descargar todas
+          </button>
+        )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-        {[["Gasto este mes", "$1.005.000"], ["Facturas emitidas", "3"]].map(([label, val]) => (
-          <div key={label} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-md)", padding: "14px 16px" }}>
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 6 }}>{label}</div>
-            <div style={{ fontSize: 24, fontWeight: 600, color: "var(--color-text-primary)" }}>{val}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Tabla */}
-      <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 2fr 1fr 80px", gap: 0, borderBottom: "0.5px solid var(--color-border-tertiary)", padding: "10px 16px" }}>
-          {["N°", "Fecha", "Concepto", "Monto", "Estado"].map((h) => (
-            <div key={h} style={{ fontSize: 11, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</div>
+      {!loading && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+          {[
+            ["Total pagado", totalMes > 0 ? `$${totalMes.toLocaleString("es-AR")}` : "—"],
+            ["Facturas emitidas", String(facturas.length)],
+          ].map(([label, val]) => (
+            <div key={label} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-md)", padding: "14px 16px" }}>
+              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 6 }}>{label}</div>
+              <div style={{ fontSize: 24, fontWeight: 600, color: "var(--color-text-primary)" }}>{val}</div>
+            </div>
           ))}
         </div>
-        {facturas.map((f, idx) => (
-          <div key={f.id} style={{ display: "grid", gridTemplateColumns: "1fr 2fr 2fr 1fr 80px", gap: 0, padding: "12px 16px", borderBottom: idx < facturas.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none", alignItems: "center" }}>
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{f.id}</div>
-            <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{f.fecha}</div>
-            <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{f.concepto}</div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>${f.monto.toLocaleString("es-AR")}</div>
-            <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 20, fontWeight: 500, background: "var(--color-brand-light)", color: "var(--color-brand-dark)" }}>{f.estado}</span>
+      )}
+
+      {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+
+      {!loading && facturas.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+          No hay facturas todavía. Aparecerán aquí cuando confirmes el pago de un envío.
+        </div>
+      )}
+
+      {!loading && facturas.length > 0 && (
+        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr 2fr 1.2fr 90px 52px", gap: 0, borderBottom: "0.5px solid var(--color-border-tertiary)", padding: "10px 16px" }}>
+            {["N°", "Fecha", "Concepto", "Monto", "Estado", ""].map((h) => (
+              <div key={h} style={{ fontSize: 11, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</div>
+            ))}
           </div>
-        ))}
-      </div>
+          {facturas.map((f, idx) => (
+            <div key={f.id} style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr 2fr 1.2fr 90px 52px", gap: 0, padding: "12px 16px", borderBottom: idx < facturas.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none", alignItems: "center" }}>
+              <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{f.id}</div>
+              <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{f.fecha}</div>
+              <div style={{ fontSize: 13, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.concepto}</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>${f.monto.toLocaleString("es-AR")}</div>
+              <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 20, fontWeight: 500, background: "var(--color-brand-light)", color: "var(--color-brand-dark)" }}>{f.estado}</span>
+              <button
+                onClick={() => descargarFactura(f)}
+                title="Descargar factura"
+                style={{ fontSize: 14, padding: "4px 8px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}
+              >↓</button>
+            </div>
+          ))}
+        </div>
+      )}
     </main>
   );
 }
@@ -1086,6 +1199,7 @@ export default function DadorDashboard() {
             loading={loadingCargas}
             onVerOfertas={(c) => setModalOfertas(c)}
             onDestacado={(titulo) => mostrarToast(`Carga "${titulo.split("—")[0].trim()}" destacada. Más camioneros la verán primero.`)}
+            onIniciarPago={(sel) => setModalPago(sel)}
           />
         )}
         {navActivo === "Historial" && <SeccionHistorial />}
