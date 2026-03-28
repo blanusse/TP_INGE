@@ -12,7 +12,7 @@ import { signOut, useSession } from "next-auth/react";
 type NavItem = "Mis cargas" | "Historial" | "Camioneros" | "Mensajes" | "Facturación" | "Mi perfil";
 type TabItem = "Todas" | "Con ofertas" | "Sin ofertas";
 
-interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; nota: string; }
+interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; }
 interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; }
 
 interface LoadDB {
@@ -347,32 +347,72 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
   onRechazar: (nombre: string) => void;
   onIniciarPago: (sel: OfertaSeleccionada) => void;
 }) {
-  const [ofertas, setOfertas] = useState<Oferta[]>([]);
-  const [loadingOfertas, setLoadingOfertas] = useState(true);
-  const [rechazando, setRechazando] = useState<string | null>(null);
+  const [ofertas, setOfertas]       = useState<Oferta[]>([]);
+  const [loadingOfertas, setLoading] = useState(true);
+  const [accionando, setAccionando]  = useState<string | null>(null);
+  const [confirmRechazar, setConfirmRechazar] = useState<Oferta | null>(null);
+  const [contraofertaId, setContraofertaId]   = useState<string | null>(null);
+  const [contraPrice, setContraPrice]         = useState("");
 
   React.useEffect(() => {
     fetch(`/api/offers?loadId=${carga.id}`)
       .then((r) => r.json())
       .then((d) => { if (d.offers) setOfertas(d.offers); })
       .catch(() => {})
-      .finally(() => setLoadingOfertas(false));
+      .finally(() => setLoading(false));
   }, [carga.id]);
 
-  const rechazar = async (o: Oferta) => {
-    setRechazando(o.offerId);
+  const callPatch = async (offerId: string, body: object) => {
+    setAccionando(offerId);
     try {
-      await fetch(`/api/offers/${o.offerId}`, {
+      const res = await fetch(`/api/offers/${offerId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "rejected" }),
+        body: JSON.stringify(body),
       });
-      setOfertas((prev) => prev.filter((x) => x.offerId !== o.offerId));
-      onRechazar(o.nombre);
+      return res.ok;
     } finally {
-      setRechazando(null);
+      setAccionando(null);
     }
   };
+
+  const rechazar = async (o: Oferta) => {
+    const ok = await callPatch(o.offerId, { action: "reject" });
+    if (ok) { setOfertas((prev) => prev.filter((x) => x.offerId !== o.offerId)); onRechazar(o.nombre); }
+    setConfirmRechazar(null);
+  };
+
+  const contraofertar = async (o: Oferta) => {
+    if (!contraPrice || isNaN(Number(contraPrice))) return;
+    const ok = await callPatch(o.offerId, { action: "counter", counterPrice: Number(contraPrice) });
+    if (ok) {
+      setOfertas((prev) => prev.map((x) => x.offerId === o.offerId ? { ...x, status: "countered", counterPrice: Number(contraPrice) } : x));
+      setContraofertaId(null);
+      setContraPrice("");
+    }
+  };
+
+  // Modal de confirmación de rechazo
+  if (confirmRechazar) {
+    return (
+      <Modal title="¿Rechazar esta oferta?" onClose={() => setConfirmRechazar(null)}>
+        <div style={{ background: "#fff7ed", border: "0.5px solid #fed7aa", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#c2410c", marginBottom: 8 }}>⚠ Atención</div>
+          <div style={{ fontSize: 13, color: "#9a3412", lineHeight: 1.6 }}>
+            Si rechazás la oferta de <strong>{confirmRechazar.nombre}</strong>, este camionero <strong>no podrá volver a ofertar</strong> para esta carga.
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setConfirmRechazar(null)} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
+            Cancelar
+          </button>
+          <button onClick={() => rechazar(confirmRechazar)} disabled={accionando === confirmRechazar.offerId} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "none", background: "#b91c1c", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
+            {accionando === confirmRechazar.offerId ? "Rechazando..." : "Sí, rechazar →"}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal title={`Ofertas para: ${carga.titulo}`} onClose={onClose}>
@@ -380,47 +420,69 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
       {!loadingOfertas && ofertas.length === 0 && (
         <div style={{ textAlign: "center", padding: 24, color: "var(--color-text-tertiary)", fontSize: 14 }}>Sin ofertas todavía.</div>
       )}
-      {!loadingOfertas && ofertas.map((o) => (
-        <div key={o.offerId} style={{
-          border: "0.5px solid var(--color-border-tertiary)",
-          borderRadius: "var(--border-radius-md)", padding: 14, marginBottom: 10,
-          background: "var(--color-background-primary)",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--color-background-info)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "var(--color-text-info)" }}>{o.iniciales}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{o.nombre}</div>
-              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
-                <Stars value={o.rating} /> {o.rating} · {o.viajes} viajes
+      {!loadingOfertas && ofertas.map((o) => {
+        const esContraoferta = o.status === "countered";
+        return (
+          <div key={o.offerId} style={{
+            border: `0.5px solid ${esContraoferta ? "#bfdbfe" : "var(--color-border-tertiary)"}`,
+            borderRadius: "var(--border-radius-md)", padding: 14, marginBottom: 10,
+            background: esContraoferta ? "#eff6ff" : "var(--color-background-primary)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--color-background-info)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "var(--color-text-info)" }}>{o.iniciales}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{o.nombre}</div>
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
+                  <Stars value={o.rating} /> {o.rating} · {o.viajes} viajes
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-brand-dark)" }}>${o.precio.toLocaleString("es-AR")}</div>
+                {esContraoferta && o.counterPrice && (
+                  <div style={{ fontSize: 11, color: "#1d4ed8" }}>Tu contraoferta: ${o.counterPrice.toLocaleString("es-AR")}</div>
+                )}
               </div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-brand-dark)" }}>${o.precio.toLocaleString("es-AR")}</div>
-              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Oferta</div>
-            </div>
+            {o.nota && (
+              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: "6px 10px", background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-md)", marginBottom: 10 }}>
+                &ldquo;{o.nota}&rdquo;
+              </div>
+            )}
+            {esContraoferta ? (
+              <div style={{ fontSize: 12, color: "#1d4ed8", padding: "8px 10px", background: "#dbeafe", borderRadius: "var(--border-radius-md)" }}>
+                Contraoferta enviada — esperando respuesta del camionero
+              </div>
+            ) : contraofertaId === o.offerId ? (
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <input
+                  type="number"
+                  value={contraPrice}
+                  onChange={(e) => setContraPrice(e.target.value)}
+                  placeholder="Tu precio (ARS)"
+                  style={{ flex: 1, fontSize: 13, padding: "6px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}
+                />
+                <button onClick={() => { setContraofertaId(null); setContraPrice(""); }} style={{ fontSize: 12, padding: "6px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>✕</button>
+                <button onClick={() => contraofertar(o)} disabled={accionando === o.offerId} style={{ fontSize: 12, padding: "6px 14px", borderRadius: "var(--border-radius-md)", border: "none", background: "#1d4ed8", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Enviar</button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <button onClick={() => setConfirmRechazar(o)} style={{ flex: 1, fontSize: 12, padding: "6px", borderRadius: "var(--border-radius-md)", border: "0.5px solid #fecaca", background: "#fef2f2", color: "#b91c1c", cursor: "pointer", minWidth: 80 }}>
+                  Rechazar
+                </button>
+                <button onClick={() => { setContraofertaId(o.offerId); setContraPrice(String(o.precio)); }} style={{ flex: 1, fontSize: 12, padding: "6px", borderRadius: "var(--border-radius-md)", border: "0.5px solid #bfdbfe", background: "#eff6ff", color: "#1d4ed8", cursor: "pointer", minWidth: 80 }}>
+                  Contraofertar
+                </button>
+                <button
+                  onClick={() => { onIniciarPago({ oferta: o, cargaTitulo: carga.titulo, cargaId: carga.id, offerId: o.offerId }); onClose(); }}
+                  style={{ flex: 2, fontSize: 12, padding: "6px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600, minWidth: 100 }}
+                >
+                  Aceptar →
+                </button>
+              </div>
+            )}
           </div>
-          {o.nota && (
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: "6px 10px", background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-md)", marginBottom: 10 }}>
-              &ldquo;{o.nota}&rdquo;
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              disabled={rechazando === o.offerId}
-              onClick={() => rechazar(o)}
-              style={{ flex: 1, fontSize: 12, padding: "6px", borderRadius: "var(--border-radius-md)", border: "0.5px solid #fecaca", background: "#fef2f2", color: "#b91c1c", cursor: "pointer", opacity: rechazando === o.offerId ? 0.6 : 1 }}
-            >
-              {rechazando === o.offerId ? "..." : "Rechazar"}
-            </button>
-            <button
-              onClick={() => { onIniciarPago({ oferta: o, cargaTitulo: carga.titulo, cargaId: carga.id, offerId: o.offerId }); onClose(); }}
-              style={{ flex: 2, fontSize: 12, padding: "6px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}
-            >
-              Aceptar oferta →
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
       <button onClick={onClose} style={{ width: "100%", marginTop: 8, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
         Cerrar
       </button>
@@ -441,10 +503,19 @@ function ModalPago({ sel, onClose, onPagado }: {
   const handlePagar = async () => {
     setStep("processing");
     setLoading(true);
-    // Simula proceso de pago (en prod: Stripe / MercadoPago)
-    await new Promise((r) => setTimeout(r, 1800));
-    setStep("done");
-    setLoading(false);
+    try {
+      // Aceptar la oferta en DB
+      await fetch(`/api/offers/${sel.offerId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "accept" }),
+      });
+      // Simula procesamiento de pago (en prod: Stripe / MercadoPago)
+      await new Promise((r) => setTimeout(r, 1800));
+      setStep("done");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -516,13 +587,13 @@ function ModalPago({ sel, onClose, onPagado }: {
   );
 }
 
-// ── Modal: Chat ───────────────────────────────────────────────────────────────
+// ── Chat (reutilizable como inline o modal) ───────────────────────────────────
 
 interface MensajeChat { id: string; senderId: string; texto: string; hora: string; }
 
-function ModalChat({ sel, onClose, userId }: { sel: OfertaSeleccionada; onClose: () => void; userId: string }) {
+function ChatInline({ sel, userId }: { sel: OfertaSeleccionada; userId: string }) {
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
-  const [texto, setTexto] = useState("");
+  const [texto, setTexto]       = useState("");
   const [enviando, setEnviando] = useState(false);
   const listRef = React.useRef<HTMLDivElement>(null);
 
@@ -562,14 +633,13 @@ function ModalChat({ sel, onClose, userId }: { sel: OfertaSeleccionada; onClose:
   };
 
   return (
-    <Modal title={`Chat con ${sel.oferta.nombre}`} onClose={onClose}>
+    <div>
       <div style={{ background: "var(--color-brand-light)", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 14, fontSize: 12, color: "var(--color-brand-dark)", fontWeight: 500 }}>
         🚛 {sel.cargaTitulo} · ${sel.oferta.precio.toLocaleString("es-AR")} · Pago en escrow
       </div>
-
-      <div ref={listRef} style={{ height: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14, paddingRight: 4 }}>
+      <div ref={listRef} style={{ height: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14, paddingRight: 4 }}>
         {mensajes.length === 0 && (
-          <div style={{ textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13, marginTop: 60 }}>Sin mensajes todavía. ¡Iniciá la conversación!</div>
+          <div style={{ textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13, marginTop: 80 }}>Sin mensajes todavía. ¡Iniciá la conversación!</div>
         )}
         {mensajes.map((m) => {
           const esYo = m.senderId === userId;
@@ -588,7 +658,6 @@ function ModalChat({ sel, onClose, userId }: { sel: OfertaSeleccionada; onClose:
           );
         })}
       </div>
-
       <div style={{ display: "flex", gap: 8 }}>
         <input
           value={texto}
@@ -597,10 +666,16 @@ function ModalChat({ sel, onClose, userId }: { sel: OfertaSeleccionada; onClose:
           placeholder="Escribí un mensaje..."
           style={{ flex: 1, fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }}
         />
-        <button onClick={enviar} disabled={enviando} style={{ padding: "9px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: enviando ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 14, opacity: enviando ? 0.7 : 1 }}>
-          →
-        </button>
+        <button onClick={enviar} disabled={enviando} style={{ padding: "9px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: enviando ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 14, opacity: enviando ? 0.7 : 1 }}>→</button>
       </div>
+    </div>
+  );
+}
+
+function ModalChat({ sel, onClose, userId }: { sel: OfertaSeleccionada; onClose: () => void; userId: string }) {
+  return (
+    <Modal title={`Chat con ${sel.oferta.nombre}`} onClose={onClose}>
+      <ChatInline sel={sel} userId={userId} />
     </Modal>
   );
 }
@@ -751,15 +826,58 @@ function SeccionCamioneros() {
   );
 }
 
-function SeccionMensajes() {
+interface Conversacion { offerId: string; cargaTitulo: string; otherUserName: string; precio: number; lastMessage: string | null; lastMessageTime: string | null; }
+
+function SeccionMensajesDador({ userId }: { userId: string }) {
+  const [convs, setConvs]         = useState<Conversacion[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [chatAbierto, setChatAbierto] = useState<Conversacion | null>(null);
+
+  useEffect(() => {
+    fetch("/api/conversations")
+      .then((r) => r.json())
+      .then((d) => { if (d.conversations) setConvs(d.conversations); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (chatAbierto) {
+    const sel: OfertaSeleccionada = {
+      offerId: chatAbierto.offerId,
+      cargaTitulo: chatAbierto.cargaTitulo,
+      cargaId: "",
+      oferta: { id: 0, offerId: chatAbierto.offerId, nombre: chatAbierto.otherUserName, iniciales: chatAbierto.otherUserName.slice(0, 2).toUpperCase(), rating: 0, viajes: 0, precio: chatAbierto.precio, nota: "" },
+    };
+    return (
+      <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760 }}>
+        <button onClick={() => setChatAbierto(null)} style={{ fontSize: 13, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", marginBottom: 16, padding: 0 }}>← Volver a mensajes</button>
+        <ChatInline sel={sel} userId={userId} />
+      </main>
+    );
+  }
+
   return (
     <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760 }}>
       <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 20 }}>Mensajes</div>
-      <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>✉</div>
-        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>No tenés mensajes todavía</div>
-        <div>Los chats con camioneros aparecerán aquí una vez que aceptes una oferta.</div>
-      </div>
+      {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+      {!loading && convs.length === 0 && (
+        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>✉</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>No tenés mensajes todavía</div>
+          <div>Los chats aparecerán aquí una vez que aceptes una oferta.</div>
+        </div>
+      )}
+      {!loading && convs.map((c) => (
+        <div key={c.offerId} onClick={() => setChatAbierto(c)} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--color-background-info)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "var(--color-text-info)", flexShrink: 0 }}>{c.otherUserName.slice(0, 2).toUpperCase()}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{c.otherUserName}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.cargaTitulo}</div>
+            {c.lastMessage && <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.lastMessage}</div>}
+          </div>
+          {c.lastMessageTime && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", flexShrink: 0 }}>{c.lastMessageTime}</div>}
+        </div>
+      ))}
     </main>
   );
 }
@@ -972,7 +1090,7 @@ export default function DadorDashboard() {
         )}
         {navActivo === "Historial" && <SeccionHistorial />}
         {navActivo === "Camioneros" && <SeccionCamioneros />}
-        {navActivo === "Mensajes" && <SeccionMensajes />}
+        {navActivo === "Mensajes" && <SeccionMensajesDador userId={userId} />}
         {navActivo === "Facturación" && <SeccionFacturacion />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>

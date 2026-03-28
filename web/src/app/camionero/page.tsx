@@ -1,7 +1,7 @@
 "use client";
 
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
 import { signOut, useSession } from "next-auth/react";
 
 // ── Datos ────────────────────────────────────────────────────────────────────
@@ -425,27 +425,57 @@ interface MiOferta {
   precioBase: number;
   miOferta: number;
   fecha: string;
-  estado: "pending" | "accepted" | "rejected";
+  estado: "pending" | "countered" | "accepted" | "rejected";
+  counterPrice: number | null;
   nota: string;
 }
 
 function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
   const [ofertas, setOfertas] = useState<MiOferta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accionando, setAccionando] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchOfertas = () => {
+    setLoading(true);
     fetch("/api/offers/mine")
       .then((r) => r.json())
       .then((d) => { if (d.offers) setOfertas(d.offers); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  };
 
-  const estadoLabel: Record<string, string> = { pending: "Pendiente", accepted: "Aceptada", rejected: "Rechazada" };
+  useEffect(() => { fetchOfertas(); }, []);
+
+  const accion = async (offerId: string, action: string) => {
+    setAccionando(offerId + action);
+    try {
+      const res = await fetch(`/api/offers/${offerId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        if (action === "withdraw") onToast("Oferta retirada.");
+        else if (action === "accept_counter") onToast("Contraoferta aceptada. ¡El viaje está confirmado!");
+        else if (action === "reject_counter") onToast("Contraoferta rechazada.");
+        fetchOfertas();
+      }
+    } finally {
+      setAccionando(null);
+    }
+  };
+
+  const estadoLabel: Record<string, string> = {
+    pending:  "Pendiente",
+    countered: "Contraoferta recibida",
+    accepted: "Aceptada",
+    rejected: "Rechazada",
+  };
   const estadoStyle: Record<string, { bg: string; color: string }> = {
-    pending:  { bg: "#fef3c7", color: "#92400e" },
-    accepted: { bg: "var(--color-brand-light)", color: "var(--color-brand-dark)" },
-    rejected: { bg: "#fee2e2", color: "#b91c1c" },
+    pending:   { bg: "#fef3c7", color: "#92400e" },
+    countered: { bg: "#eff6ff", color: "#1d4ed8" },
+    accepted:  { bg: "var(--color-brand-light)", color: "var(--color-brand-dark)" },
+    rejected:  { bg: "#fee2e2", color: "#b91c1c" },
   };
 
   return (
@@ -456,7 +486,7 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
         <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>No enviaste ofertas todavía.</div>
       )}
       {!loading && ofertas.map((o) => (
-        <div key={o.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
+        <div key={o.id} style={{ background: "var(--color-background-primary)", border: o.estado === "countered" ? "1.5px solid #3b82f6" : "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{o.titulo}</div>
@@ -474,9 +504,48 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-brand-dark)" }}>${o.miOferta.toLocaleString("es-AR")}</div>
             </div>
           </div>
+
+          {/* Contraoferta del dador */}
+          {o.estado === "countered" && o.counterPrice != null && (
+            <div style={{ marginTop: 12, padding: "12px 14px", background: "#eff6ff", borderRadius: "var(--border-radius-md)", border: "1px solid #bfdbfe" }}>
+              <div style={{ fontSize: 12, color: "#1d4ed8", fontWeight: 600, marginBottom: 8 }}>
+                El dador propuso un nuevo precio: <span style={{ fontSize: 15 }}>${o.counterPrice.toLocaleString("es-AR")}</span>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => accion(o.id, "accept_counter")}
+                  disabled={accionando === o.id + "accept_counter"}
+                  style={{ flex: 1, padding: "8px 0", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: accionando === o.id + "accept_counter" ? 0.6 : 1 }}
+                >
+                  Aceptar contraoferta
+                </button>
+                <button
+                  onClick={() => accion(o.id, "reject_counter")}
+                  disabled={accionando === o.id + "reject_counter"}
+                  style={{ flex: 1, padding: "8px 0", borderRadius: "var(--border-radius-md)", border: "1px solid #fca5a5", background: "#fef2f2", color: "#b91c1c", fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: accionando === o.id + "reject_counter" ? 0.6 : 1 }}
+                >
+                  Rechazar
+                </button>
+              </div>
+            </div>
+          )}
+
           {o.nota && (
             <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 10, padding: "8px 10px", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)" }}>
               &ldquo;{o.nota}&rdquo;
+            </div>
+          )}
+
+          {/* Retirar oferta */}
+          {(o.estado === "pending" || o.estado === "countered") && (
+            <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => accion(o.id, "withdraw")}
+                disabled={accionando === o.id + "withdraw"}
+                style={{ fontSize: 12, padding: "5px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "none", color: "var(--color-text-tertiary)", cursor: "pointer", opacity: accionando === o.id + "withdraw" ? 0.5 : 1 }}
+              >
+                Retirar oferta
+              </button>
             </div>
           )}
         </div>
@@ -605,15 +674,140 @@ function SeccionMisViajes() {
   );
 }
 
-function SeccionMensajes() {
+interface Conversacion { offerId: string; cargaTitulo: string; otherUserName: string; precio: number; lastMessage: string | null; lastMessageTime: string | null; }
+interface MensajeChat { id: string; senderId: string; texto: string; hora: string; }
+
+function ChatCamionero({ conv, userId, onVolver }: { conv: Conversacion; userId: string; onVolver: () => void }) {
+  const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
+  const [texto, setTexto] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch(`/api/messages?offerId=${conv.offerId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.messages) {
+          setMensajes(d.messages.map((m: { id: string; senderId: string; content: string; hora: string }) => ({
+            id: m.id, senderId: m.senderId, texto: m.content, hora: m.hora,
+          })));
+          setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }), 50);
+        }
+      })
+      .catch(() => {});
+  }, [conv.offerId]);
+
+  const enviar = async () => {
+    if (!texto.trim() || enviando) return;
+    setEnviando(true);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ offerId: conv.offerId, content: texto.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const m = data.message;
+        setMensajes((prev) => [...prev, { id: m.id, senderId: m.senderId, texto: m.content, hora: m.hora }]);
+        setTexto("");
+        setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
+      }
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760 }}>
+      <button onClick={onVolver} style={{ fontSize: 13, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", marginBottom: 16, padding: 0 }}>← Volver a mensajes</button>
+      <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>{conv.otherUserName}</div>
+      <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 16 }}>{conv.cargaTitulo} · ${conv.precio.toLocaleString("es-AR")}</div>
+      <div style={{ background: "var(--color-brand-light)", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 14, fontSize: 12, color: "var(--color-brand-dark)", fontWeight: 500 }}>
+        🚛 {conv.cargaTitulo} · ${conv.precio.toLocaleString("es-AR")} · Pago en escrow
+      </div>
+      <div ref={listRef} style={{ height: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14, paddingRight: 4 }}>
+        {mensajes.length === 0 && (
+          <div style={{ textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13, marginTop: 80 }}>Sin mensajes todavía. ¡Iniciá la conversación!</div>
+        )}
+        {mensajes.map((m) => {
+          const esYo = m.senderId === userId;
+          return (
+            <div key={m.id} style={{ display: "flex", justifyContent: esYo ? "flex-end" : "flex-start" }}>
+              <div style={{
+                maxWidth: "75%", padding: "9px 13px", borderRadius: esYo ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                background: esYo ? "var(--color-brand)" : "var(--color-background-secondary)",
+                color: esYo ? "#fff" : "var(--color-text-primary)",
+                fontSize: 13, lineHeight: 1.5,
+              }}>
+                {m.texto}
+                <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{m.hora}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+          placeholder="Escribí un mensaje..."
+          style={{ flex: 1, fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }}
+        />
+        <button onClick={enviar} disabled={enviando} style={{ padding: "9px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: enviando ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 14, opacity: enviando ? 0.7 : 1 }}>→</button>
+      </div>
+    </main>
+  );
+}
+
+function SeccionMensajes({ userId }: { userId: string }) {
+  const [convs, setConvs]           = useState<Conversacion[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [chatAbierto, setChatAbierto] = useState<Conversacion | null>(null);
+
+  useEffect(() => {
+    fetch("/api/conversations")
+      .then((r) => r.json())
+      .then((d) => { if (d.conversations) setConvs(d.conversations); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (chatAbierto) {
+    return <ChatCamionero conv={chatAbierto} userId={userId} onVolver={() => setChatAbierto(null)} />;
+  }
+
   return (
     <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760 }}>
       <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 20 }}>Mensajes</div>
-      <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>✉</div>
-        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>No tenés mensajes todavía</div>
-        <div>Los chats con dadores de carga aparecerán aquí una vez que se acepte una oferta.</div>
-      </div>
+      {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+      {!loading && convs.length === 0 && (
+        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>✉</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>No tenés mensajes todavía</div>
+          <div>Los chats con dadores de carga aparecerán aquí una vez que se acepte una oferta.</div>
+        </div>
+      )}
+      {!loading && convs.map((c) => (
+        <button
+          key={c.offerId}
+          onClick={() => setChatAbierto(c)}
+          style={{ width: "100%", textAlign: "left", background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "14px 16px", marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}
+        >
+          <div style={{ width: 42, height: 42, borderRadius: "50%", background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "var(--color-brand-dark)", flexShrink: 0 }}>
+            {c.otherUserName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{c.otherUserName}</div>
+              {c.lastMessageTime && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{c.lastMessageTime}</div>}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.cargaTitulo}</div>
+            {c.lastMessage && <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{c.lastMessage}</div>}
+          </div>
+        </button>
+      ))}
     </main>
   );
 }
@@ -987,6 +1181,7 @@ export default function CamioneroDashboard() {
 
   const userName = session?.user?.name ?? "Usuario";
   const userEmail = session?.user?.email ?? "";
+  const userId    = session?.user?.id    ?? "";
   const userRole = session?.user?.role ?? "camionero";
   const rolLabel = userRole === "flota" ? "Empresa de flota" : "Camionero independiente";
   // Iniciales a partir del nombre real
@@ -1042,7 +1237,7 @@ export default function CamioneroDashboard() {
         )}
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "Mis viajes" && <SeccionMisViajes />}
-        {navActivo === "Mensajes" && <SeccionMensajes />}
+        {navActivo === "Mensajes" && <SeccionMensajes userId={userId} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} rolLabel={rolLabel} />}
       </div>

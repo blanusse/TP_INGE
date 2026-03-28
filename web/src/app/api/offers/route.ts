@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  const offers = await Offer.find({ load_id: new mongoose.Types.ObjectId(loadId), status: "pending" })
+  const offers = await Offer.find({ load_id: new mongoose.Types.ObjectId(loadId), status: { $in: ["pending", "countered"] } })
     .sort({ created_at: 1 })
     .lean();
 
@@ -28,14 +28,16 @@ export async function GET(req: NextRequest) {
     const name = driverMap[o.driver_id.toString()] ?? "Camionero";
     const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
     return {
-      id:        i + 1,                      // id numérico para compatibilidad con el UI
-      offerId:   o._id.toString(),
-      nombre:    name,
-      iniciales: initials,
-      rating:    4.5,                         // TODO: calcular de reviews
-      viajes:    0,                           // TODO: calcular de historial
-      precio:    o.price,
-      nota:      o.note ?? "",
+      id:           i + 1,
+      offerId:      o._id.toString(),
+      nombre:       name,
+      iniciales:    initials,
+      rating:       4.5,
+      viajes:       0,
+      precio:       o.price,
+      counterPrice: o.counter_price ?? null,
+      status:       o.status,
+      nota:         o.note ?? "",
     };
   });
 

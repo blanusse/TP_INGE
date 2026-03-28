@@ -16,6 +16,7 @@ export async function GET() {
 
   const offers = await Offer.find({
     driver_id: new mongoose.Types.ObjectId(session.user.id),
+    status: { $nin: ["withdrawn"] },
   })
     .sort({ created_at: -1 })
     .lean();
@@ -53,7 +54,8 @@ export async function GET() {
       precioBase: load?.price_base ?? 0,
       miOferta:   o.price,
       fecha,
-      estado:     o.status as "pending" | "accepted" | "rejected",
+      estado:       o.status as "pending" | "countered" | "accepted" | "rejected",
+      counterPrice: o.counter_price ?? null,
       nota:       o.note ?? "",
     };
   });
