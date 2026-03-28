@@ -3,12 +3,10 @@
 # TO-DO's
 
 ## revision
-- revisar la base de datos, que no falte ningun campo necesario para la seguridad y uso de la pagina
 - 
 
 ## diseños
 
-- diseñar la tabla de base de datos para un viaje
 - diseñar el dashboard de vista de dador de carga
 - diseñar el dashboard de vista de camionero
 - diseñar el dashboard de vista de administrador de empresa de flota
