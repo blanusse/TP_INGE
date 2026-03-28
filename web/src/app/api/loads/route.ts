@@ -37,8 +37,8 @@ export async function GET() {
   ]);
   const countMap = Object.fromEntries(offerCounts.map((o) => [o._id.toString(), o.count]));
 
-  // Oferta aceptada para cargas matched
-  const matchedLoadIds = loads.filter((l) => l.status === "matched").map((l) => l._id);
+  // Oferta aceptada para cargas matched e in_transit
+  const matchedLoadIds = loads.filter((l) => l.status === "matched" || l.status === "in_transit").map((l) => l._id);
   let acceptedOfferMap: Record<string, { offerId: string; driverId: string; precio: number }> = {};
   if (matchedLoadIds.length > 0) {
     const acceptedOffers = await Offer.find({ load_id: { $in: matchedLoadIds }, status: "accepted" }).lean();

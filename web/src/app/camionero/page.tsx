@@ -632,19 +632,183 @@ function Calendario({ eventos }: { eventos: { fecha: string; tipo: "salida" | "l
   );
 }
 
+interface TripData {
+  offerId: string;
+  loadId: string;
+  titulo: string;
+  empresa: string;
+  precio: number;
+  fechaRetiro: string;
+  pickupCity: string;
+  dropoffCity: string;
+  status: string;
+  yaCalifiqué: boolean;
+}
+
+function ModalCalificarDador({ offerId, empresa, onClose }: { offerId: string; empresa: string; onClose: () => void }) {
+  const [score, setScore]       = useState(0);
+  const [hover, setHover]       = useState(0);
+  const [enviando, setEnviando] = useState(false);
+  const [done, setDone]         = useState(false);
+
+  const enviar = async () => {
+    if (!score) return;
+    setEnviando(true);
+    try {
+      await fetch("/api/ratings", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ offerId, score }),
+      });
+      setDone(true);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <Modal title="¡Gracias por calificar!" onClose={onClose}>
+        <div style={{ textAlign: "center", padding: "28px 20px" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>⭐</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>Calificación enviada</div>
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>Tu opinión ayuda a la comunidad de CargaBack.</div>
+          <button onClick={onClose} style={{ fontSize: 14, padding: "10px 28px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, cursor: "pointer" }}>Cerrar</button>
+        </div>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title={`Calificá a ${empresa}`} onClose={onClose}>
+      <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
+        <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>
+          ¿Cómo fue tu experiencia con este dador de carga?
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 24 }}>
+          {[1, 2, 3, 4, 5].map((s) => (
+            <button
+              key={s}
+              onMouseEnter={() => setHover(s)}
+              onMouseLeave={() => setHover(0)}
+              onClick={() => setScore(s)}
+              style={{ fontSize: 36, background: "none", border: "none", cursor: "pointer", color: s <= (hover || score) ? "#BA7517" : "var(--color-border-secondary)", transition: "color 0.1s", padding: "0 2px" }}
+            >★</button>
+          ))}
+        </div>
+        {score > 0 && (
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 16 }}>
+            {["", "Muy malo", "Malo", "Regular", "Bueno", "Excelente"][score]}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
+            Omitir
+          </button>
+          <button onClick={enviar} disabled={!score || enviando} style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: score ? "var(--color-brand)" : "var(--color-background-secondary)", color: score ? "#fff" : "var(--color-text-tertiary)", cursor: score ? "pointer" : "not-allowed", fontWeight: 600 }}>
+            {enviando ? "Enviando..." : "Enviar calificación"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function SeccionMisViajes() {
   const [tab, setTab] = useState<TabViajes>("En curso");
+  const [trips, setTrips] = useState<{ enCurso: TripData[]; proximos: TripData[]; completados: TripData[] }>({ enCurso: [], proximos: [], completados: [] });
+  const [loading, setLoading] = useState(true);
+  const [modalCalificar, setModalCalificar] = useState<{ offerId: string; empresa: string } | null>(null);
+  const [calificados, setCalificados] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetch("/api/trips/mine")
+      .then((r) => r.json())
+      .then((d) => {
+        setTrips({
+          enCurso:     d.enCurso     ?? [],
+          proximos:    d.proximos    ?? [],
+          completados: d.completados ?? [],
+        });
+        // Mark already-rated trips
+        const alreadyRated = new Set<string>(
+          (d.completados ?? []).filter((t: TripData) => t.yaCalifiqué).map((t: TripData) => t.offerId)
+        );
+        setCalificados(alreadyRated);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const tabData = {
+    "En curso":    trips.enCurso,
+    "Próximos":    trips.proximos,
+    "Completados": trips.completados,
+  };
+  const current = tabData[tab];
+
+  const TripCard = ({ t }: { t: TripData }) => {
+    const partes = t.titulo.split(" — ");
+    const tipoCarga = partes[0];
+    const ruta = partes[1] ?? t.titulo;
+    const [origen, destino] = ruta.split(" → ");
+    const completado = t.status === "delivered";
+    const yaCalif = calificados.has(t.offerId);
+    return (
+      <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: `4px solid ${completado ? "#16a34a" : tab === "En curso" ? "#f59e0b" : "#3b82f6"}`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)" }}>{origen}</span>
+              <span style={{ fontSize: 15, color: "var(--color-brand)", fontWeight: 700 }}>→</span>
+              <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)" }}>{destino}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tipoCarga} · {t.empresa}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-brand-dark)" }}>${t.precio.toLocaleString("es-AR")}</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Retiro: {t.fechaRetiro}</div>
+          </div>
+        </div>
+        {completado && (
+          <div style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "flex-end" }}>
+            {yaCalif ? (
+              <span style={{ fontSize: 12, color: "var(--color-text-tertiary)", padding: "6px 12px" }}>✓ Ya calificaste este viaje</span>
+            ) : (
+              <button
+                onClick={() => setModalCalificar({ offerId: t.offerId, empresa: t.empresa })}
+                style={{ fontSize: 12, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "#BA7517", color: "#fff", fontWeight: 600, cursor: "pointer" }}
+              >
+                ⭐ Calificar dador
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <main style={{ padding: "20px 24px", flex: 1 }}>
+      {modalCalificar && (
+        <ModalCalificarDador
+          offerId={modalCalificar.offerId}
+          empresa={modalCalificar.empresa}
+          onClose={() => {
+            setCalificados((prev) => new Set([...prev, modalCalificar.offerId]));
+            setModalCalificar(null);
+          }}
+        />
+      )}
+
       <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis viajes</div>
 
       {/* Tab cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
         {([
-          { t: "En curso" as TabViajes,    icon: "🚛", color: "#f59e0b", bg: "#fffbeb", count: 0, desc: "Viaje activo ahora" },
-          { t: "Próximos" as TabViajes,    icon: "📅", color: "#3b82f6", bg: "#eff6ff", count: 0, desc: "Confirmados" },
-          { t: "Completados" as TabViajes, icon: "✓",  color: "#16a34a", bg: "#f0fdf4", count: 0, desc: "Historial" },
+          { t: "En curso"    as TabViajes, icon: "🚛", color: "#f59e0b", bg: "#fffbeb", count: trips.enCurso.length,     desc: "Viaje activo ahora" },
+          { t: "Próximos"    as TabViajes, icon: "📅", color: "#3b82f6", bg: "#eff6ff", count: trips.proximos.length,    desc: "Confirmados" },
+          { t: "Completados" as TabViajes, icon: "✓",  color: "#16a34a", bg: "#f0fdf4", count: trips.completados.length, desc: "Historial" },
         ]).map(({ t, icon, color, bg, count, desc }) => (
           <button key={t} onClick={() => setTab(t)} style={{
             border: tab === t ? `2px solid ${color}` : "1.5px solid var(--color-border-tertiary)",
@@ -666,12 +830,22 @@ function SeccionMisViajes() {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
-        <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
-          No tenés viajes en esta categoría todavía.
+      {loading && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+
+      {!loading && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
+          <div>
+            {current.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+                No tenés viajes en esta categoría todavía.
+              </div>
+            ) : (
+              current.map((t) => <TripCard key={t.offerId} t={t} />)
+            )}
+          </div>
+          <Calendario eventos={[]} />
         </div>
-        <Calendario eventos={[]} />
-      </div>
+      )}
     </main>
   );
 }
@@ -853,6 +1027,8 @@ const TOP_ROUTES = [
 
 type TabPerfil = "Perfil" | "Estadísticas";
 
+interface CamioneroStats { viajesCompletados: number; calificacionPromedio: number | null; memberSince: string; }
+
 function SeccionPerfil({ onToast, userName, userEmail, rolLabel }: {
   onToast: (m: string) => void;
   userName: string;
@@ -863,8 +1039,16 @@ function SeccionPerfil({ onToast, userName, userEmail, rolLabel }: {
   const [nombre, setNombre] = useState(userName);
   const [telefono, setTelefono] = useState("+54 9 11 4523-7891");
   const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
+  const [stats, setStats] = useState<CamioneroStats | null>(null);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
   const maxEarning = Math.max(...EARNINGS_DATA.map((e) => e.monto));
+
+  useEffect(() => {
+    fetch("/api/stats/camionero")
+      .then((r) => r.json())
+      .then((d) => setStats(d))
+      .catch(() => {});
+  }, []);
 
   return (
     <main style={{ flex: 1, background: "var(--color-background-tertiary)" }}>
@@ -898,7 +1082,11 @@ function SeccionPerfil({ onToast, userName, userEmail, rolLabel }: {
       {/* Stats banner */}
       <div style={{ padding: "0 40px", marginTop: -28, maxWidth: 840 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
-          {[["4.8 ⭐", "Calificación promedio"], ["127", "Viajes completados"], ["Mar 2024", "En plataforma desde"]].map(([val, label], idx, arr) => (
+          {[
+            [stats?.calificacionPromedio != null ? `${stats.calificacionPromedio} ⭐` : "— ⭐", "Calificación promedio"],
+            [stats ? String(stats.viajesCompletados) : "—", "Viajes completados"],
+            [stats?.memberSince ?? "—", "En plataforma desde"],
+          ].map(([val, label], idx, arr) => (
             <div key={label} style={{ padding: "20px 0", textAlign: "center", borderRight: idx < arr.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
               <div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)" }}>{val}</div>
               <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 4 }}>{label}</div>

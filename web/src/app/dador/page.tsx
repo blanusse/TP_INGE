@@ -10,7 +10,7 @@ import { signOut, useSession } from "next-auth/react";
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
 type NavItem = "Mis cargas" | "Historial" | "Mensajes" | "Facturación" | "Mi perfil";
-type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas";
+type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tránsito";
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; }
 interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
@@ -680,6 +680,77 @@ function ModalPago({ sel, onClose, onPagado }: {
   );
 }
 
+// ── Modal: Calificar camionero ────────────────────────────────────────────────
+
+function ModalCalificarCamionero({ offerId, driverName, onClose }: { offerId: string; driverName: string; onClose: () => void }) {
+  const [score, setScore]       = useState(0);
+  const [hover, setHover]       = useState(0);
+  const [enviando, setEnviando] = useState(false);
+  const [done, setDone]         = useState(false);
+
+  const enviar = async () => {
+    if (!score) return;
+    setEnviando(true);
+    try {
+      await fetch("/api/ratings", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ offerId, score }),
+      });
+      setDone(true);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <Modal title="¡Gracias por calificar!" onClose={onClose}>
+        <div style={{ textAlign: "center", padding: "28px 20px" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>⭐</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>Calificación enviada</div>
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>Tu opinión ayuda a la comunidad de CargaBack.</div>
+          <button onClick={onClose} style={{ fontSize: 14, padding: "10px 28px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, cursor: "pointer" }}>Cerrar</button>
+        </div>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title={`Calificá a ${driverName}`} onClose={onClose}>
+      <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
+        <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>
+          ¿Cómo fue tu experiencia con este camionero?
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 24 }}>
+          {[1, 2, 3, 4, 5].map((s) => (
+            <button
+              key={s}
+              onMouseEnter={() => setHover(s)}
+              onMouseLeave={() => setHover(0)}
+              onClick={() => setScore(s)}
+              style={{ fontSize: 36, background: "none", border: "none", cursor: "pointer", color: s <= (hover || score) ? "#BA7517" : "var(--color-border-secondary)", transition: "color 0.1s", padding: "0 2px" }}
+            >★</button>
+          ))}
+        </div>
+        {score > 0 && (
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 16 }}>
+            {["", "Muy malo", "Malo", "Regular", "Bueno", "Excelente"][score]}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
+            Omitir
+          </button>
+          <button onClick={enviar} disabled={!score || enviando} style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: score ? "var(--color-brand)" : "var(--color-background-secondary)", color: score ? "#fff" : "var(--color-text-tertiary)", cursor: score ? "pointer" : "not-allowed", fontWeight: 600 }}>
+            {enviando ? "Enviando..." : "Enviar calificación"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ── Chat (reutilizable como inline o modal) ───────────────────────────────────
 
 interface MensajeChat { id: string; senderId: string; texto: string; hora: string; }
@@ -781,29 +852,51 @@ function SeccionMisCargas({
   onVerOfertas,
   onDestacado,
   onIniciarPago,
+  onRefresh,
 }: {
   cargas: Carga[];
   loading: boolean;
   onVerOfertas: (c: Carga) => void;
   onDestacado: (titulo: string) => void;
   onIniciarPago: (sel: OfertaSeleccionada) => void;
+  onRefresh: () => void;
 }) {
   const [tab, setTab] = useState<TabItem>("Todas");
+  const [confirmando, setConfirmando] = useState<string | null>(null);
+  const [modalCalificar, setModalCalificar] = useState<{ offerId: string; driverName: string } | null>(null);
 
-  const publicadas = cargas.filter((c) => c.status !== "matched" && c.status !== "in_transit" && c.status !== "delivered");
-  const matched    = cargas.filter((c) => c.status === "matched");
+  const publicadas  = cargas.filter((c) => c.status !== "matched" && c.status !== "in_transit" && c.status !== "delivered");
+  const matched     = cargas.filter((c) => c.status === "matched");
+  const enTransito  = cargas.filter((c) => c.status === "in_transit");
 
   const cargasBase = tab === "Con ofertas" ? publicadas.filter((c) => c.ofertas > 0)
     : tab === "Sin ofertas" ? publicadas.filter((c) => c.ofertas === 0)
     : tab === "Confirmadas" ? matched
+    : tab === "En tránsito" ? enTransito
     : publicadas;
 
   const tabCards = [
-    { t: "Todas"      as TabItem, icon: "📦", color: "var(--color-brand)", colorHex: "#2d6a4f", bg: "var(--color-brand-light)", count: publicadas.length,                            desc: "Buscando camionero" },
-    { t: "Con ofertas" as TabItem, icon: "📩", color: "#3b82f6",            colorHex: "#3b82f6",  bg: "#eff6ff",                 count: publicadas.filter((c) => c.ofertas > 0).length, desc: "Esperando tu decisión" },
-    { t: "Sin ofertas" as TabItem, icon: "⏳", color: "#f59e0b",            colorHex: "#f59e0b",  bg: "#fffbeb",                 count: publicadas.filter((c) => c.ofertas === 0).length, desc: "Sin postulantes aún" },
-    { t: "Confirmadas" as TabItem, icon: "✓", color: "#16a34a",            colorHex: "#16a34a",  bg: "#f0fdf4",                 count: matched.length,                                desc: "Esperando pago" },
+    { t: "Todas"       as TabItem, icon: "📦", color: "var(--color-brand)", bg: "var(--color-brand-light)", count: publicadas.length,                             desc: "Buscando camionero" },
+    { t: "Con ofertas" as TabItem, icon: "📩", color: "#3b82f6",            bg: "#eff6ff",                  count: publicadas.filter((c) => c.ofertas > 0).length, desc: "Esperando tu decisión" },
+    { t: "Sin ofertas" as TabItem, icon: "⏳", color: "#f59e0b",            bg: "#fffbeb",                  count: publicadas.filter((c) => c.ofertas === 0).length, desc: "Sin postulantes aún" },
+    { t: "Confirmadas" as TabItem, icon: "✓",  color: "#16a34a",            bg: "#f0fdf4",                  count: matched.length,                                  desc: "Esperando pago" },
+    { t: "En tránsito" as TabItem, icon: "🚛", color: "#8b5cf6",            bg: "#f5f3ff",                  count: enTransito.length,                               desc: "Viajes en curso" },
   ];
+
+  const confirmarLlegada = async (c: Carga) => {
+    setConfirmando(c.id);
+    try {
+      const res  = await fetch(`/api/loads/${c.id}/confirm`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.offerId) {
+        onRefresh();
+        const driverName = c.acceptedOffer?.driverName ?? "el camionero";
+        setModalCalificar({ offerId: data.offerId, driverName });
+      }
+    } finally {
+      setConfirmando(null);
+    }
+  };
 
   const CargaCard = ({ c }: { c: Carga }) => {
     const partes = c.titulo.split(" — ");
@@ -895,27 +988,81 @@ function SeccionMisCargas({
     );
   };
 
+  const InTransitCard = ({ c }: { c: Carga }) => {
+    const ao = c.acceptedOffer;
+    const partes = c.titulo.split(" — ");
+    const tipoCarga = partes[0];
+    const ruta = partes[1] ?? c.titulo;
+    const [origen, destino] = ruta.split(" → ");
+    return (
+      <div style={{ background: "var(--color-background-primary)", border: "1.5px solid #8b5cf6", borderLeft: "4px solid #8b5cf6", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{origen}</span>
+              <span style={{ fontSize: 18, color: "#8b5cf6", fontWeight: 700 }}>→</span>
+              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{destino}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tipoCarga} · {c.hace}</div>
+          </div>
+          <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: "#f5f3ff", color: "#8b5cf6" }}>En tránsito 🚛</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
+          {[["Peso", c.peso], ["Tipo de camión", c.tipoCamion], ["Fecha de retiro", c.retiro]].map(([label, val]) => (
+            <div key={label}>
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
+              <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{val}</div>
+            </div>
+          ))}
+        </div>
+        {ao && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, padding: "10px 14px", background: "#f5f3ff", borderRadius: "var(--border-radius-md)", border: "0.5px solid #ddd6fe" }}>
+            <div>
+              <div style={{ fontSize: 12, color: "#6d28d9", marginBottom: 2 }}>Camionero: <strong>{ao.driverName}</strong></div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#6d28d9" }}>${ao.precio.toLocaleString("es-AR")}</div>
+            </div>
+            <button
+              onClick={() => confirmarLlegada(c)}
+              disabled={confirmando === c.id}
+              style={{ fontSize: 13, padding: "9px 20px", borderRadius: "var(--border-radius-md)", border: "none", background: confirmando === c.id ? "#aaa" : "#8b5cf6", color: "#fff", fontWeight: 700, cursor: confirmando === c.id ? "not-allowed" : "pointer" }}
+            >
+              {confirmando === c.id ? "Confirmando..." : "Confirmar llegada ✓"}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <main style={{ padding: "20px 24px", flex: 1 }}>
+      {modalCalificar && (
+        <ModalCalificarCamionero
+          offerId={modalCalificar.offerId}
+          driverName={modalCalificar.driverName}
+          onClose={() => setModalCalificar(null)}
+        />
+      )}
+
       {/* Tab cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 24 }}>
         {tabCards.map(({ t, icon, color, bg, count, desc }) => (
           <button key={t} onClick={() => setTab(t)} style={{
             border: tab === t ? `2px solid ${color}` : "1.5px solid var(--color-border-tertiary)",
             borderRadius: "var(--border-radius-lg)",
             background: tab === t ? bg : "var(--color-background-primary)",
-            padding: "18px 20px",
+            padding: "14px 16px",
             cursor: "pointer",
             textAlign: "left" as const,
             transition: "all 0.15s",
             boxShadow: tab === t ? `0 2px 12px ${color}33` : "none",
           }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <div style={{ width: 40, height: 40, borderRadius: "var(--border-radius-md)", background: tab === t ? color : "var(--color-background-secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.15s" }}>{icon}</div>
-              <span style={{ fontSize: 30, fontWeight: 700, color: tab === t ? color : "var(--color-text-primary)", lineHeight: 1 }}>{count}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ width: 36, height: 36, borderRadius: "var(--border-radius-md)", background: tab === t ? color : "var(--color-background-secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, transition: "all 0.15s" }}>{icon}</div>
+              <span style={{ fontSize: 26, fontWeight: 700, color: tab === t ? color : "var(--color-text-primary)", lineHeight: 1 }}>{count}</span>
             </div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: tab === t ? color : "var(--color-text-primary)", marginBottom: 3 }}>{t}</div>
-            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>{desc}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: tab === t ? color : "var(--color-text-primary)", marginBottom: 2 }}>{t}</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{desc}</div>
           </button>
         ))}
       </div>
@@ -932,6 +1079,15 @@ function SeccionMisCargas({
               </div>
             ) : (
               matched.map((c) => <MatchedCard key={c.id} c={c} />)
+            )
+          ) : tab === "En tránsito" ? (
+            enTransito.length === 0 ? (
+              <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>🚛</div>
+                No tenés viajes en tránsito ahora.
+              </div>
+            ) : (
+              enTransito.map((c) => <InTransitCard key={c.id} c={c} />)
             )
           ) : (
             cargasBase.length === 0 ? (
@@ -1119,7 +1275,7 @@ function SeccionFacturacion() {
 
 // ── Sección Perfil ────────────────────────────────────────────────────────────
 
-interface DadorStats { totalCargas: number; enTransito: number; memberSince: string; razonSocial: string | null; cuit: string | null; address: string | null; }
+interface DadorStats { totalCargas: number; enTransito: number; memberSince: string; calificacionPromedio: number | null; razonSocial: string | null; cuit: string | null; address: string | null; }
 
 function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) => void; userName: string; userEmail: string }) {
   const [editando, setEditando]   = useState(false);
@@ -1165,13 +1321,14 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             </div>
           </div>
           {/* Stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 0, borderTop: "0.5px solid var(--color-border-tertiary)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 0, borderTop: "0.5px solid var(--color-border-tertiary)" }}>
             {[
               { label: "Cargas publicadas", val: stats ? String(stats.totalCargas) : "—" },
               { label: "En tránsito ahora", val: stats ? String(stats.enTransito) : "—" },
+              { label: "Calificación promedio", val: stats?.calificacionPromedio != null ? `${stats.calificacionPromedio} ⭐` : "Sin calificaciones" },
               { label: "En plataforma desde", val: stats?.memberSince ?? "—" },
             ].map(({ label, val }, i) => (
-              <div key={label} style={{ textAlign: "center", padding: "16px 8px", borderRight: i < 2 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+              <div key={label} style={{ textAlign: "center", padding: "16px 8px", borderRight: i < 3 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
                 <div style={{ fontSize: 26, fontWeight: 700, color: "var(--color-brand-dark)", marginBottom: 4 }}>{val}</div>
                 <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{label}</div>
               </div>
@@ -1322,6 +1479,7 @@ export default function DadorDashboard() {
             onVerOfertas={(c) => setModalOfertas(c)}
             onDestacado={(titulo) => mostrarToast(`Carga "${titulo.split("—")[0].trim()}" destacada. Más camioneros la verán primero.`)}
             onIniciarPago={(sel) => setModalPago(sel)}
+            onRefresh={fetchCargas}
           />
         )}
         {navActivo === "Historial" && <SeccionHistorial />}
