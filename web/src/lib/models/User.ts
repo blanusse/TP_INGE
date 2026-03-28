@@ -8,6 +8,7 @@ export interface IUser {
   role: "driver" | "shipper" | "carrier_admin";
   phone?: string;
   dni?: string;
+  fleet_id?: mongoose.Types.ObjectId;
   created_at: Date;
 }
 
@@ -19,6 +20,7 @@ const UserSchema = new Schema<IUser>(
     role:          { type: String, enum: ["driver", "shipper", "carrier_admin"], required: true },
     phone:         String,
     dni:           String,
+    fleet_id:      { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: { createdAt: "created_at", updatedAt: false } }
 );

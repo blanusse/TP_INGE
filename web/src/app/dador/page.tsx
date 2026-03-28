@@ -9,8 +9,8 @@ import { signOut, useSession } from "next-auth/react";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Mis cargas" | "Historial" | "Camioneros" | "Mensajes" | "Facturación" | "Mi perfil";
-type TabItem = "Todas" | "Con ofertas" | "Sin ofertas";
+type NavItem = "Mis cargas" | "Historial" | "Mensajes" | "Facturación" | "Mi perfil";
+type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas";
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; }
 interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
@@ -563,34 +563,74 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
 
 // ── Modal: Pago con MercadoPago ───────────────────────────────────────────────
 
-function ModalPago({ sel, onClose }: {
+function ModalPago({ sel, onClose, onPagado }: {
   sel: OfertaSeleccionada;
   onClose: () => void;
+  onPagado: (sel: OfertaSeleccionada) => void;
 }) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [estado, setEstado] = useState<"idle" | "processing" | "done" | "error">("idle");
+  const [error, setError]   = useState<string | null>(null);
 
-  const handlePagar = async () => {
-    setLoading(true);
+  const handleSimular = async () => {
+    setEstado("processing");
     setError(null);
+    // Simular delay de procesamiento
+    await new Promise((r) => setTimeout(r, 2000));
     try {
-      const res = await fetch("/api/payments/create-preference", {
+      const res = await fetch("/api/payments/simulate", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ offerId: sel.offerId }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al iniciar el pago."); return; }
-
-      // En producción usamos init_point; en sandbox usamos sandbox_init_point
-      const url = data.sandbox_init_point ?? data.init_point;
-      window.location.href = url;
+      if (!res.ok) { setError(data.error ?? "Error al procesar el pago."); setEstado("error"); return; }
+      setEstado("done");
     } catch {
       setError("Error de conexión. Intentá de nuevo.");
-    } finally {
-      setLoading(false);
+      setEstado("error");
     }
   };
+
+  if (estado === "processing") {
+    return (
+      <Modal title="Procesando pago" onClose={onClose}>
+        <div style={{ textAlign: "center", padding: "40px 20px" }}>
+          <div style={{ fontSize: 40, marginBottom: 20 }}>
+            <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⟳</span>
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 8 }}>Procesando pago...</div>
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Por favor esperá un momento.</div>
+        </div>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </Modal>
+    );
+  }
+
+  if (estado === "done") {
+    return (
+      <Modal title="Pago confirmado" onClose={() => onPagado(sel)}>
+        <div style={{ textAlign: "center", padding: "32px 20px" }}>
+          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#f0fdf4", border: "2px solid #16a34a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 20px" }}>✓</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#16a34a", marginBottom: 8 }}>¡Pago confirmado!</div>
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 6 }}>
+            El viaje fue confirmado con <strong>{sel.oferta.nombre}</strong>.
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 24 }}>
+            ${sel.oferta.precio.toLocaleString("es-AR")} ARS
+          </div>
+          <div style={{ background: "#f0fdf4", border: "0.5px solid #bbf7d0", borderRadius: "var(--border-radius-md)", padding: "12px 16px", marginBottom: 24, fontSize: 12, color: "#15803d", lineHeight: 1.6, textAlign: "left" }}>
+            El dinero queda retenido hasta confirmar la entrega. El camionero recibe el pago cuando se complete el viaje.
+          </div>
+          <button
+            onClick={() => onPagado(sel)}
+            style={{ width: "100%", fontSize: 14, padding: "12px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+          >
+            Abrir chat con el camionero →
+          </button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal title="Confirmar pago" onClose={onClose}>
@@ -610,18 +650,16 @@ function ModalPago({ sel, onClose }: {
         </div>
       </div>
 
-      {/* Escrow info */}
-      <div style={{ background: "#eff6ff", border: "0.5px solid #bfdbfe", borderRadius: "var(--border-radius-lg)", padding: 14, marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8", marginBottom: 8 }}>ℹ ¿Cómo funciona el pago?</div>
-        <div style={{ fontSize: 12, color: "#1e40af", lineHeight: 1.6 }}>
-          1. Vas a ser redirigido a <strong>Mercado Pago</strong> para completar el pago.<br />
-          2. El dinero queda retenido en CargaBack hasta confirmar la entrega.<br />
-          3. El camionero cobra al confirmar que el viaje fue completado.<br />
-          Si el viaje no se concreta, recibís el reembolso completo.
+      {/* Info pago simulado */}
+      <div style={{ background: "#fffbeb", border: "0.5px solid #fde68a", borderRadius: "var(--border-radius-lg)", padding: 14, marginBottom: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#92400e", marginBottom: 6 }}>Pago simulado</div>
+        <div style={{ fontSize: 12, color: "#78350f", lineHeight: 1.6 }}>
+          Al confirmar, el viaje quedará en estado <strong>En tránsito</strong> y se habilitará el chat con el camionero.
+          En producción, este paso se realiza con Mercado Pago.
         </div>
       </div>
 
-      {error && (
+      {estado === "error" && error && (
         <div style={{ background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: "var(--border-radius-md)", padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#b91c1c" }}>
           {error}
         </div>
@@ -632,21 +670,11 @@ function ModalPago({ sel, onClose }: {
           Cancelar
         </button>
         <button
-          onClick={handlePagar}
-          disabled={loading}
-          style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: loading ? "#9ca3af" : "#009ee3", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+          onClick={handleSimular}
+          style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 700 }}
         >
-          {loading ? "Redirigiendo..." : (
-            <>
-              <span style={{ fontSize: 16 }}>💳</span>
-              Pagar con Mercado Pago
-            </>
-          )}
+          Confirmar y pagar
         </button>
-      </div>
-
-      <div style={{ marginTop: 12, textAlign: "center", fontSize: 11, color: "var(--color-text-tertiary)" }}>
-        Procesado de forma segura por Mercado Pago
       </div>
     </Modal>
   );
@@ -762,21 +790,19 @@ function SeccionMisCargas({
 }) {
   const [tab, setTab] = useState<TabItem>("Todas");
 
-  const publicadas = cargas.filter((c) => c.status !== "matched");
+  const publicadas = cargas.filter((c) => c.status !== "matched" && c.status !== "in_transit" && c.status !== "delivered");
   const matched    = cargas.filter((c) => c.status === "matched");
 
   const cargasBase = tab === "Con ofertas" ? publicadas.filter((c) => c.ofertas > 0)
     : tab === "Sin ofertas" ? publicadas.filter((c) => c.ofertas === 0)
+    : tab === "Confirmadas" ? matched
     : publicadas;
 
-  const activas = publicadas.filter((c) => c.ofertas === 0).length;
-  const conOfertas = publicadas.filter((c) => c.ofertas > 0).length;
-
-  const metricas = [
-    { label: "Publicadas",   valor: String(publicadas.length), sub: "Buscando camionero" },
-    { label: "Con ofertas",  valor: String(conOfertas),        sub: "Esperando decisión" },
-    { label: "Sin ofertas",  valor: String(activas),           sub: "Sin postulantes aún" },
-    { label: "Confirmadas",  valor: String(matched.length),    sub: "Esperando pago" },
+  const tabCards = [
+    { t: "Todas"      as TabItem, icon: "📦", color: "var(--color-brand)", colorHex: "#2d6a4f", bg: "var(--color-brand-light)", count: publicadas.length,                            desc: "Buscando camionero" },
+    { t: "Con ofertas" as TabItem, icon: "📩", color: "#3b82f6",            colorHex: "#3b82f6",  bg: "#eff6ff",                 count: publicadas.filter((c) => c.ofertas > 0).length, desc: "Esperando tu decisión" },
+    { t: "Sin ofertas" as TabItem, icon: "⏳", color: "#f59e0b",            colorHex: "#f59e0b",  bg: "#fffbeb",                 count: publicadas.filter((c) => c.ofertas === 0).length, desc: "Sin postulantes aún" },
+    { t: "Confirmadas" as TabItem, icon: "✓", color: "#16a34a",            colorHex: "#16a34a",  bg: "#f0fdf4",                 count: matched.length,                                desc: "Esperando pago" },
   ];
 
   const CargaCard = ({ c }: { c: Carga }) => {
@@ -824,97 +850,98 @@ function SeccionMisCargas({
     );
   };
 
-  return (
-    <main style={{ padding: 20, flex: 1 }}>
-      {/* Métricas */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 12, marginBottom: 24 }}>
-        {metricas.map((m) => (
-          <div key={m.label} style={{ background: "var(--color-background-primary)", borderRadius: "var(--border-radius-md)", padding: "14px 16px", border: "0.5px solid var(--color-border-tertiary)" }}>
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 6 }}>{m.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 600, color: "var(--color-text-primary)" }}>{m.valor}</div>
-            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}>{m.sub}</div>
+  const MatchedCard = ({ c }: { c: Carga }) => {
+    const ao = c.acceptedOffer;
+    const partes = c.titulo.split(" — ");
+    const tipoCarga = partes[0];
+    const ruta = partes[1] ?? c.titulo;
+    const [origen, destino] = ruta.split(" → ");
+    return (
+      <div style={{ background: "var(--color-background-primary)", border: "1.5px solid #16a34a", borderLeft: "4px solid #16a34a", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{origen}</span>
+              <span style={{ fontSize: 18, color: "#16a34a", fontWeight: 700 }}>→</span>
+              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{destino}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tipoCarga} · {c.hace}</div>
           </div>
+          <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: "#f0fdf4", color: "#16a34a" }}>Confirmado ✓</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
+          {[["Peso", c.peso], ["Tipo de camión", c.tipoCamion], ["Fecha de retiro", c.retiro]].map(([label, val]) => (
+            <div key={label}>
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
+              <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{val}</div>
+            </div>
+          ))}
+        </div>
+        {ao && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, padding: "10px 14px", background: "#f0fdf4", borderRadius: "var(--border-radius-md)", border: "0.5px solid #bbf7d0" }}>
+            <div>
+              <div style={{ fontSize: 12, color: "#15803d", marginBottom: 2 }}>Camionero: <strong>{ao.driverName}</strong></div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#15803d" }}>${ao.precio.toLocaleString("es-AR")}</div>
+            </div>
+            <button
+              onClick={() => onIniciarPago({ offerId: ao.offerId, cargaTitulo: c.titulo, cargaId: c.id, oferta: { nombre: ao.driverName, precio: ao.precio, offerId: ao.offerId, id: 0, iniciales: ao.driverName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2), rating: 0, viajes: 0, nota: "" } })}
+              style={{ fontSize: 13, padding: "9px 20px", borderRadius: "var(--border-radius-md)", border: "none", background: "#16a34a", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              Pagar →
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <main style={{ padding: "20px 24px", flex: 1 }}>
+      {/* Tab cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
+        {tabCards.map(({ t, icon, color, bg, count, desc }) => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            border: tab === t ? `2px solid ${color}` : "1.5px solid var(--color-border-tertiary)",
+            borderRadius: "var(--border-radius-lg)",
+            background: tab === t ? bg : "var(--color-background-primary)",
+            padding: "18px 20px",
+            cursor: "pointer",
+            textAlign: "left" as const,
+            transition: "all 0.15s",
+            boxShadow: tab === t ? `0 2px 12px ${color}33` : "none",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "var(--border-radius-md)", background: tab === t ? color : "var(--color-background-secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.15s" }}>{icon}</div>
+              <span style={{ fontSize: 30, fontWeight: 700, color: tab === t ? color : "var(--color-text-primary)", lineHeight: 1 }}>{count}</span>
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: tab === t ? color : "var(--color-text-primary)", marginBottom: 3 }}>{t}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>{desc}</div>
+          </button>
         ))}
       </div>
 
       {loading && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
 
-      {/* Cargas con camionero confirmado — esperando pago */}
-      {!loading && matched.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#16a34a", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 16 }}>✓</span> Camionero confirmado — pendiente de pago
-          </div>
-          {matched.map((c) => {
-            const ao = c.acceptedOffer;
-            const partes = c.titulo.split(" — ");
-            const tipoCarga = partes[0];
-            const ruta = partes[1] ?? c.titulo;
-            const [origen, destino] = ruta.split(" → ");
-            return (
-              <div key={c.id} style={{ background: "var(--color-background-primary)", border: "1.5px solid #16a34a", borderLeft: "4px solid #16a34a", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{origen}</span>
-                      <span style={{ fontSize: 18, color: "#16a34a", fontWeight: 700 }}>→</span>
-                      <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{destino}</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tipoCarga} · {c.hace}</div>
-                  </div>
-                  <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: "#f0fdf4", color: "#16a34a" }}>Confirmado ✓</span>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
-                  {[["Peso", c.peso], ["Tipo de camión", c.tipoCamion], ["Fecha de retiro", c.retiro]].map(([label, val]) => (
-                    <div key={label}>
-                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
-                      <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{val}</div>
-                    </div>
-                  ))}
-                </div>
-                {ao && (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, padding: "10px 14px", background: "#f0fdf4", borderRadius: "var(--border-radius-md)", border: "0.5px solid #bbf7d0" }}>
-                    <div>
-                      <div style={{ fontSize: 12, color: "#15803d", marginBottom: 2 }}>Camionero: <strong>{ao.driverName}</strong></div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#15803d" }}>${ao.precio.toLocaleString("es-AR")}</div>
-                    </div>
-                    <button
-                      onClick={() => onIniciarPago({ offerId: ao.offerId, cargaTitulo: c.titulo, cargaId: c.id, oferta: { nombre: ao.driverName, precio: ao.precio, offerId: ao.offerId, id: 0, iniciales: ao.driverName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0,2), rating: 0, viajes: 0, nota: "" } })}
-                      style={{ fontSize: 13, padding: "9px 20px", borderRadius: "var(--border-radius-md)", border: "none", background: "#16a34a", color: "#fff", fontWeight: 700, cursor: "pointer" }}
-                    >
-                      Pagar →
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Cargas publicadas buscando camionero */}
       {!loading && (
         <>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)" }}>Cargas publicadas</div>
-            <div style={{ display: "flex" }}>
-              {(["Todas", "Con ofertas", "Sin ofertas"] as TabItem[]).map((t) => (
-                <button key={t} onClick={() => setTab(t)} style={{
-                  fontSize: 13, padding: "7px 14px", border: "none", cursor: "pointer", background: "transparent",
-                  borderBottom: tab === t ? "2px solid var(--color-brand)" : "2px solid transparent",
-                  color: tab === t ? "var(--color-brand)" : "var(--color-text-secondary)",
-                  fontWeight: tab === t ? 500 : 400,
-                }}>{t}</button>
-              ))}
-            </div>
-          </div>
-          {cargasBase.length === 0 ? (
-            <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>📦</div>
-              No tenés cargas publicadas. Usá el botón &ldquo;+ Publicar carga&rdquo; para comenzar.
-            </div>
+          {tab === "Confirmadas" ? (
+            matched.length === 0 ? (
+              <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>✓</div>
+                No tenés cargas con camionero confirmado todavía.
+              </div>
+            ) : (
+              matched.map((c) => <MatchedCard key={c.id} c={c} />)
+            )
           ) : (
-            cargasBase.map((c) => <CargaCard key={c.id} c={c} />)
+            cargasBase.length === 0 ? (
+              <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>📦</div>
+                {tab === "Todas" ? "No tenés cargas publicadas. Usá el botón \u201C+ Publicar carga\u201D para comenzar." : `No hay cargas en la categoría "${tab}".`}
+              </div>
+            ) : (
+              cargasBase.map((c) => <CargaCard key={c.id} c={c} />)
+            )
           )}
         </>
       )}
@@ -933,16 +960,6 @@ function SeccionHistorial() {
   );
 }
 
-function SeccionCamioneros() {
-  return (
-    <main style={{ padding: 20, flex: 1 }}>
-      <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis camioneros de confianza</div>
-      <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
-        Tus camioneros de confianza aparecerán aquí una vez que completes viajes.
-      </div>
-    </main>
-  );
-}
 
 interface Conversacion { offerId: string; cargaTitulo: string; otherUserName: string; precio: number; lastMessage: string | null; lastMessageTime: string | null; }
 
@@ -1102,69 +1119,105 @@ function SeccionFacturacion() {
 
 // ── Sección Perfil ────────────────────────────────────────────────────────────
 
+interface DadorStats { totalCargas: number; enTransito: number; memberSince: string; razonSocial: string | null; cuit: string | null; address: string | null; }
+
 function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) => void; userName: string; userEmail: string }) {
-  const [editando, setEditando] = useState(false);
-  const [nombre, setNombre] = useState(userName);
-  const [telefono, setTelefono] = useState("+54 9 11 5555-1234");
+  const [editando, setEditando]   = useState(false);
+  const [nombre, setNombre]       = useState(userName);
+  const [telefono, setTelefono]   = useState("");
+  const [stats, setStats]         = useState<DadorStats | null>(null);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
 
+  React.useEffect(() => {
+    fetch("/api/stats/dador")
+      .then((r) => r.json())
+      .then((d) => setStats(d))
+      .catch(() => {});
+  }, []);
+
   return (
-    <main style={{ padding: 20, flex: 1, maxWidth: 640 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)" }}>Mi perfil</div>
+    <main style={{ padding: "24px 28px", flex: 1, maxWidth: 820 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>Mi perfil</div>
         <button
           onClick={() => { if (editando) onToast("Perfil actualizado."); setEditando(!editando); }}
-          style={{ fontSize: 13, padding: "6px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: editando ? "var(--color-brand)" : "transparent", color: editando ? "#fff" : "var(--color-text-primary)", cursor: "pointer", fontWeight: editando ? 500 : 400 }}
+          style={{ fontSize: 13, padding: "8px 18px", borderRadius: "var(--border-radius-md)", border: editando ? "none" : "0.5px solid var(--color-border-secondary)", background: editando ? "var(--color-brand)" : "transparent", color: editando ? "#fff" : "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }}
         >
-          {editando ? "Guardar cambios" : "Editar"}
+          {editando ? "Guardar cambios" : "Editar perfil"}
         </button>
       </div>
 
-      <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20, marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
-          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: "var(--color-brand-dark)" }}>{initials}</div>
-          <div>
-            {editando
-              ? <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ fontSize: 18, fontWeight: 600, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "4px 8px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }} />
-              : <div style={{ fontSize: 18, fontWeight: 600, color: "var(--color-text-primary)" }}>{nombre}</div>
-            }
-            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
-              Dador de carga
-              <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontWeight: 500 }}>Verificado ✓</span>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+        {/* Tarjeta principal */}
+        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 24, gridColumn: "1 / -1" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 24 }}>
+            <div style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--color-brand)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{initials}</div>
+            <div style={{ flex: 1 }}>
+              {editando
+                ? <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ fontSize: 20, fontWeight: 700, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "4px 10px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", marginBottom: 4, width: "100%", maxWidth: 320 }} />
+                : <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 4 }}>{nombre}</div>
+              }
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Dador de carga</span>
+                <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 20, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontWeight: 600 }}>Verificado ✓</span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 4 }}>{userEmail}</div>
             </div>
-            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 4 }}>{userEmail}</div>
+          </div>
+          {/* Stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 0, borderTop: "0.5px solid var(--color-border-tertiary)" }}>
+            {[
+              { label: "Cargas publicadas", val: stats ? String(stats.totalCargas) : "—" },
+              { label: "En tránsito ahora", val: stats ? String(stats.enTransito) : "—" },
+              { label: "En plataforma desde", val: stats?.memberSince ?? "—" },
+            ].map(({ label, val }, i) => (
+              <div key={label} style={{ textAlign: "center", padding: "16px 8px", borderRight: i < 2 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                <div style={{ fontSize: 26, fontWeight: 700, color: "var(--color-brand-dark)", marginBottom: 4 }}>{val}</div>
+                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{label}</div>
+              </div>
+            ))}
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 14 }}>
-          {[["Cargas publicadas", "38"], ["En tránsito", "2"], ["En plataforma desde", "Ene 2025"]].map(([label, val]) => (
-            <div key={label} style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--color-text-primary)" }}>{val}</div>
-              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 2 }}>{label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20, marginBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)", marginBottom: 12 }}>Contacto</div>
-        <div style={{ display: "grid", gap: 10 }}>
-          <div>
-            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 4 }}>Teléfono</div>
-            {editando
-              ? <input value={telefono} onChange={(e) => setTelefono(e.target.value)} style={{ fontSize: 13, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "6px 8px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", width: "100%" }} />
-              : <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{telefono}</div>
-            }
+        {/* Empresa */}
+        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 16 }}>Datos de empresa</div>
+          <div style={{ display: "grid", gap: 14 }}>
+            {[
+              { label: "Razón social", val: stats?.razonSocial ?? "—" },
+              { label: "CUIT / CUIL",  val: stats?.cuit        ?? "—" },
+              { label: "Dirección",    val: stats?.address     ?? "—" },
+            ].map(({ label, val }) => (
+              <div key={label}>
+                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 3 }}>{label}</div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{val}</div>
+              </div>
+            ))}
           </div>
-          <div>
-            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 4 }}>Email</div>
-            <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{userEmail || "—"}</div>
+        </div>
+
+        {/* Contacto */}
+        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 16 }}>Contacto</div>
+          <div style={{ display: "grid", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 3 }}>Email</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{userEmail || "—"}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 3 }}>Teléfono</div>
+              {editando
+                ? <input value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: +54 9 11 1234-5678" style={{ fontSize: 13, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "6px 10px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", width: "100%" }} />
+                : <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{telefono || "—"}</div>
+              }
+            </div>
           </div>
         </div>
       </div>
 
       <button
         onClick={() => signOut({ callbackUrl: "/" })}
-        style={{ marginTop: 8, fontSize: 13, padding: "8px 16px", borderRadius: "var(--border-radius-md)", border: "0.5px solid #fecaca", background: "#fef2f2", color: "#b91c1c", cursor: "pointer" }}
+        style={{ fontSize: 13, padding: "9px 18px", borderRadius: "var(--border-radius-md)", border: "0.5px solid #fecaca", background: "#fef2f2", color: "#b91c1c", cursor: "pointer", fontWeight: 500 }}
       >
         Cerrar sesión
       </button>
@@ -1218,17 +1271,26 @@ export default function DadorDashboard() {
             Carga<span style={{ color: "var(--color-brand)" }}>Back</span>
           </Link>
           <nav style={{ display: "flex", gap: 2 }}>
-            {(["Mis cargas", "Historial", "Camioneros", "Mensajes", "Facturación"] as NavItem[]).map((item) => (
-              <button key={item} onClick={() => setNavActivo(item)} style={{
-                fontSize: 15, padding: "8px 14px", borderRadius: "var(--border-radius-md)",
-                border: "none", cursor: "pointer",
-                background: navActivo === item ? "rgba(255,255,255,0.12)" : "transparent",
-                color: navActivo === item ? "#fff" : "rgba(255,255,255,0.6)",
-                fontWeight: navActivo === item ? 600 : 400,
-              }}>
-                {item}
-              </button>
-            ))}
+            {(["Mis cargas", "Historial", "Mensajes", "Facturación"] as NavItem[]).map((item) => {
+              const badge = item === "Mis cargas" ? cargas.reduce((s, c) => s + c.ofertas, 0) : 0;
+              return (
+                <button key={item} onClick={() => setNavActivo(item)} style={{
+                  fontSize: 16, padding: "9px 16px", borderRadius: "var(--border-radius-md)",
+                  border: "none", cursor: "pointer", position: "relative",
+                  background: navActivo === item ? "rgba(255,255,255,0.14)" : "transparent",
+                  color: navActivo === item ? "#fff" : "rgba(255,255,255,0.62)",
+                  fontWeight: navActivo === item ? 600 : 400,
+                  letterSpacing: navActivo === item ? "-0.01em" : "normal",
+                }}>
+                  {item}
+                  {badge > 0 && (
+                    <span style={{ position: "absolute", top: 5, right: 5, width: 16, height: 16, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                      {badge > 9 ? "9+" : badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1263,7 +1325,6 @@ export default function DadorDashboard() {
           />
         )}
         {navActivo === "Historial" && <SeccionHistorial />}
-        {navActivo === "Camioneros" && <SeccionCamioneros />}
         {navActivo === "Mensajes" && <SeccionMensajesDador userId={userId} />}
         {navActivo === "Facturación" && <SeccionFacturacion />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
@@ -1288,6 +1349,7 @@ export default function DadorDashboard() {
         <ModalPago
           sel={modalPago}
           onClose={() => setModalPago(null)}
+          onPagado={(sel) => { setModalPago(null); fetchCargas(); setModalChat(sel); }}
         />
       )}
       {modalChat && (

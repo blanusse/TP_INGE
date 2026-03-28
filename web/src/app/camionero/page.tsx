@@ -8,7 +8,7 @@ import { signOut, useSession } from "next-auth/react";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Buscar cargas" | "Mis ofertas" | "Mis viajes" | "Mensajes" | "Notificaciones" | "Mi perfil";
+type NavItem = "Buscar cargas" | "Mis ofertas" | "Mis viajes" | "Mensajes" | "Notificaciones" | "Mis camioneros" | "Mis camiones" | "Mi perfil";
 type SortKey = "Mayor precio" | "Menor precio" | "Más cercano" | "Fecha de retiro";
 
 interface ModalOfertaState {
@@ -1173,6 +1173,123 @@ function ModalOfertar({ info, onClose, onEnviar }: {
   );
 }
 
+// ── Secciones de empresa de flota ─────────────────────────────────────────────
+
+interface Driver { _id: string; name: string; email: string; phone?: string; dni?: string; }
+interface TruckFlota { _id: string; patente: string; marca?: string; modelo?: string; año?: number; truck_type?: string; capacity_kg?: number; vtv_vence?: string; seguro_poliza?: string; seguro_vence?: string; }
+
+function SeccionMisCamioneros() {
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/fleet/drivers")
+      .then((r) => r.json())
+      .then((d) => { if (d.drivers) setDrivers(d.drivers); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <main style={{ padding: "20px 24px", flex: 1, maxWidth: 860 }}>
+      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 20 }}>Mis camioneros</div>
+      {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+      {!loading && drivers.length === 0 && (
+        <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>👷</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>No tenés camioneros asociados</div>
+          <div style={{ fontSize: 13, color: "var(--color-text-tertiary)" }}>Los conductores de tu flota aparecerán aquí una vez que sean vinculados a tu empresa.</div>
+        </div>
+      )}
+      {!loading && drivers.length > 0 && (
+        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--color-background-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
+                {["Nombre", "DNI", "Email", "Teléfono"].map((h) => (
+                  <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {drivers.map((d, i) => (
+                <tr key={d._id} style={{ borderBottom: i < drivers.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                  <td style={{ padding: "12px 16px", fontWeight: 500, color: "var(--color-text-primary)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--color-brand-dark)", flexShrink: 0 }}>
+                        {d.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+                      </div>
+                      {d.name}
+                    </div>
+                  </td>
+                  <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.dni ?? "—"}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.email}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.phone ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function SeccionMisCamiones() {
+  const [trucks, setTrucks] = useState<TruckFlota[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/fleet/trucks")
+      .then((r) => r.json())
+      .then((d) => { if (d.trucks) setTrucks(d.trucks); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <main style={{ padding: "20px 24px", flex: 1, maxWidth: 860 }}>
+      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 20 }}>Mis camiones</div>
+      {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+      {!loading && trucks.length === 0 && (
+        <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🚛</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>No tenés camiones registrados</div>
+          <div style={{ fontSize: 13, color: "var(--color-text-tertiary)" }}>Registrá los vehículos de tu flota para gestionarlos desde acá.</div>
+        </div>
+      )}
+      {!loading && trucks.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 16 }}>
+          {trucks.map((t) => (
+            <div key={t._id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                <div style={{ width: 44, height: 44, borderRadius: "var(--border-radius-md)", background: "var(--color-background-secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🚛</div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>{t.patente}</div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{[t.marca, t.modelo, t.año].filter(Boolean).join(" ") || "Sin datos"}</div>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  ["Tipo", t.truck_type ?? "—"],
+                  ["Capacidad", t.capacity_kg ? `${t.capacity_kg.toLocaleString("es-AR")} kg` : "—"],
+                  ["VTV vence", t.vtv_vence ?? "—"],
+                  ["Seguro vence", t.seguro_vence ?? "—"],
+                ].map(([label, val]) => (
+                  <div key={label}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </main>
+  );
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function CamioneroDashboard() {
@@ -1185,11 +1302,21 @@ export default function CamioneroDashboard() {
   const userName = session?.user?.name ?? "Usuario";
   const userEmail = session?.user?.email ?? "";
   const userId    = session?.user?.id    ?? "";
-  const userRole = session?.user?.role ?? "camionero";
-  const rolLabel = userRole === "flota" ? "Empresa de flota" : "Camionero independiente";
-  // Iniciales a partir del nombre real
+  const userRole = session?.user?.role ?? "driver";
+  const isFlota  = userRole === "flota";
+  const rolLabel = isFlota ? "Empresa de flota" : "Camionero independiente";
   const initials = userName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
   const primerNombre = userName.split(" ")[0];
+  const [ofertasBadge, setOfertasBadge] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/offers/mine")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.offers) setOfertasBadge(d.offers.filter((o: { estado: string }) => o.estado === "pending" || o.estado === "countered").length);
+      })
+      .catch(() => {});
+  }, []);
 
   const mostrarToast = (msg: string) => setToast(msg);
 
@@ -1203,18 +1330,33 @@ export default function CamioneroDashboard() {
             Carga<span style={{ color: "var(--color-brand)" }}>Back</span>
           </Link>
           <nav style={{ display: "flex", gap: 2 }}>
-            {(["Buscar cargas", "Mis ofertas", "Mis viajes", "Mensajes", "Notificaciones"] as NavItem[]).map((item) => (
-              <button key={item} onClick={() => setNavActivo(item)} style={{
-                fontSize: 16, padding: "9px 16px", borderRadius: "var(--border-radius-md)",
-                border: "none", cursor: "pointer",
-                background: navActivo === item ? "rgba(255,255,255,0.14)" : "transparent",
-                color: navActivo === item ? "#fff" : "rgba(255,255,255,0.62)",
-                fontWeight: navActivo === item ? 600 : 400,
-                letterSpacing: navActivo === item ? "-0.01em" : "normal",
-              }}>
-                {item}
-              </button>
-            ))}
+            {([
+              "Buscar cargas",
+              "Mis ofertas",
+              "Mis viajes",
+              "Mensajes",
+              "Notificaciones",
+              ...(isFlota ? ["Mis camioneros", "Mis camiones"] as NavItem[] : []),
+            ] as NavItem[]).map((item) => {
+              const badge = item === "Mis ofertas" ? ofertasBadge : 0;
+              return (
+                <button key={item} onClick={() => setNavActivo(item)} style={{
+                  fontSize: 16, padding: "9px 16px", borderRadius: "var(--border-radius-md)",
+                  border: "none", cursor: "pointer", position: "relative",
+                  background: navActivo === item ? "rgba(255,255,255,0.14)" : "transparent",
+                  color: navActivo === item ? "#fff" : "rgba(255,255,255,0.62)",
+                  fontWeight: navActivo === item ? 600 : 400,
+                  letterSpacing: navActivo === item ? "-0.01em" : "normal",
+                }}>
+                  {item}
+                  {badge > 0 && (
+                    <span style={{ position: "absolute", top: 5, right: 5, width: 16, height: 16, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                      {badge > 9 ? "9+" : badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1243,6 +1385,8 @@ export default function CamioneroDashboard() {
         {navActivo === "Mis viajes" && <SeccionMisViajes />}
         {navActivo === "Mensajes" && <SeccionMensajes userId={userId} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
+        {navActivo === "Mis camioneros" && <SeccionMisCamioneros />}
+        {navActivo === "Mis camiones" && <SeccionMisCamiones />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} rolLabel={rolLabel} />}
       </div>
 

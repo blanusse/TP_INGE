@@ -21,15 +21,19 @@ export async function GET() {
   let offerQuery: Record<string, unknown>;
 
   if (role === "dador") {
-    // Buscar cargas del dador
+    // Solo cargas en tránsito (pago confirmado)
     const shipper = await Shipper.findOne({ user_id: userId });
     if (!shipper) return NextResponse.json({ conversations: [] });
-    const loads = await Load.find({ shipper_id: shipper._id }, "_id").lean();
+    const loads = await Load.find({ shipper_id: shipper._id, status: "in_transit" }, "_id").lean();
     const loadIds = loads.map((l) => l._id);
     offerQuery = { load_id: { $in: loadIds }, status: "accepted" };
   } else {
-    // Camionero: sus ofertas aceptadas
-    offerQuery = { driver_id: userId, status: "accepted" };
+    // Camionero: sus ofertas aceptadas donde la carga está en tránsito
+    const myOffers = await Offer.find({ driver_id: userId, status: "accepted" }, "load_id").lean();
+    const allLoadIds = myOffers.map((o) => o.load_id);
+    const transitLoads = await Load.find({ _id: { $in: allLoadIds }, status: "in_transit" }, "_id").lean();
+    const transitLoadIds = transitLoads.map((l) => l._id);
+    offerQuery = { driver_id: userId, status: "accepted", load_id: { $in: transitLoadIds } };
   }
 
   const offers = await Offer.find(offerQuery).sort({ created_at: -1 }).lean();
