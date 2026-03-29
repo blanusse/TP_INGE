@@ -221,7 +221,7 @@ function LoginInner() {
               </button>
 
               <button onClick={() => { resetForm(); setPaso("perfil"); }}
-                style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderRadius: 12, border: "1.5px solid var(--color-brand)", background: "var(--color-brand-light)", cursor: "pointer", textAlign: "left", width: "100%" }}>
+                style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderRadius: 12, border: "1.5px solid var(--color-brand)", background: "#fff", cursor: "pointer", textAlign: "left", width: "100%" }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--color-brand)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>✨</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-brand-dark)" }}>Registrarse gratis</div>
