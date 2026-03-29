@@ -6,7 +6,7 @@ import { signOut, useSession } from "next-auth/react";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Buscar cargas" | "Mis ofertas" | "Mis viajes" | "Mensajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
+type NavItem = "Buscar cargas" | "Mis ofertas" | "Mis viajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
 type SortKey = "Mayor precio" | "Menor precio" | "Más cercano" | "Fecha de retiro";
 
 interface ModalOfertaState {
@@ -107,7 +107,7 @@ function dbLoadToCard(load: Record<string, unknown>): CargaCard {
   return { id: (load._id ?? load.id) as string, titulo, empresa: shipper?.razon_social ?? "Dador de carga", hace, precio: (load.price_base as number) ?? 0, peso: load.weight_kg ? `${(load.weight_kg as number).toLocaleString("es-AR")} kg` : "—", camion: load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required as string] ?? "Cualquiera") : "Cualquiera", retiro: load.ready_at ? new Date(load.ready_at as string).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—", distancia, rating: 0, viajes: 0, badge: null, destacado: false };
 }
 
-function SeccionBuscar({ onOfertar, onAlerta, excluirIds }: { onOfertar: (c: ModalOfertaState) => void; onAlerta: () => void; excluirIds: Set<string | number> }) {
+function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: { onOfertar: (c: ModalOfertaState) => void; onAlerta: () => void; excluirIds: Set<string | number>; trucks: TruckData[]; onNoTruck: () => void }) {
   const [tipos, setTipos] = useState<string[]>([]);
   const [tiposCamion, setTiposCamion] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortKey>("Mayor precio");
@@ -252,7 +252,10 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds }: { onOfertar: (c: Mod
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
                 <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}><Stars value={c.rating} /> {c.rating} · {c.viajes} viajes{c.badge && <span style={{ color: "var(--color-brand-dark)" }}> · {c.badge}</span>}</div>
-                <button onClick={(e) => { e.stopPropagation(); onOfertar({ cargaId: c.id, titulo: c.titulo, empresa: c.empresa, precioBase: c.precio }); }} style={{ fontSize: 13, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Ofertar →</button>
+                {trucks.length === 0
+                  ? <button onClick={(e) => { e.stopPropagation(); onNoTruck(); }} title="Registrá un camión en Mi flota para poder ofertar" style={{ fontSize: 13, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-tertiary)", cursor: "pointer", fontWeight: 600 }}>Sin camión →</button>
+                  : <button onClick={(e) => { e.stopPropagation(); onOfertar({ cargaId: c.id, titulo: c.titulo, empresa: c.empresa, precioBase: c.precio }); }} style={{ fontSize: 13, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Ofertar →</button>
+                }
               </div>
             </div>
           );
@@ -321,7 +324,7 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
 
 type TabViajes = "En curso" | "Próximos" | "Completados";
 
-interface TripData { offerId: string; loadId: string; titulo: string; empresa: string; precio: number; fechaRetiro: string; pickupCity: string; dropoffCity: string; pickupExact: string | null; dropoffExact: string | null; status: string; yaCalifiqué: boolean; }
+interface TripData { offerId: string; loadId: string; titulo: string; empresa: string; precio: number; fechaRetiro: string; pickupCity: string; dropoffCity: string; pickupExact: string | null; dropoffExact: string | null; pickupLat: number | null; pickupLon: number | null; dropoffLat: number | null; dropoffLon: number | null; status: string; yaCalifiqué: boolean; }
 
 function ModalCalificarDador({ offerId, empresa, onClose }: { offerId: string; empresa: string; onClose: () => void }) {
   const [score, setScore] = useState(0);
@@ -378,12 +381,13 @@ function Calendario({ eventos }: { eventos: { fecha: string; tipo: "salida" | "l
   );
 }
 
-function SeccionMisViajes() {
+function SeccionMisViajes({ userId }: { userId: string }) {
   const [tab, setTab] = useState<TabViajes>("En curso");
   const [trips, setTrips] = useState<{ enCurso: TripData[]; proximos: TripData[]; completados: TripData[] }>({ enCurso: [], proximos: [], completados: [] });
   const [loading, setLoading] = useState(true);
   const [modalCalificar, setModalCalificar] = useState<{ offerId: string; empresa: string } | null>(null);
   const [calificados, setCalificados] = useState<Set<string>>(new Set());
+  const [tripSeleccionado, setTripSeleccionado] = useState<TripData | null>(null);
 
   useEffect(() => {
     fetch("/api/trips/mine").then((r) => r.json()).then((d) => {
@@ -392,6 +396,8 @@ function SeccionMisViajes() {
       setCalificados(alreadyRated);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
+
+  if (tripSeleccionado) return <VistaTripDetalle t={tripSeleccionado} userId={userId} onVolver={() => setTripSeleccionado(null)} />;
 
   const tabData = { "En curso": trips.enCurso, "Próximos": trips.proximos, "Completados": trips.completados };
   const current = tabData[tab];
@@ -402,7 +408,7 @@ function SeccionMisViajes() {
     const retiroExacto = t.pickupExact && t.pickupExact !== t.pickupCity ? t.pickupExact : null;
     const entregaExacta = t.dropoffExact && t.dropoffExact !== t.dropoffCity ? t.dropoffExact : null;
     return (
-      <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: `4px solid ${completado ? "#16a34a" : tab === "En curso" ? "#f59e0b" : "#3b82f6"}`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
+      <div onClick={() => setTripSeleccionado(t)} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: `4px solid ${completado ? "#16a34a" : tab === "En curso" ? "#f59e0b" : "#3b82f6"}`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10, cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
@@ -415,7 +421,7 @@ function SeccionMisViajes() {
           <div style={{ textAlign: "right" }}><div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-brand-dark)" }}>${t.precio.toLocaleString("es-AR")}</div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Retiro: {t.fechaRetiro}</div></div>
         </div>
         {(retiroExacto || entregaExacta) && (<div style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 8, display: "flex", flexDirection: "column", gap: 4 }}>{retiroExacto && <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>📍 <strong>Retiro:</strong> {retiroExacto}</div>}{entregaExacta && <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>📍 <strong>Entrega:</strong> {entregaExacta}</div>}</div>)}
-        {completado && (<div style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "flex-end" }}>{yaCalif ? (<span style={{ fontSize: 12, color: "var(--color-text-tertiary)", padding: "6px 12px" }}>✓ Ya calificaste este viaje</span>) : (<button onClick={() => setModalCalificar({ offerId: t.offerId, empresa: t.empresa })} style={{ fontSize: 12, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "#BA7517", color: "#fff", fontWeight: 600, cursor: "pointer" }}>⭐ Calificar dador</button>)}</div>)}
+        {completado && (<div onClick={(e) => e.stopPropagation()} style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "flex-end" }}>{yaCalif ? (<span style={{ fontSize: 12, color: "var(--color-text-tertiary)", padding: "6px 12px" }}>✓ Ya calificaste este viaje</span>) : (<button onClick={() => setModalCalificar({ offerId: t.offerId, empresa: t.empresa })} style={{ fontSize: 12, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "#BA7517", color: "#fff", fontWeight: 600, cursor: "pointer" }}>⭐ Calificar dador</button>)}</div>)}
       </div>
     );
   };
@@ -438,60 +444,108 @@ function SeccionMisViajes() {
   );
 }
 
-interface Conversacion { offerId: string; cargaTitulo: string; otherUserName: string; precio: number; lastMessage: string | null; lastMessageTime: string | null; }
 interface MensajeChat { id: string; senderId: string; texto: string; hora: string; }
 
-function Chat({ conv, userId, onVolver }: { conv: Conversacion; userId: string; onVolver: () => void }) {
+function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string; onVolver: () => void }) {
+  const partes = t.titulo.split(" — ");
+  const tipoCarga = partes[0];
+  const ruta = partes[1] ?? t.titulo;
+  const [or, dest] = ruta.split(" → ");
+
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
+  let km: number | null = null;
+  if (t.pickupLat != null && t.pickupLon != null && t.dropoffLat != null && t.dropoffLon != null) {
+    km = Math.round(haversineKm(t.pickupLat, t.pickupLon, t.dropoffLat, t.dropoffLon));
+  }
+
   useEffect(() => {
-    fetch(`/api/messages?offerId=${conv.offerId}`).then((r) => r.json()).then((d) => { if (d.messages) { setMensajes(d.messages.map((m: { id: string; senderId: string; content: string; hora: string }) => ({ id: m.id, senderId: m.senderId, texto: m.content, hora: m.hora }))); setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }), 50); } }).catch(() => {});
-  }, [conv.offerId]);
+    fetch(`/api/messages?offerId=${t.offerId}`).then((r) => r.json()).then((d) => {
+      if (d.messages) {
+        setMensajes(d.messages.map((m: { id: string; senderId: string; content: string; hora: string }) => ({ id: m.id, senderId: m.senderId, texto: m.content, hora: m.hora })));
+        setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }), 50);
+      }
+    }).catch(() => {});
+  }, [t.offerId]);
 
   const enviar = async () => {
     if (!texto.trim() || enviando) return;
     setEnviando(true);
     try {
-      const res = await fetch("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offerId: conv.offerId, content: texto.trim() }) });
+      const res = await fetch("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offerId: t.offerId, content: texto.trim() }) });
       if (res.ok) { const data = await res.json(); const m = data.message; setMensajes((prev) => [...prev, { id: m.id, senderId: m.senderId, texto: m.content, hora: m.hora }]); setTexto(""); setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50); }
     } finally { setEnviando(false); }
   };
 
+  const statusLabel: Record<string, { label: string; color: string }> = {
+    in_transit: { label: "En tránsito", color: "#f59e0b" },
+    matched:    { label: "Confirmado",  color: "#3b82f6" },
+    delivered:  { label: "Entregado",   color: "#16a34a" },
+  };
+  const st = statusLabel[t.status] ?? { label: t.status, color: "var(--color-text-tertiary)" };
+
+  const metaFields: [string, string][] = [
+    ["Empresa", t.empresa],
+    ["Precio acordado", `$${t.precio.toLocaleString("es-AR")}`],
+    ["Fecha de retiro", t.fechaRetiro],
+    ["Tipo de carga", tipoCarga],
+    ...(t.pickupExact ? [["Retiro exacto", t.pickupExact] as [string, string]] : []),
+    ...(t.dropoffExact ? [["Entrega exacta", t.dropoffExact] as [string, string]] : []),
+  ];
+
   return (
-    <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760 }}>
-      <button onClick={onVolver} style={{ fontSize: 13, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", marginBottom: 16, padding: 0 }}>← Volver a mensajes</button>
-      <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>{conv.otherUserName}</div>
-      <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 16 }}>{conv.cargaTitulo} · ${conv.precio.toLocaleString("es-AR")}</div>
-      <div style={{ background: "var(--color-brand-light)", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 14, fontSize: 12, color: "var(--color-brand-dark)", fontWeight: 500 }}>🚛 {conv.cargaTitulo} · ${conv.precio.toLocaleString("es-AR")} · Pago en escrow</div>
-      <div ref={listRef} style={{ height: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14, paddingRight: 4 }}>
-        {mensajes.length === 0 && <div style={{ textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13, marginTop: 80 }}>Sin mensajes todavía. ¡Iniciá la conversación!</div>}
-        {mensajes.map((m) => { const esYo = m.senderId === userId; return (<div key={m.id} style={{ display: "flex", justifyContent: esYo ? "flex-end" : "flex-start" }}><div style={{ maxWidth: "75%", padding: "9px 13px", borderRadius: esYo ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: esYo ? "var(--color-brand)" : "var(--color-background-secondary)", color: esYo ? "#fff" : "var(--color-text-primary)", fontSize: 13, lineHeight: 1.5 }}>{m.texto}<div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{m.hora}</div></div></div>); })}
+    <main style={{ padding: "20px 24px", flex: 1, maxWidth: 900 }}>
+      <button onClick={onVolver} style={{ fontSize: 13, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", marginBottom: 16, padding: 0 }}>← Volver a mis viajes</button>
+
+      {/* Tarjeta de ruta */}
+      <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 24, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 22, fontWeight: 800, color: "var(--color-text-primary)" }}>{or}</span>
+          <span style={{ fontSize: 20, color: "var(--color-brand)", fontWeight: 700 }}>→</span>
+          <span style={{ fontSize: 22, fontWeight: 800, color: "var(--color-text-primary)" }}>{dest}</span>
+          {km != null && <span style={{ fontSize: 13, color: "var(--color-text-tertiary)" }}>{km.toLocaleString("es-AR")} km</span>}
+          <span style={{ marginLeft: "auto", fontSize: 12, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: `${st.color}22`, color: st.color }}>{st.label}</span>
+        </div>
+
+        {/* Visualización de ruta */}
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <div style={{ width: 12, height: 12, borderRadius: "50%", background: "var(--color-brand)", boxShadow: "0 0 0 3px var(--color-brand-light)" }} />
+            <div style={{ fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 500, maxWidth: 80, textAlign: "center", lineHeight: 1.3 }}>{or}</div>
+          </div>
+          <div style={{ flex: 1, height: 3, background: "linear-gradient(90deg, var(--color-brand), #3b82f6)", borderRadius: 2, margin: "0 12px", marginBottom: 16 }} />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#3b82f6", boxShadow: "0 0 0 3px #dbeafe" }} />
+            <div style={{ fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 500, maxWidth: 80, textAlign: "center", lineHeight: 1.3 }}>{dest}</div>
+          </div>
+        </div>
+
+        {/* Metadatos */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 16 }}>
+          {metaFields.map(([label, val]) => (
+            <div key={label}>
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{val}</div>
+            </div>
+          ))}
+        </div>
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <input value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }} placeholder="Escribí un mensaje..." style={{ flex: 1, fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }} />
-        <button onClick={enviar} disabled={enviando} style={{ padding: "9px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: enviando ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 14, opacity: enviando ? 0.7 : 1 }}>→</button>
+
+      {/* Chat inline */}
+      <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 14 }}>Chat con {t.empresa}</div>
+        <div ref={listRef} style={{ height: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 12, paddingRight: 4 }}>
+          {mensajes.length === 0 && <div style={{ textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13, marginTop: 80 }}>Sin mensajes todavía.</div>}
+          {mensajes.map((m) => { const esYo = m.senderId === userId; return (<div key={m.id} style={{ display: "flex", justifyContent: esYo ? "flex-end" : "flex-start" }}><div style={{ maxWidth: "75%", padding: "9px 13px", borderRadius: esYo ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: esYo ? "var(--color-brand)" : "var(--color-background-secondary)", color: esYo ? "#fff" : "var(--color-text-primary)", fontSize: 13, lineHeight: 1.5 }}>{m.texto}<div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{m.hora}</div></div></div>); })}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }} placeholder="Escribí un mensaje..." style={{ flex: 1, fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }} />
+          <button onClick={enviar} disabled={enviando} style={{ padding: "9px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: enviando ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 14, opacity: enviando ? 0.7 : 1 }}>→</button>
+        </div>
       </div>
-    </main>
-  );
-}
-
-function SeccionMensajes({ userId }: { userId: string }) {
-  const [convs, setConvs] = useState<Conversacion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [chatAbierto, setChatAbierto] = useState<Conversacion | null>(null);
-
-  useEffect(() => { fetch("/api/conversations").then((r) => r.json()).then((d) => { if (d.conversations) setConvs(d.conversations); }).catch(() => {}).finally(() => setLoading(false)); }, []);
-
-  if (chatAbierto) return <Chat conv={chatAbierto} userId={userId} onVolver={() => setChatAbierto(null)} />;
-  return (
-    <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760 }}>
-      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 20 }}>Mensajes</div>
-      {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
-      {!loading && convs.length === 0 && (<div style={{ textAlign: "center", padding: "60px 20px", color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}><div style={{ fontSize: 36, marginBottom: 12 }}>✉</div><div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>No tenés mensajes todavía</div><div>Los chats con dadores de carga aparecerán aquí una vez que se acepte una oferta.</div></div>)}
-      {!loading && convs.map((c) => (<button key={c.offerId} onClick={() => setChatAbierto(c)} style={{ width: "100%", textAlign: "left", background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "14px 16px", marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}><div style={{ width: 42, height: 42, borderRadius: "50%", background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "var(--color-brand-dark)", flexShrink: 0 }}>{c.otherUserName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}</div><div style={{ flex: 1, minWidth: 0 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}><div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{c.otherUserName}</div>{c.lastMessageTime && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{c.lastMessageTime}</div>}</div><div style={{ fontSize: 12, color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.cargaTitulo}</div>{c.lastMessage && <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{c.lastMessage}</div>}</div></button>))}
     </main>
   );
 }
@@ -836,10 +890,11 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
 // ── Modal Ofertar ─────────────────────────────────────────────────────────────
 
-function ModalOfertar({ info, onClose, onEnviar }: { info: ModalOfertaState; onClose: () => void; onEnviar: (cargaId: string | number) => void }) {
+function ModalOfertar({ info, onClose, onEnviar, trucks }: { info: ModalOfertaState; onClose: () => void; onEnviar: (cargaId: string | number) => void; trucks: TruckData[] }) {
   const [precio, setPrecio] = useState(info.precioBase.toString());
   const [nota, setNota] = useState("");
   const [disponible, setDisponible] = useState("");
+  const [truckId, setTruckId] = useState(trucks[0]?._id ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const diferencia = parseInt(precio || "0") - info.precioBase;
@@ -848,7 +903,7 @@ function ModalOfertar({ info, onClose, onEnviar }: { info: ModalOfertaState; onC
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setError(null);
     try {
-      const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loadId: info.cargaId, price: precio, note: [nota, disponible].filter(Boolean).join(" — ") || undefined }) });
+      const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loadId: info.cargaId, price: precio, truckId: truckId || undefined, note: [nota, disponible].filter(Boolean).join(" — ") || undefined }) });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Error al enviar la oferta."); return; }
       onEnviar(info.cargaId); onClose();
@@ -863,6 +918,16 @@ function ModalOfertar({ info, onClose, onEnviar }: { info: ModalOfertaState; onC
         <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 6 }}>Precio base del dador: <span style={{ fontWeight: 500, color: "var(--color-text-primary)" }}>${info.precioBase.toLocaleString("es-AR")}</span></div>
       </div>
       <form onSubmit={handleSubmit}>
+        {trucks.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Camión a enviar<span style={{ color: "#ef4444", marginLeft: 2 }}>*</span></label>
+            <select value={truckId} onChange={(e) => setTruckId(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" as const }}>
+              {trucks.map((t) => (
+                <option key={t._id} value={t._id}>{t.patente}{t.marca ? ` — ${t.marca}` : ""}{t.modelo ? ` ${t.modelo}` : ""}{t.truck_type ? ` (${t.truck_type})` : ""}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Tu precio ofertado (ARS)</label>
           <input type="number" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="0" required style={{ width: "100%", fontSize: 20, fontWeight: 600, padding: "10px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" }} />
@@ -901,16 +966,18 @@ export default function TransportistaDashboard() {
   const initials  = userName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
   const primerNombre = userName.split(" ")[0];
   const [ofertasBadge, setOfertasBadge] = useState(0);
+  const [trucks, setTrucks] = useState<TruckData[]>([]);
 
   useEffect(() => {
     fetch("/api/offers/mine").then((r) => r.json()).then((d) => {
       if (d.offers) setOfertasBadge(d.offers.filter((o: { estado: string }) => o.estado === "pending" || o.estado === "countered").length);
     }).catch(() => {});
+    fetch("/api/fleet/trucks").then((r) => r.json()).then((d) => { if (d.trucks) setTrucks(d.trucks); }).catch(() => {});
   }, []);
 
   const mostrarToast = (msg: string) => setToast(msg);
 
-  const navItems: NavItem[] = ["Buscar cargas", "Mis ofertas", "Mis viajes", "Mensajes", "Notificaciones", "Mi flota"];
+  const navItems: NavItem[] = ["Buscar cargas", "Mis ofertas", "Mis viajes", "Notificaciones", "Mi flota"];
 
   return (
     <div style={{ background: "var(--color-background-primary)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -939,16 +1006,15 @@ export default function TransportistaDashboard() {
       </header>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--color-background-tertiary)" }}>
-        {navActivo === "Buscar cargas" && <SeccionBuscar onOfertar={(c) => setModalOferta(c)} onAlerta={() => mostrarToast("¡Alerta guardada! Te avisamos cuando aparezca una carga que te interese.")} excluirIds={ofertadasIds} />}
+        {navActivo === "Buscar cargas" && <SeccionBuscar onOfertar={(c) => setModalOferta(c)} onAlerta={() => mostrarToast("¡Alerta guardada! Te avisamos cuando aparezca una carga que te interese.")} excluirIds={ofertadasIds} trucks={trucks} onNoTruck={() => mostrarToast("Necesitás registrar al menos un camión en Mi flota para poder ofertar.")} />}
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
-        {navActivo === "Mis viajes" && <SeccionMisViajes />}
-        {navActivo === "Mensajes" && <SeccionMensajes userId={userId} />}
+        {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
         {navActivo === "Mi flota" && <SeccionMiFlota />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>
 
-      {modalOferta && <ModalOfertar info={modalOferta} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}
+      {modalOferta && <ModalOfertar info={modalOferta} trucks={trucks} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}
       {toast && <Toast mensaje={toast} onClose={() => setToast(null)} />}
     </div>
   );

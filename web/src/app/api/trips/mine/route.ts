@@ -75,9 +75,12 @@ export async function GET() {
       fechaRetiro:   readyAt ? readyAt.toLocaleDateString("es-AR") : "—",
       pickupCity:    load.pickup_city,
       dropoffCity:   load.dropoff_city,
-      // Dirección exacta — disponible porque la oferta está aceptada
       pickupExact:   load.pickup_exact ?? null,
       dropoffExact:  load.dropoff_exact ?? null,
+      pickupLat:     load.pickup_lat ?? null,
+      pickupLon:     load.pickup_lon ?? null,
+      dropoffLat:    load.dropoff_lat ?? null,
+      dropoffLon:    load.dropoff_lon ?? null,
       status:        load.status,
       clasificacion,
       yaCalifiqué:   ratedOfferIds.has(o._id.toString()),

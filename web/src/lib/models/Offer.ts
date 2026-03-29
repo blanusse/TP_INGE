@@ -1,24 +1,28 @@
 import mongoose, { Schema, model, models } from "mongoose";
 
 export interface IOffer {
-  _id:           mongoose.Types.ObjectId;
-  load_id:       mongoose.Types.ObjectId;
-  driver_id:     mongoose.Types.ObjectId;
-  price:         number;
-  counter_price?: number;
-  note?:         string;
-  status:        "pending" | "countered" | "accepted" | "rejected" | "withdrawn";
-  created_at:    Date;
+  _id:                 mongoose.Types.ObjectId;
+  load_id:             mongoose.Types.ObjectId;
+  driver_id:           mongoose.Types.ObjectId;
+  truck_id?:           mongoose.Types.ObjectId;
+  assigned_driver_id?: mongoose.Types.ObjectId;
+  price:               number;
+  counter_price?:      number;
+  note?:               string;
+  status:              "pending" | "countered" | "accepted" | "rejected" | "withdrawn";
+  created_at:          Date;
 }
 
 const OfferSchema = new Schema<IOffer>(
   {
-    load_id:       { type: Schema.Types.ObjectId, ref: "Load", required: true },
-    driver_id:     { type: Schema.Types.ObjectId, ref: "User", required: true },
-    price:         { type: Number, required: true },
-    counter_price: { type: Number },
-    note:          String,
-    status:        {
+    load_id:             { type: Schema.Types.ObjectId, ref: "Load", required: true },
+    driver_id:           { type: Schema.Types.ObjectId, ref: "User", required: true },
+    truck_id:            { type: Schema.Types.ObjectId, ref: "Truck" },
+    assigned_driver_id:  { type: Schema.Types.ObjectId, ref: "User" },
+    price:               { type: Number, required: true },
+    counter_price:       { type: Number },
+    note:                String,
+    status:              {
       type:    String,
       enum:    ["pending", "countered", "accepted", "rejected", "withdrawn"],
       default: "pending",

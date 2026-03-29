@@ -5,6 +5,7 @@ import { Offer } from "@/lib/models/Offer";
 import { Load } from "@/lib/models/Load";
 import { Rating } from "@/lib/models/Rating";
 import { User } from "@/lib/models/User";
+import { Truck } from "@/lib/models/Truck";
 import mongoose from "mongoose";
 
 // GET /api/offers?loadId=xxx  — dador ve las ofertas de una carga
@@ -83,10 +84,22 @@ export async function POST(req: NextRequest) {
 
   await connectDB();
 
+  const driverId = new mongoose.Types.ObjectId(session.user.id);
+
+  // Verificar que el transportista tenga al menos un camión registrado
+  const truckCount = await Truck.countDocuments({ owner_id: driverId });
+  if (truckCount === 0) {
+    return NextResponse.json(
+      { error: "Necesitás registrar al menos un camión en Mi flota antes de poder ofertar." },
+      { status: 403 }
+    );
+  }
+
   try {
     const offer = await Offer.create({
       load_id:   new mongoose.Types.ObjectId(body.loadId),
-      driver_id: new mongoose.Types.ObjectId(session.user.id),
+      driver_id: driverId,
+      truck_id:  body.truckId ? new mongoose.Types.ObjectId(body.truckId) : undefined,
       price:     parseInt(body.price),
       note:      body.note || undefined,
     });

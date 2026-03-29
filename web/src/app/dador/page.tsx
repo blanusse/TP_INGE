@@ -9,7 +9,7 @@ import { signOut, useSession } from "next-auth/react";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Mis cargas" | "Historial" | "Mensajes" | "Facturación" | "Mi perfil";
+type NavItem = "Mis cargas" | "Historial" | "Facturación" | "Mi perfil";
 type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tránsito";
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; }
@@ -1459,7 +1459,7 @@ export default function DadorDashboard() {
             Carga<span style={{ color: "var(--color-brand)" }}>Back</span>
           </Link>
           <nav style={{ display: "flex", gap: 2 }}>
-            {(["Mis cargas", "Historial", "Mensajes", "Facturación"] as NavItem[]).map((item) => {
+            {(["Mis cargas", "Historial", "Facturación"] as NavItem[]).map((item) => {
               const badge = item === "Mis cargas" ? cargas.reduce((s, c) => s + c.ofertas, 0) : 0;
               return (
                 <button key={item} onClick={() => setNavActivo(item)} style={{
@@ -1514,7 +1514,6 @@ export default function DadorDashboard() {
           />
         )}
         {navActivo === "Historial" && <SeccionHistorial />}
-        {navActivo === "Mensajes" && <SeccionMensajesDador userId={userId} />}
         {navActivo === "Facturación" && <SeccionFacturacion />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>
