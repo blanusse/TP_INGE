@@ -5,7 +5,7 @@ export interface IUser {
   email: string;
   name: string;
   password_hash: string;
-  role: "driver" | "shipper" | "carrier_admin";
+  role: "transportista" | "shipper";
   phone?: string;
   dni?: string;
   fleet_id?: mongoose.Types.ObjectId;
@@ -17,7 +17,7 @@ const UserSchema = new Schema<IUser>(
     email:         { type: String, required: true, unique: true, lowercase: true, trim: true },
     name:          { type: String, required: true, trim: true },
     password_hash: { type: String, required: true },
-    role:          { type: String, enum: ["driver", "shipper", "carrier_admin"], required: true },
+    role:          { type: String, enum: ["transportista", "shipper"], required: true },
     phone:         String,
     dni:           String,
     fleet_id:      { type: Schema.Types.ObjectId, ref: "User" },

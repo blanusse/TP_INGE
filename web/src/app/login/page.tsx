@@ -3,33 +3,17 @@
 import { useState, useTransition, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { Suspense } from "react";
 
-type Perfil    = "camionero" | "flota" | "dador";
+type Perfil    = "transportista" | "dador";
 type Paso      = "inicio" | "perfil" | "dador-tipo" | "login" | "registro";
-type SubPaso   = "personal" | "camion" | "conductor";
 type TipoDador = "personal" | "empresa";
-
-const PERFILES = [
-  { id: "camionero" as Perfil, titulo: "Soy camionero independiente", subtitulo: "Busco cargas para mis rutas", icono: "🚛" },
-  { id: "flota"     as Perfil, titulo: "Tengo una empresa de flota",  subtitulo: "Gestiono múltiples camiones",  icono: "🏢" },
-  { id: "dador"     as Perfil, titulo: "Tengo cargas para enviar",    subtitulo: "Publico cargas a camioneros",  icono: "📦" },
-];
-
-const TIPO_CAMION = ["camion", "semi", "acoplado", "frigorifico", "cisterna", "batea", "otros"] as const;
-// semi, acoplado y batea llevan patente separada para el remolque/acoplado
-const REQUIERE_PATENTE_REMOLQUE = new Set(["semi", "acoplado", "batea"]);
-const emptyTruck  = () => ({ patente: "", patente_remolque: "", marca: "", modelo: "", año: "", truck_type: "", capacity_kg: "", vtv_vence: "", seguro_poliza: "", seguro_vence: "" });
 
 function LoginInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  // Siempre empezar con "inicio" en servidor y cliente para evitar hydration mismatch.
-  // El useEffect aplica los parámetros de URL solo en el cliente, después del primer render.
   const [paso, setPaso]     = useState<Paso>("inicio");
-  const [subPaso, setSubPaso] = useState<SubPaso>("personal");
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [tipoDador, setTipoDador] = useState<TipoDador | null>(null);
   const [from, setFrom]     = useState<string | null>(null);
@@ -55,26 +39,10 @@ function LoginInner() {
   const [razonSocial, setRazonSocial] = useState("");
   const [cuit, setCuit]               = useState("");
   const [direccion, setDireccion]     = useState("");
-  const [trucks, setTrucks]           = useState([emptyTruck()]);
-  const [truckAbierto, setTruckAbierto] = useState(0);
-  const [truckDocs, setTruckDocs]     = useState<Array<{ vtv: File | null; seguro: File | null }>>([{ vtv: null, seguro: null }]);
-  const [licenciaDoc, setLicenciaDoc]             = useState<File | null>(null);
-  const [licenciaDocDorso, setLicenciaDocDorso]   = useState<File | null>(null);
-  const [dniDoc, setDniDoc]                       = useState<File | null>(null);
-  const [dniDocDorso, setDniDocDorso]             = useState<File | null>(null);
-  // Conductor de flota (paso 3)
-  const [conductorNombre, setConductorNombre]     = useState("");
-  const [conductorDni, setConductorDni]           = useState("");
-  const [conductorTelefono, setConductorTelefono] = useState("");
-  const [conductorLicencia, setConductorLicencia] = useState<File | null>(null);
-  const [conductorDniDoc, setConductorDniDoc]     = useState<File | null>(null);
   const [error, setError]             = useState("");
   const [isPending, startTransition]  = useTransition();
   const [emailDisponible, setEmailDisponible]         = useState<boolean | null>(null);
   const [telefonoDisponible, setTelefonoDisponible]   = useState<boolean | null>(null);
-
-  const perfilInfo = PERFILES.find((p) => p.id === perfil);
-  const esCamion   = perfil === "camionero" || perfil === "flota";
 
   // Verificación en tiempo real: email
   useEffect(() => {
@@ -110,15 +78,15 @@ function LoginInner() {
 
   const resetForm = () => {
     setNombre(""); setDni(""); setTelefono(""); setEmail(""); setPassword("");
-    setRazonSocial(""); setCuit(""); setDireccion(""); setTrucks([emptyTruck()]);
+    setRazonSocial(""); setCuit(""); setDireccion("");
     setAceptaTerminos(false); setError("");
   };
 
-  const irAInicio  = () => { setPaso("inicio"); setPerfil(null); setTipoDador(null); setSubPaso("personal"); setError(""); };
-  const irAPerfil  = () => { setPaso("perfil"); setTipoDador(null); setSubPaso("personal"); setError(""); };
+  const irAInicio  = () => { setPaso("inicio"); setPerfil(null); setTipoDador(null); setError(""); };
+  const irAPerfil  = () => { setPaso("perfil"); setTipoDador(null); setError(""); };
 
   const handleSeleccionarPerfil = (p: Perfil) => {
-    setPerfil(p); setTipoDador(null); setSubPaso("personal"); setError("");
+    setPerfil(p); setTipoDador(null); setError("");
     setPaso(p === "dador" ? "dador-tipo" : "registro");
   };
 
@@ -128,54 +96,28 @@ function LoginInner() {
 
   const validarPersonal = (): string | null => {
     if (!nombre.trim())  return "Ingresá tu nombre completo.";
-    if (perfil === "dador" && tipoDador === "personal") {
+    if (perfil === "transportista") {
       if (!/^\d{7,8}$/.test(dni.replace(/\./g, ""))) return "El DNI debe tener 7 u 8 dígitos numéricos.";
     }
-    if (esCamion) {
+    if (perfil === "dador" && tipoDador === "personal") {
       if (!/^\d{7,8}$/.test(dni.replace(/\./g, ""))) return "El DNI debe tener 7 u 8 dígitos numéricos.";
     }
     if (!telefono.trim()) return "El teléfono es obligatorio.";
     if (!/^\+?\d{8,15}$/.test(telefono.replace(/\s/g, ""))) return "El teléfono debe tener entre 8 y 15 dígitos.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Email inválido.";
     if (password.length < 8) return "La contraseña debe tener al menos 8 caracteres.";
-    if (perfil === "flota" && !razonSocial.trim()) return "Ingresá la razón social.";
-    if (perfil === "flota" && !/^\d{2}-\d{8}-\d$/.test(cuit)) return "El CUIT debe tener el formato XX-XXXXXXXX-X.";
     if (perfil === "dador" && tipoDador === "empresa" && !razonSocial.trim()) return "Ingresá la razón social.";
     if (perfil === "dador" && tipoDador === "empresa" && !/^\d{2}-\d{8}-\d$/.test(cuit)) return "El CUIT debe tener el formato XX-XXXXXXXX-X.";
     if (!aceptaTerminos) return "Aceptá los términos para continuar.";
     return null;
   };
 
-  const handleSiguiente = (e: React.FormEvent) => {
-    e.preventDefault();
-    const err = validarPersonal();
-    if (err) { setError(err); return; }
-    setError(""); setSubPaso("camion");
-  };
-
   const handleRegistro = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (esCamion) {
-      for (let i = 0; i < trucks.length; i++) {
-        const t = trucks[i];
-        if (!t.patente.trim()) { setError("Todos los camiones deben tener patente."); return; }
-        if (!/^[A-Za-z0-9]{6,7}$/.test(t.patente.replace(/\s/g, ""))) { setError(`Patente inválida: ${t.patente}. Debe tener 6 o 7 caracteres alfanuméricos (ej: AB123CD).`); return; }
-        if (!t.truck_type)     { setError("Seleccioná el tipo para cada camión."); return; }
-        if (REQUIERE_PATENTE_REMOLQUE.has(t.truck_type) && !t.patente_remolque.trim()) {
-          setError(`Los ${t.truck_type}s necesitan también la patente del remolque/acoplado.`); return;
-        }
-        if (t.patente_remolque && !/^[A-Za-z0-9]{6,7}$/.test(t.patente_remolque.replace(/\s/g, ""))) {
-          setError(`Patente del remolque inválida. Debe tener 6 o 7 caracteres alfanuméricos.`); return;
-        }
-        if (!t.marca.trim()) { setError("Ingresá la marca del camión."); return; }
-        if (!t.modelo.trim()) { setError("Ingresá el modelo del camión."); return; }
-        if (!t.año) { setError("Ingresá el año del camión."); return; }
-        const añoN = Number(t.año);
-        if (isNaN(añoN) || añoN < 1950 || añoN > new Date().getFullYear() + 1) { setError("El año del camión no es válido."); return; }
-        if (t.capacity_kg && (isNaN(Number(t.capacity_kg)) || Number(t.capacity_kg) <= 0)) { setError("La capacidad debe ser un número positivo."); return; }
-      }
-    }
+    const err = validarPersonal();
+    if (err) { setError(err); return; }
+
     startTransition(async () => {
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -184,13 +126,11 @@ function LoginInner() {
           email, password, name: nombre, role: perfil,
           tipo_dador: tipoDador || null, phone: telefono || null, dni: dni || null,
           razon_social: razonSocial || null, cuit: cuit || null, address: direccion || null,
-          trucks: esCamion ? trucks : undefined,
         }),
       });
       if (!res.ok) {
         const { error: msg } = await res.json();
         setError(msg ?? "Error al crear la cuenta.");
-        if (esCamion) setSubPaso("personal");
         return;
       }
       const result = await signIn("credentials", { email, password, redirect: false });
@@ -210,20 +150,6 @@ function LoginInner() {
     });
   };
 
-  const updateTruck = (i: number, field: string, value: string) =>
-    setTrucks((prev) => prev.map((t, idx) => idx === i ? { ...t, [field]: value } : t));
-  const addTruck = () => {
-    setTrucks((prev) => { const next = [...prev, emptyTruck()]; setTruckAbierto(next.length - 1); return next; });
-    setTruckDocs((prev) => [...prev, { vtv: null, seguro: null }]);
-  };
-  const removeTruck = (i: number) => {
-    setTrucks((prev) => prev.filter((_, idx) => idx !== i));
-    setTruckDocs((prev) => prev.filter((_, idx) => idx !== i));
-    setTruckAbierto((prev) => Math.max(0, prev > i ? prev - 1 : prev === i ? Math.max(0, i - 1) : prev));
-  };
-  const updateTruckDoc = (i: number, field: "vtv" | "seguro", file: File | null) =>
-    setTruckDocs((prev) => prev.map((d, idx) => idx === i ? { ...d, [field]: file } : d));
-
   // ── Panel izquierdo (branding) ─────────────────────────────────────────────
   const panelIzq = (
     <div style={{ background: "linear-gradient(160deg, #0a1510 0%, #0f6e56 70%, #1d9e75 100%)", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "40px 36px", height: "100%" }}>
@@ -238,10 +164,9 @@ function LoginInner() {
           La red logística más grande de Argentina.
         </p>
 
-        {/* Stats 2×2 */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
-            { valor: "3.400+", label: "Camioneros activos" },
+            { valor: "3.400+", label: "Transportistas activos" },
             { valor: "1.200+", label: "Cargas por mes" },
             { valor: "94%",    label: "Viajes con retorno" },
             { valor: "12 min", label: "Tiempo de match" },
@@ -253,7 +178,6 @@ function LoginInner() {
           ))}
         </div>
 
-        {/* Testimonio */}
         <div style={{ background: "rgba(255,255,255,0.07)", border: "0.5px solid rgba(255,255,255,0.12)", borderRadius: 14, padding: "20px 18px" }}>
           <div style={{ fontSize: 22, color: "#6ee7b7", marginBottom: 10, lineHeight: 1 }}>"</div>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.65, margin: "0 0 16px", fontStyle: "italic" }}>
@@ -263,7 +187,7 @@ function LoginInner() {
             <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#1d9e75,#6ee7b7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>C</div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>Carlos M.</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>Camionero · Rosario</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>Transportista · Rosario</div>
             </div>
           </div>
         </div>
@@ -273,7 +197,6 @@ function LoginInner() {
     </div>
   );
 
-  // ── Panel derecho (formulario) ──────────────────────────────────────────────
   const panelDer = (
     <div style={{ background: "#fff", display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "40px 64px" }}>
@@ -348,37 +271,34 @@ function LoginInner() {
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {([
                 {
-                  id: "camionero" as Perfil,
-                  icono: "🚛", titulo: "Soy camionero independiente",
+                  id: "transportista" as Perfil,
+                  icono: "🚛", titulo: "Soy transportista",
+                  subtitulo: "Camionero independiente o empresa de flota",
                   color: "#0f6e56", bg: "#e1f5ee", border: "#1d9e75",
-                  features: ["Encontrá cargas para tu vuelta en minutos", "Ofertá tu precio directamente", "Cobro seguro garantizado por la plataforma"],
-                },
-                {
-                  id: "flota" as Perfil,
-                  icono: "🏢", titulo: "Tengo una empresa de flota",
-                  color: "#185fa5", bg: "#e6f1fb", border: "#185fa5",
-                  features: ["Gestioná múltiples camiones desde un panel", "Asignación automática de cargas por ruta", "Reportes y métricas de rendimiento"],
+                  features: ["Encontrá cargas para tu vuelta en minutos", "Ofertá tu precio directamente", "Gestioná tu flota desde un panel unificado"],
                 },
                 {
                   id: "dador" as Perfil,
                   icono: "📦", titulo: "Tengo cargas para enviar",
+                  subtitulo: "Empresa o persona que necesita transporte",
                   color: "#7c3aed", bg: "#f3f0ff", border: "#7c3aed",
-                  features: ["Publicá tu carga en menos de 2 minutos", "Recibí ofertas de camioneros verificados", "Seguimiento en tiempo real de cada envío"],
+                  features: ["Publicá tu carga en menos de 2 minutos", "Recibí ofertas de transportistas verificados", "Seguimiento en tiempo real de cada envío"],
                 },
               ]).map((p) => (
                 <button key={p.id} onClick={() => handleSeleccionarPerfil(p.id)}
                   style={{ display: "block", padding: 0, borderRadius: 14, border: `1.5px solid ${p.border}33`, background: "#fff", cursor: "pointer", textAlign: "left", width: "100%", overflow: "hidden", transition: "box-shadow 0.15s, border-color 0.15s" }}
                   onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 20px ${p.border}22`; e.currentTarget.style.borderColor = p.border; }}
                   onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = `${p.border}33`; }}>
-                  {/* Header de la card */}
                   <div style={{ background: p.bg, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <span style={{ fontSize: 28 }}>{p.icono}</span>
-                      <span style={{ fontSize: 16, fontWeight: 800, color: p.color }}>{p.titulo}</span>
+                      <div>
+                        <span style={{ fontSize: 16, fontWeight: 800, color: p.color, display: "block" }}>{p.titulo}</span>
+                        <span style={{ fontSize: 12, color: p.color, opacity: 0.7 }}>{p.subtitulo}</span>
+                      </div>
                     </div>
                     <span style={{ fontSize: 18, color: p.color, opacity: 0.7 }}>→</span>
                   </div>
-                  {/* Features */}
                   <div style={{ padding: "14px 20px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
                     {p.features.map((f) => (
                       <div key={f} style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -427,44 +347,33 @@ function LoginInner() {
           </div>
         )}
 
-        {/* ── Registro: datos personales ── */}
-        {paso === "registro" && perfilInfo && subPaso === "personal" && (
+        {/* ── Registro ── */}
+        {paso === "registro" && perfil && (
           <div style={{ maxWidth: 520, width: "100%" }}>
             <BtnVolver onClick={perfil === "dador" ? () => setPaso("dador-tipo") : irAPerfil} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-              <div>
-                <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 4, letterSpacing: -0.5 }}>Crear cuenta</h1>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
-                  {perfilInfo.icono} {perfilInfo.titulo}
-                </div>
+            <div style={{ marginBottom: 24 }}>
+              <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 8, letterSpacing: -0.5 }}>Crear cuenta</h1>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
+                {perfil === "transportista" ? "🚛 Transportista" : "📦 Dador de carga"}
+                {perfil === "dador" && tipoDador === "empresa" ? " · Empresa" : perfil === "dador" ? " · Personal" : ""}
               </div>
-              {esCamion && <PasosBadge actual={1} total={2} />}
             </div>
 
-            <form onSubmit={esCamion ? handleSiguiente : handleRegistro} noValidate>
-              <div style={{ display: "grid", gridTemplateColumns: esCamion ? "1fr 1fr" : "1fr", gap: "0 16px" }}>
+            <form onSubmit={handleRegistro} noValidate>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
                 <Campo
-                  label={perfil === "dador" && tipoDador === "empresa" ? "Nombre del responsable" : perfil === "flota" ? "Nombre del responsable" : "Nombre y apellido"}
+                  label={perfil === "dador" && tipoDador === "empresa" ? "Nombre del responsable" : "Nombre y apellido"}
                   id="nombre" type="text" autoComplete="name" value={nombre} onChange={setNombre}
-                  placeholder={perfil === "dador" && tipoDador === "empresa" ? "María González" : "Juan Rodríguez"}
+                  placeholder="Juan Rodríguez"
                   style={{ gridColumn: "1 / -1" }} required />
-                {esCamion && <Campo label="DNI" id="dni" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" required />}
-                {perfil === "dador" && tipoDador === "personal" && (
-                  <Campo label="DNI" id="dni-dador" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" required />
+                {(perfil === "transportista" || (perfil === "dador" && tipoDador === "personal")) && (
+                  <Campo label="DNI" id="dni" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" required />
                 )}
                 <Campo label="Celular" id="tel" type="tel" value={telefono} onChange={(v) => setTelefono(v.replace(/[^\d+\s]/g, ""))} placeholder="+54 9 11 1234-5678" maxLength={15} inputMode="tel" required
                   hint={telefonoDisponible === false ? { text: "⚠ Este celular ya está registrado.", color: "#ef4444" } : telefonoDisponible === true ? { text: "✓ Celular disponible.", color: "#16a34a" } : undefined} />
                 <Campo label="Email" id="email" type="email" autoComplete="email" value={email} onChange={setEmail} placeholder="tu@email.com" style={{ gridColumn: "1 / -1" }} required
                   hint={emailDisponible === false ? { text: "⚠ Este email ya está registrado.", color: "#ef4444" } : emailDisponible === true ? { text: "✓ Email disponible.", color: "#16a34a" } : undefined} />
               </div>
-
-              {perfil === "flota" && <>
-                <Separador label="Empresa" />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                  <Campo label="Razón social" id="rs" type="text" value={razonSocial} onChange={setRazonSocial} placeholder="Transportes S.A." style={{ gridColumn: "1 / -1" }} required />
-                  <Campo label="CUIT" id="cuit" type="text" value={cuit} onChange={(v) => setCuit(formatCuit(v))} placeholder="20-12345678-9" maxLength={13} inputMode="numeric" required />
-                </div>
-              </>}
 
               {perfil === "dador" && tipoDador === "empresa" && <>
                 <Separador label="Empresa" />
@@ -475,24 +384,17 @@ function LoginInner() {
                 </div>
               </>}
 
+              {perfil === "transportista" && (
+                <div style={{ background: "var(--color-brand-light)", border: "0.5px solid var(--color-brand)", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+                  <p style={{ fontSize: 13, color: "var(--color-brand-dark)", margin: 0, lineHeight: 1.5 }}>
+                    🚛 <strong>Una vez que ingreses</strong>, vas a poder agregar tus camiones y conductores desde la sección <strong>Mi flota</strong>.
+                  </p>
+                </div>
+              )}
+
               <Separador label="Contraseña" />
               <CampoPassword label="Contraseña" value={password} onChange={setPassword} mostrar={mostrarPwd} onToggle={() => setMostrarPwd(!mostrarPwd)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" required />
               {password.length > 0 && <IndicadorFuerza password={password} />}
-
-              {/* ── Documentos personales ── */}
-              {(esCamion) && (<>
-                <Separador label="Documentos del conductor" />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                  <CampoArchivo label="📷 Registro / licencia (frente)" id="doc-licencia" file={licenciaDoc} onChange={setLicenciaDoc} accept=".pdf,.jpg,.jpeg,.png" required />
-                  <CampoArchivo label="📷 Registro / licencia (dorso)" id="doc-licencia-dorso" file={licenciaDocDorso} onChange={setLicenciaDocDorso} accept=".pdf,.jpg,.jpeg,.png" required />
-                  <CampoArchivo label="📷 DNI (frente)" id="doc-dni" file={dniDoc} onChange={setDniDoc} accept=".jpg,.jpeg,.png,.pdf" required />
-                  <CampoArchivo label="📷 DNI (dorso)" id="doc-dni-dorso" file={dniDocDorso} onChange={setDniDocDorso} accept=".jpg,.jpeg,.png,.pdf" required />
-                </div>
-              </>)}
-              {perfil === "dador" && (<>
-                <Separador label="Documento de identidad" />
-                <CampoArchivo label="📷 Foto del DNI (frente)" id="doc-dni-dador" file={dniDoc} onChange={setDniDoc} accept=".jpg,.jpeg,.png,.pdf" />
-              </>)}
 
               {error && <MensajeError mensaje={error} />}
 
@@ -503,7 +405,7 @@ function LoginInner() {
                 </label>
               </div>
 
-              <BtnPrimario isPending={isPending} label={esCamion ? "Siguiente →" : "Crear cuenta"} labelPending="Procesando..." />
+              <BtnPrimario isPending={isPending} label="Crear cuenta" labelPending="Procesando..." />
             </form>
 
             <Divider />
@@ -514,97 +416,6 @@ function LoginInner() {
           </div>
         )}
 
-        {/* ── Registro: camiones ── */}
-        {paso === "registro" && perfilInfo && subPaso === "camion" && esCamion && (
-          <div style={{ maxWidth: 600, width: "100%" }}>
-            <BtnVolver onClick={() => { setSubPaso("personal"); setError(""); }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-              <div>
-                <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 4, letterSpacing: -0.5 }}>
-                  {perfil === "flota" ? "Tu flota" : "Tu camión"}
-                </h1>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
-                  {perfilInfo.icono} {perfilInfo.titulo}
-                </div>
-              </div>
-              <PasosBadge actual={2} total={2} />
-            </div>
-
-            <form onSubmit={handleRegistro} noValidate>
-              {trucks.map((truck, i) => {
-                const abierto = truckAbierto === i;
-                const titulo  = truck.patente ? `${truck.patente}${truck.marca ? " · " + truck.marca : ""}` : `Camión ${i + 1}`;
-                return (
-                  <div key={i} style={{ border: `1.5px solid ${abierto ? "var(--color-brand)" : "var(--color-border-secondary)"}`, borderRadius: 12, marginBottom: 10, overflow: "hidden", transition: "border-color 0.2s" }}>
-                    {/* Header del accordion */}
-                    <button type="button" onClick={() => setTruckAbierto(abierto ? -1 : i)}
-                      style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: abierto ? "var(--color-brand-light)" : "var(--color-background-secondary)", border: "none", cursor: "pointer", textAlign: "left" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 18 }}>🚛</span>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: abierto ? "var(--color-brand-dark)" : "var(--color-text-primary)" }}>{titulo}</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        {trucks.length > 1 && (
-                          <span onClick={(e) => { e.stopPropagation(); removeTruck(i); }} style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, cursor: "pointer", padding: "2px 8px", borderRadius: 6, background: "#fef2f2" }}>
-                            Eliminar
-                          </span>
-                        )}
-                        <span style={{ fontSize: 18, color: "var(--color-text-tertiary)", transform: abierto ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", display: "inline-block" }}>⌄</span>
-                      </div>
-                    </button>
-
-                    {/* Contenido del accordion */}
-                    {abierto && (
-                      <div style={{ padding: "20px 18px 8px" }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                          <Campo label="Patente del camión" id={`pat-${i}`} type="text" value={truck.patente} onChange={(v) => updateTruck(i, "patente", v.toUpperCase())} placeholder="AB123CD" required />
-                          <Campo label="Año"     id={`año-${i}`} type="number" value={truck.año}          onChange={(v) => updateTruck(i, "año", v)}          placeholder="2018" required />
-                          <Campo label="Marca"   id={`mrc-${i}`} type="text"   value={truck.marca}        onChange={(v) => updateTruck(i, "marca", v)}        placeholder="Mercedes-Benz" required />
-                          <Campo label="Modelo"  id={`mdl-${i}`} type="text"   value={truck.modelo}       onChange={(v) => updateTruck(i, "modelo", v)}       placeholder="Actros 2651" required />
-                        </div>
-                        <div style={{ marginBottom: 14 }}>
-                          <label style={labelStyle}>Tipo de camión<span style={{ color: "#ef4444", marginLeft: 2 }}>*</span></label>
-                          <select value={truck.truck_type} onChange={(e) => updateTruck(i, "truck_type", e.target.value)} style={{ ...inputStyle, appearance: "none" as React.CSSProperties["appearance"] }}>
-                            <option value="">Seleccioná un tipo</option>
-                            {TIPO_CAMION.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-                          </select>
-                        </div>
-                        <Campo label="Capacidad de carga (kg)" id={`cap-${i}`} type="number" value={truck.capacity_kg} onChange={(v) => updateTruck(i, "capacity_kg", v)} placeholder="20000" />
-                        {REQUIERE_PATENTE_REMOLQUE.has(truck.truck_type) && (
-                          <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 14px", marginBottom: 14 }}>
-                            <p style={{ fontSize: 12, color: "#92400e", margin: "0 0 10px", lineHeight: 1.4 }}>
-                              ⚠ Los <strong>{truck.truck_type}s</strong> circulan con dos patentes: la del camión (tractora) y la del remolque/acoplado.
-                            </p>
-                            <Campo label="Patente del remolque / acoplado" id={`rem-${i}`} type="text" value={truck.patente_remolque} onChange={(v) => updateTruck(i, "patente_remolque", v.toUpperCase())} placeholder="AB123CD" required />
-                          </div>
-                        )}
-                        <Separador label="Documentación" />
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                          <Campo label="VTV — vencimiento"   id={`vtv-${i}`} type="date" value={truck.vtv_vence}     onChange={(v) => updateTruck(i, "vtv_vence", v)} required />
-                          <Campo label="N° póliza de seguro" id={`pol-${i}`} type="text" value={truck.seguro_poliza} onChange={(v) => updateTruck(i, "seguro_poliza", v)} placeholder="POL-123456" required />
-                        </div>
-                        <Campo label="Seguro — vencimiento" id={`sv-${i}`} type="date" value={truck.seguro_vence} onChange={(v) => updateTruck(i, "seguro_vence", v)} required />
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                          <CampoArchivo label="📄 Documento VTV" id={`vtv-doc-${i}`} file={truckDocs[i]?.vtv ?? null} onChange={(f) => updateTruckDoc(i, "vtv", f)} accept=".pdf,.jpg,.jpeg,.png" required />
-                          <CampoArchivo label="📄 Documento del seguro" id={`seg-doc-${i}`} file={truckDocs[i]?.seguro ?? null} onChange={(f) => updateTruckDoc(i, "seguro", f)} accept=".pdf,.jpg,.jpeg,.png" required />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {perfil === "flota" && (
-                <button type="button" onClick={addTruck} style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1.5px dashed var(--color-brand)", background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 16 }}>
-                  + Agregar otro camión
-                </button>
-              )}
-
-              {error && <MensajeError mensaje={error} />}
-              <BtnPrimario isPending={isPending} label="Crear cuenta" labelPending="Creando cuenta..." />
-            </form>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -639,19 +450,6 @@ function BtnVolver({ onClick }: { onClick: () => void }) {
     <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "var(--color-background-secondary)", border: "1.5px solid var(--color-border-secondary)", cursor: "pointer", color: "var(--color-text-primary)", fontSize: 14, padding: "8px 16px", marginBottom: 24, fontWeight: 600, borderRadius: 8 }}>
       ← Volver
     </button>
-  );
-}
-
-function PasosBadge({ actual, total }: { actual: number; total: number }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-      <span style={{ fontSize: 12, color: "var(--color-text-tertiary)", fontWeight: 600 }}>Paso {actual}/{total}</span>
-      <div style={{ display: "flex", gap: 4 }}>
-        {Array.from({ length: total }, (_, i) => (
-          <div key={i} style={{ width: 24, height: 4, borderRadius: 2, background: i < actual ? "var(--color-brand)" : "var(--color-border-secondary)" }} />
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -751,39 +549,6 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box", transition: "border-color 0.15s",
 };
 
-function CampoArchivo({ label, id, file, onChange, accept, required }: {
-  label: string; id: string; file: File | null;
-  onChange: (f: File | null) => void; accept?: string; required?: boolean;
-}) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <label htmlFor={id} style={labelStyle}>
-        {label}{required && <span style={{ color: "#ef4444", marginLeft: 2 }}>*</span>}
-      </label>
-      <label htmlFor={id} style={{
-        display: "flex", alignItems: "center", gap: 10,
-        padding: "10px 14px", borderRadius: 10,
-        border: `1.5px dashed ${file ? "var(--color-brand)" : "var(--color-border-secondary)"}`,
-        background: file ? "var(--color-brand-light)" : "var(--color-background-secondary)",
-        cursor: "pointer", transition: "border-color 0.15s, background 0.15s",
-      }}>
-        <span style={{ fontSize: 18 }}>{file ? "✅" : "📎"}</span>
-        <span style={{ fontSize: 13, color: file ? "var(--color-brand-dark)" : "var(--color-text-tertiary)", fontWeight: file ? 600 : 400, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {file ? file.name : "Seleccioná un archivo (PDF, JPG, PNG)"}
-        </span>
-        {file && (
-          <span onClick={(e) => { e.preventDefault(); onChange(null); }}
-            style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, flexShrink: 0 }}>
-            ✕
-          </span>
-        )}
-      </label>
-      <input id={id} type="file" accept={accept} style={{ display: "none" }}
-        onChange={(e) => onChange(e.target.files?.[0] ?? null)} />
-    </div>
-  );
-}
-
 function formatCuit(v: string): string {
   const digits = v.replace(/\D/g, "").slice(0, 11);
   if (digits.length <= 2)  return digits;
@@ -797,7 +562,14 @@ function passwordStrength(pwd: string): number {
   if (pwd.length >= 12) s++;
   if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) s++;
   if (/[0-9]/.test(pwd) && /[^A-Za-z0-9]/.test(pwd)) s++;
-  return Math.max(1, s);
+  return s;
 }
-function strengthColor(s: number) { return ["", "#ef4444", "#f97316", "#eab308", "#22c55e"][s]; }
-function strengthLabel(s: number) { return ["", "Muy débil", "Débil", "Buena", "Muy segura"][s]; }
+
+function strengthColor(s: number): string {
+  return ["#d1d5db", "#ef4444", "#f59e0b", "#3b82f6", "#16a34a"][s] ?? "#d1d5db";
+}
+
+function strengthLabel(s: number): string {
+  return ["", "Muy débil", "Débil", "Buena", "Muy segura"][s] ?? "";
+}
+

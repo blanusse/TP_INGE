@@ -16,7 +16,7 @@ export async function GET() {
   await connectDB();
 
   const userId = new mongoose.Types.ObjectId(session.user.id);
-  const role   = session.user.role; // "dador" | "camionero"
+  const role   = session.user.role; // "dador" | "transportista"
 
   let offerQuery: Record<string, unknown>;
 

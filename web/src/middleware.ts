@@ -10,26 +10,35 @@ export default auth((req) => {
   const loggedIn = !!req.auth;
 
   // ── 1. Rutas protegidas: requieren sesión activa ───────────────────────────
-  const requiresAuth = pathname.startsWith("/camionero") || pathname.startsWith("/dador") || pathname.startsWith("/dashboard");
+  const requiresAuth =
+    pathname.startsWith("/transportista") ||
+    pathname.startsWith("/camionero") ||
+    pathname.startsWith("/dador") ||
+    pathname.startsWith("/dashboard");
   if (requiresAuth && !loggedIn) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // ── 2. Routing por rol: cada usuario solo accede a su sección ─────────────
+  // ── 2. Redirect /camionero → /transportista (legacy route) ────────────────
+  if (pathname.startsWith("/camionero")) {
+    return NextResponse.redirect(new URL("/transportista" + pathname.slice("/camionero".length), req.url));
+  }
+
+  // ── 3. Routing por rol: cada usuario solo accede a su sección ─────────────
   if (loggedIn && role) {
-    if (pathname.startsWith("/camionero") && role === "dador") {
+    if (pathname.startsWith("/transportista") && role === "dador") {
       return NextResponse.redirect(new URL("/dador", req.url));
     }
-    if (pathname.startsWith("/dador") && (role === "camionero" || role === "flota")) {
-      return NextResponse.redirect(new URL("/camionero", req.url));
+    if (pathname.startsWith("/dador") && role === "transportista") {
+      return NextResponse.redirect(new URL("/transportista", req.url));
     }
   }
 
-  // ── 3. Si ya está logueado y va al login → mandarlo a su dashboard ─────────
+  // ── 4. Si ya está logueado y va al login → mandarlo a su dashboard ─────────
   if (pathname === "/login" && loggedIn && role) {
-    const dest = role === "dador" ? "/dador" : "/camionero";
+    const dest = role === "dador" ? "/dador" : "/transportista";
     return NextResponse.redirect(new URL(dest, req.url));
   }
 
@@ -37,5 +46,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/camionero/:path*", "/dador/:path*", "/dashboard/:path*", "/dashboard", "/login"],
+  matcher: ["/transportista/:path*", "/camionero/:path*", "/dador/:path*", "/dashboard/:path*", "/dashboard", "/login"],
 };

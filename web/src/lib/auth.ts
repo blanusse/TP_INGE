@@ -7,10 +7,9 @@ import { authConfig } from "@/lib/auth.config";
 
 export type { UserRole } from "@/lib/auth.config";
 
-const dbRoleToFrontend: Record<string, "camionero" | "dador" | "flota"> = {
-  driver:        "camionero",
+const dbRoleToFrontend: Record<string, "transportista" | "dador"> = {
+  transportista: "transportista",
   shipper:       "dador",
-  carrier_admin: "flota",
 };
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -36,7 +35,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id:    user._id.toString(),
           email: user.email,
           name:  user.name,
-          role:  dbRoleToFrontend[user.role] ?? "camionero",
+          role:  dbRoleToFrontend[user.role] ?? "transportista",
         };
       },
     }),
