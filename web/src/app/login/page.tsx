@@ -217,14 +217,15 @@ function LoginInner() {
                   <div style={{ fontSize: 16, fontWeight: 700, color: "#0a1510" }}>Iniciar sesión</div>
                   <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", marginTop: 2 }}>Ya tengo una cuenta</div>
                 </div>
-                <span style={{ color: "var(--color-text-tertiary)", fontSize: 18 }}>→</span>
+                <span style={{ color: "var(--color-text-secondary)", fontSize: 18 }}>→</span>
               </button>
 
               <button onClick={() => { resetForm(); setPaso("perfil"); }}
-                style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderRadius: 12, border: "1.5px solid var(--color-brand)", background: "#fff", cursor: "pointer", textAlign: "left", width: "100%" }}>
+                style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderRadius: 12, border: "1.5px solid var(--color-brand)", background: "#fff", cursor: "pointer", textAlign: "left", width: "100%", transition: "all 0.15s"  }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-brand)"; e.currentTarget.style.boxShadow = "0 0 0 3px #1d9e7515"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border-secondary)"; e.currentTarget.style.boxShadow = "none"; }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--color-brand)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>✨</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-brand-dark)" }}>Registrarse gratis</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#0a1510" }}>Registrarse gratis</div>
                   <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 2 }}>Crear cuenta nueva</div>
                 </div>
                 <span style={{ color: "var(--color-brand)", fontSize: 18 }}>→</span>
