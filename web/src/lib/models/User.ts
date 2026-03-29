@@ -7,7 +7,7 @@ export interface IUser {
   password_hash: string;
   role: "transportista" | "shipper";
   phone?: string;
-  dni?: string;
+  cuil?: string;
   fleet_id?: mongoose.Types.ObjectId;
   created_at: Date;
 }
@@ -19,7 +19,7 @@ const UserSchema = new Schema<IUser>(
     password_hash: { type: String, required: true },
     role:          { type: String, enum: ["transportista", "shipper"], required: true },
     phone:         String,
-    dni:           String,
+    cuil:          String,
     fleet_id:      { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: { createdAt: "created_at", updatedAt: false } }
