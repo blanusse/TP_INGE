@@ -4,7 +4,8 @@ const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:3001";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const email = searchParams.get("email") ?? "";
+  // El frontend puede mandar ?email=... o ?field=email&value=...
+  const email = searchParams.get("email") ?? searchParams.get("value") ?? "";
 
   const res = await fetch(`${BACKEND_URL}/auth/check?email=${encodeURIComponent(email)}`);
   const data = await res.json();
