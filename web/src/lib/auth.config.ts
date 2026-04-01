@@ -5,6 +5,7 @@ export type UserRole = "transportista" | "dador";
 declare module "next-auth" {
   interface User {
     role?: UserRole;
+    backendToken?: string;
   }
   interface Session {
     user: {
@@ -14,25 +15,24 @@ declare module "next-auth" {
       image?: string | null;
       role?: UserRole;
     };
+    backendToken: string;
   }
 }
 
-/**
- * Config liviana — sin imports de Node.js (mongoose, bcrypt).
- * Solo JWT/session callbacks. Usada por el middleware (Edge Runtime).
- */
 export const authConfig: NextAuthConfig = {
-  providers: [], // los providers con bcrypt/mongoose van en auth.ts
+  providers: [],
   trustHost: true,
   callbacks: {
     jwt({ token, user }) {
-      if (user?.id)   token.sub  = user.id;
-      if (user?.role) token.role = user.role;
+      if (user?.id)            token.sub                        = user.id;
+      if (user?.role)          (token as any).role              = user.role;
+      if (user?.backendToken)  (token as any).backendToken      = user.backendToken;
       return token;
     },
     session({ session, token }) {
-      if (token.sub)  session.user.id   = token.sub;
-      if (token.role) session.user.role = token.role as UserRole;
+      if (token.sub)                    session.user.id      = token.sub;
+      if ((token as any).role)          session.user.role    = (token as any).role as UserRole;
+      if ((token as any).backendToken)  session.backendToken = (token as any).backendToken;
       return session;
     },
   },

@@ -1,53 +1,42 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { connectDB } from "@/lib/mongodb";
-import { User } from "@/lib/models/User";
 import { authConfig } from "@/lib/auth.config";
 
 export type { UserRole } from "@/lib/auth.config";
 
-const dbRoleToFrontend: Record<string, "transportista" | "dador"> = {
-  transportista: "transportista",
-  shipper:       "dador",
-};
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:3001";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
       credentials: {
-        email:    { label: "Email",     type: "email" },
+        email:    { label: "Email",      type: "email" },
         password: { label: "Contraseña", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        await connectDB();
+        const res = await fetch(`${BACKEND_URL}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email:    credentials.email,
+            password: credentials.password,
+          }),
+        });
 
-        const user = await User.findOne({ email: (credentials.email as string).toLowerCase() }).lean();
-        if (!user) return null;
+        if (!res.ok) return null;
 
-        const valid = await bcrypt.compare(credentials.password as string, user.password_hash);
-        if (!valid) return null;
-
+        const data = await res.json();
         return {
-          id:    user._id.toString(),
-          email: user.email,
-          name:  user.name,
-          role:  dbRoleToFrontend[user.role] ?? "transportista",
+          id:           data.user.id,
+          email:        data.user.email,
+          name:         data.user.name,
+          role:         data.user.role === "shipper" ? "dador" : "transportista",
+          backendToken: data.access_token,
         };
       },
     }),
   ],
-  cookies: {
-    sessionToken: {
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        secure:   process.env.NODE_ENV === "production",
-        path:     "/",
-      },
-    },
-  },
 });
