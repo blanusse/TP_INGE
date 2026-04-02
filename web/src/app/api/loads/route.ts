@@ -16,10 +16,27 @@ export async function POST(req: NextRequest) {
   if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
   const body = await req.json();
-  const res = await apiFetch("/loads", session.backendToken, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
+
+  let res: Response;
+  try {
+    res = await apiFetch("/loads", session.backendToken, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    console.error("[loads POST] fetch failed:", err);
+    return NextResponse.json({ error: "fetch_failed", detail: String(err) }, { status: 502 });
+  }
+
+  const text = await res.text();
+  console.log("[loads POST] Railway response:", res.status, text.slice(0, 300));
+
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return NextResponse.json({ error: "invalid_json", detail: text.slice(0, 200) }, { status: 502 });
+  }
+
   return NextResponse.json(data, { status: res.status });
 }
