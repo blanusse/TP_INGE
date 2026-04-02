@@ -7,9 +7,13 @@ export async function POST(req: NextRequest) {
   if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
   const body = await req.json();
+  const payload = {
+    offer_id: body.offerId ?? body.offer_id,
+    score: body.score,
+  };
   const res = await apiFetch("/ratings", session.backendToken, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });

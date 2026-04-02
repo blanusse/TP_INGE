@@ -18,9 +18,16 @@ export async function POST(req: NextRequest) {
   if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
   const body = await req.json();
+  // Mapear campos del frontend al esquema del backend
+  const payload = {
+    load_id: body.loadId ?? body.load_id,
+    price: body.price,
+    truck_id: body.truckId ?? body.truck_id,
+    note: body.note,
+  };
   const res = await apiFetch("/offers", session.backendToken, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });

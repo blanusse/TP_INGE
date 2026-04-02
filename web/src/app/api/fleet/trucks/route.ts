@@ -8,7 +8,8 @@ export async function GET() {
 
   const res = await apiFetch("/fleet/trucks", session.backendToken);
   const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  const wrapped = Array.isArray(data) ? { trucks: data } : data;
+  return NextResponse.json(wrapped, { status: res.status });
 }
 
 export async function POST(req: NextRequest) {

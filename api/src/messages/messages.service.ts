@@ -22,8 +22,8 @@ export class MessagesService {
     if (!offer) throw new ForbiddenException();
 
     const load = await this.loadsRepo.findOne({ where: { id: offer.load_id } });
-    if (!load || load.status !== 'in_transit') {
-      throw new BadRequestException('La mensajería solo está disponible cuando el viaje está en curso.');
+    if (!load || !['matched', 'in_transit'].includes(load.status)) {
+      throw new BadRequestException('La mensajería solo está disponible cuando hay una oferta aceptada.');
     }
 
     const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
@@ -67,7 +67,10 @@ export class MessagesService {
     let offers: Offer[];
     if (shipper) {
       const loads = await this.loadsRepo.find({
-        where: { shipper_id: shipper.id, status: 'in_transit' },
+        where: [
+          { shipper_id: shipper.id, status: 'matched' },
+          { shipper_id: shipper.id, status: 'in_transit' },
+        ],
       });
       const loadIds = loads.map((l) => l.id);
       offers = loadIds.length
