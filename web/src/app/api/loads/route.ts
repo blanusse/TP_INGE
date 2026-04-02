@@ -8,7 +8,9 @@ export async function GET() {
 
   const res = await apiFetch("/loads", session.backendToken);
   const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  // El frontend espera { loads: [...] }
+  const wrapped = Array.isArray(data) ? { loads: data } : data;
+  return NextResponse.json(wrapped, { status: res.status });
 }
 
 export async function POST(req: NextRequest) {
@@ -35,26 +37,12 @@ export async function POST(req: NextRequest) {
     description: body.descripcion,
   };
 
-  let res: Response;
-  try {
-    res = await apiFetch("/loads", session.backendToken, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  } catch (err) {
-    console.error("[loads POST] fetch failed:", err);
-    return NextResponse.json({ error: "fetch_failed", detail: String(err) }, { status: 502 });
-  }
-
-  const text = await res.text();
-  console.log("[loads POST] Railway response:", res.status, text.slice(0, 300));
-
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return NextResponse.json({ error: "invalid_json", detail: text.slice(0, 200) }, { status: 502 });
-  }
-
-  return NextResponse.json(data, { status: res.status });
+  const res = await apiFetch("/loads", session.backendToken, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  // El frontend espera { load: <objeto> }
+  const wrapped = res.ok ? { load: data } : data;
+  return NextResponse.json(wrapped, { status: res.status });
 }
