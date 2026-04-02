@@ -7,6 +7,8 @@ export async function GET(req: NextRequest) {
   // El frontend puede mandar ?email=... o ?field=email&value=...
   const email = searchParams.get("email") ?? searchParams.get("value") ?? "";
 
+  console.log("[auth/check] BACKEND_URL =", BACKEND_URL);
+
   const res = await fetch(`${BACKEND_URL}/auth/check?email=${encodeURIComponent(email)}`);
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
