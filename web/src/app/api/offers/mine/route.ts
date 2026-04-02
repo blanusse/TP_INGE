@@ -8,5 +8,6 @@ export async function GET() {
 
   const res = await apiFetch("/offers/mine", session.backendToken);
   const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  const wrapped = Array.isArray(data) ? { offers: data } : data;
+  return NextResponse.json(wrapped, { status: res.status });
 }

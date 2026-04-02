@@ -10,5 +10,6 @@ export async function GET(req: NextRequest) {
 
   const res = await fetch(`${BACKEND_URL}/loads/available?${params}`);
   const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  const wrapped = Array.isArray(data) ? { loads: data } : data;
+  return NextResponse.json(wrapped, { status: res.status });
 }

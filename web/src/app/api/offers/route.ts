@@ -9,7 +9,8 @@ export async function GET(req: NextRequest) {
   const loadId = new URL(req.url).searchParams.get("loadId") ?? "";
   const res = await apiFetch(`/offers?loadId=${loadId}`, session.backendToken);
   const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  const wrapped = Array.isArray(data) ? { offers: data } : data;
+  return NextResponse.json(wrapped, { status: res.status });
 }
 
 export async function POST(req: NextRequest) {
