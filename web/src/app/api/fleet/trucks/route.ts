@@ -22,5 +22,6 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  const wrapped = res.ok ? { truck: data } : data;
+  return NextResponse.json(wrapped, { status: res.status });
 }

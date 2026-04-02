@@ -104,7 +104,7 @@ function dbLoadToCard(load: Record<string, unknown>): CargaCard {
     const km = Math.round(haversineKm(pLat, pLon, dLat, dLon));
     distancia = `${km.toLocaleString("es-AR")} km`;
   }
-  return { id: (load._id ?? load.id) as string, titulo, empresa: shipper?.razon_social ?? "Dador de carga", hace, precio: (load.price_base as number) ?? 0, peso: load.weight_kg ? `${(load.weight_kg as number).toLocaleString("es-AR")} kg` : "—", camion: load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required as string] ?? "Cualquiera") : "Cualquiera", retiro: load.ready_at ? new Date(load.ready_at as string).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—", distancia, rating: 0, viajes: 0, badge: null, destacado: false };
+  return { id: (load.id ?? load.id) as string, titulo, empresa: shipper?.razon_social ?? "Dador de carga", hace, precio: (load.price_base as number) ?? 0, peso: load.weight_kg ? `${(load.weight_kg as number).toLocaleString("es-AR")} kg` : "—", camion: load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required as string] ?? "Cualquiera") : "Cualquiera", retiro: load.ready_at ? new Date(load.ready_at as string).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—", distancia, rating: 0, viajes: 0, badge: null, destacado: false };
 }
 
 function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: { onOfertar: (c: ModalOfertaState) => void; onAlerta: () => void; excluirIds: Set<string | number>; trucks: TruckData[]; onNoTruck: () => void }) {
@@ -561,8 +561,8 @@ function SeccionNotificaciones() {
 
 // ── Mi Flota ──────────────────────────────────────────────────────────────────
 
-interface Driver { _id: string; name: string; email: string; phone?: string; dni?: string; }
-interface TruckData { _id: string; patente: string; marca?: string; modelo?: string; año?: number; truck_type?: string; capacity_kg?: number; vtv_vence?: string; seguro_poliza?: string; seguro_vence?: string; }
+interface Driver { id: string; name: string; email: string; phone?: string; dni?: string; }
+interface TruckData { id: string; patente: string; marca?: string; modelo?: string; año?: number; truck_type?: string; capacity_kg?: number; vtv_vence?: string; seguro_poliza?: string; seguro_vence?: string; }
 
 const TIPO_CAMION = ["camion", "semi", "acoplado", "frigorifico", "cisterna", "batea", "otros"] as const;
 const REQUIERE_REMOLQUE = new Set(["semi", "acoplado", "batea"]);
@@ -728,7 +728,7 @@ function SeccionMiFlota() {
           {!loadingTrucks && trucks.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 16 }}>
               {trucks.map((t) => (
-                <div key={t._id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+                <div key={t.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
                     <div style={{ width: 44, height: 44, borderRadius: "var(--border-radius-md)", background: "var(--color-background-secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🚛</div>
                     <div>
@@ -770,7 +770,7 @@ function SeccionMiFlota() {
                 </thead>
                 <tbody>
                   {drivers.map((d, i) => (
-                    <tr key={d._id} style={{ borderBottom: i < drivers.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                    <tr key={d.id} style={{ borderBottom: i < drivers.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
                       <td style={{ padding: "12px 16px", fontWeight: 500, color: "var(--color-text-primary)" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--color-brand-dark)", flexShrink: 0 }}>{d.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}</div>
@@ -796,7 +796,7 @@ function SeccionMiFlota() {
 
 type TabPerfil = "Perfil" | "Estadísticas";
 interface EarningsMes { mes: string; monto: number; }
-interface TipoCargaStat { tipo: string; pct: number; count: number; color: string; }
+interface TipoCargaStat { tipo: string; pct: number; count: number; color: string; cantidad?: number; }
 interface RutaStat { ruta: string; viajes: number; }
 interface TransportistaStats { viajesCompletados: number; calificacionPromedio: number | null; memberSince: string; ingresosUltimos6Meses: EarningsMes[]; tiposCarga: TipoCargaStat[]; rutasFrecuentes: RutaStat[]; totalIngresos6m: number; viajes6m: number; }
 
@@ -923,7 +923,7 @@ function ModalOfertar({ info, onClose, onEnviar, trucks }: { info: ModalOfertaSt
             <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Camión a enviar<span style={{ color: "#ef4444", marginLeft: 2 }}>*</span></label>
             <select value={truckId} onChange={(e) => setTruckId(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" as const }}>
               {trucks.map((t) => (
-                <option key={t._id} value={t._id}>{t.patente}{t.marca ? ` — ${t.marca}` : ""}{t.modelo ? ` ${t.modelo}` : ""}{t.truck_type ? ` (${t.truck_type})` : ""}</option>
+                <option key={t.id} value={t.id}>{t.patente}{t.marca ? ` — ${t.marca}` : ""}{t.modelo ? ` ${t.modelo}` : ""}{t.truck_type ? ` (${t.truck_type})` : ""}</option>
               ))}
             </select>
           </div>

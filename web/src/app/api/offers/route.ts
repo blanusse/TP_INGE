@@ -9,8 +9,27 @@ export async function GET(req: NextRequest) {
   const loadId = new URL(req.url).searchParams.get("loadId") ?? "";
   const res = await apiFetch(`/offers?loadId=${loadId}`, session.backendToken);
   const data = await res.json();
-  const wrapped = Array.isArray(data) ? { offers: data } : data;
-  return NextResponse.json(wrapped, { status: res.status });
+  if (!Array.isArray(data)) return NextResponse.json(data, { status: res.status });
+
+  // Transformar al formato que espera el frontend (Oferta type)
+  const offers = data.map((o: Record<string, unknown>) => {
+    const driver = o.driver as Record<string, string> | null;
+    const name = driver?.name ?? "Camionero";
+    const iniciales = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+    return {
+      id: o.id,
+      offerId: o.id,
+      nombre: name,
+      iniciales,
+      rating: o.avg_rating ? Number(o.avg_rating) : 0,
+      viajes: 0,
+      precio: Number(o.price),
+      counterPrice: o.counter_price ? Number(o.counter_price) : null,
+      status: o.status,
+      nota: o.note ?? "",
+    };
+  });
+  return NextResponse.json({ offers }, { status: res.status });
 }
 
 export async function POST(req: NextRequest) {

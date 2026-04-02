@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Load } from '../entities/load.entity';
 import { Shipper } from '../entities/shipper.entity';
 import { Offer } from '../entities/offer.entity';
@@ -33,19 +33,18 @@ export class LoadsService {
 
     const loadIds = loads.map((l) => l.id);
     const offers = loadIds.length
-      ? await this.offersRepo.createQueryBuilder('o')
-          .select(['o.load_id', 'o.status', 'o.price', 'o.driver_id'])
-          .where('o.load_id IN (:...ids)', { ids: loadIds })
-          .getRawMany()
+      ? await this.offersRepo.find({ where: { load_id: In(loadIds) } })
       : [];
 
     return loads.map((load) => {
-      const loadOffers = offers.filter((o) => o.o_load_id === load.id);
-      const accepted = loadOffers.find((o) => o.o_status === 'accepted');
+      const loadOffers = offers.filter((o) => o.load_id === load.id);
+      const accepted = loadOffers.find((o) => o.status === 'accepted');
       return {
         ...load,
         offer_count: loadOffers.length,
-        accepted_offer: accepted ?? null,
+        accepted_offer: accepted
+          ? { offerId: accepted.id, precio: Number(accepted.price), driverName: null }
+          : null,
       };
     });
   }

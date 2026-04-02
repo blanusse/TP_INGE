@@ -22,5 +22,11 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
+  // Omitir password_hash y wrappear en { driver }
+  if (res.ok) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password_hash, ...driver } = data;
+    return NextResponse.json({ driver }, { status: res.status });
+  }
   return NextResponse.json(data, { status: res.status });
 }

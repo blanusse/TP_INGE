@@ -17,7 +17,7 @@ interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
 interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; }
 
 interface LoadDB {
-  _id: string;
+  id: string;
   pickup_city: string;
   dropoff_city: string;
   cargo_type: string | null;
@@ -28,7 +28,7 @@ interface LoadDB {
   description: string | null;
   status: string;
   created_at: string;
-  offers_count?: number;
+  offer_count?: number;
   accepted_offer?: AcceptedOffer | null;
 }
 
@@ -54,13 +54,13 @@ function loadToCard(load: LoadDB): Carga {
     ? `Publicado hace ${diffH} hora${diffH > 1 ? "s" : ""}`
     : "Publicado hace unos minutos";
   return {
-    id:           load._id,
+    id:           load.id,
     titulo,
     hace,
     peso:         load.weight_kg ? `${load.weight_kg.toLocaleString("es-AR")} kg` : "—",
     tipoCamion:   load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required] ?? load.truck_type_required) : "Cualquiera",
     retiro:       load.ready_at ? new Date(load.ready_at).toLocaleDateString("es-AR") : "—",
-    ofertas:      load.offers_count ?? 0,
+    ofertas:      load.offer_count ?? 0,
     camioneros:   [],
     ofertasDetalle: [],
     status:       load.status,
@@ -486,7 +486,7 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
 
   const contraofertar = async (o: Oferta) => {
     if (!contraPrice || isNaN(Number(contraPrice))) return;
-    const ok = await callPatch(o.offerId, { action: "counter", counterPrice: Number(contraPrice) });
+    const ok = await callPatch(o.offerId, { action: "counter", counter_price: Number(contraPrice) });
     if (ok) {
       setOfertas((prev) => prev.map((x) => x.offerId === o.offerId ? { ...x, status: "countered", counterPrice: Number(contraPrice) } : x));
       setContraofertaId(null);
