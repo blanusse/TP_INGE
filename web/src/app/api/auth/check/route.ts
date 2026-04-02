@@ -9,7 +9,23 @@ export async function GET(req: NextRequest) {
 
   console.log("[auth/check] BACKEND_URL =", BACKEND_URL);
 
-  const res = await fetch(`${BACKEND_URL}/auth/check?email=${encodeURIComponent(email)}`);
-  const data = await res.json();
+  let res: Response;
+  try {
+    res = await fetch(`${BACKEND_URL}/auth/check?email=${encodeURIComponent(email)}`);
+  } catch (err) {
+    console.error("[auth/check] fetch failed:", err);
+    return NextResponse.json({ error: "fetch_failed", detail: String(err) }, { status: 502 });
+  }
+
+  const text = await res.text();
+  console.log("[auth/check] Railway response:", res.status, text.slice(0, 200));
+
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return NextResponse.json({ error: "invalid_json", detail: text.slice(0, 200) }, { status: 502 });
+  }
+
   return NextResponse.json(data, { status: res.status });
 }
