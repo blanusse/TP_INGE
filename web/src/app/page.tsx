@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { NavbarLanding } from "./_components/NavbarLanding";
+import { ParticleHero } from "./_components/ParticleHero";
 
 export default async function Home() {
   const session = await auth();
@@ -13,19 +14,16 @@ export default async function Home() {
       <NavbarLanding />
 
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
-      <section style={{ background: "linear-gradient(160deg, #0f1a16 0%, #0f6e56 60%, #1d9e75 100%)", color: "#fff", padding: "100px 48px 120px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-        {/* Decoración de fondo */}
-        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle at 20% 50%, rgba(29,158,117,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(15,110,86,0.4) 0%, transparent 40%)", pointerEvents: "none" }} />
+      <section style={{ background: "#000", color: "#fff", padding: "80px 48px 100px", textAlign: "center", position: "relative", overflow: "hidden" }}>
 
-        <div style={{ position: "relative", maxWidth: 760, margin: "0 auto" }}>
+        <div style={{ position: "relative", maxWidth: 900, margin: "0 auto" }}>
           <div style={{ display: "inline-block", fontSize: 12, fontWeight: 600, color: "#6ee7b7", background: "rgba(110,231,183,0.12)", border: "0.5px solid rgba(110,231,183,0.3)", padding: "5px 14px", borderRadius: 20, marginBottom: 28, letterSpacing: 0.5, textTransform: "uppercase" }}>
             Bolsa de cargas digital · Argentina
           </div>
 
-          <h1 style={{ fontSize: 58, fontWeight: 800, lineHeight: 1.1, marginBottom: 24, letterSpacing: -1.5 }}>
-            El viaje de vuelta<br />
-            <span style={{ color: "#6ee7b7" }}>también genera plata</span>
-          </h1>
+          <div style={{ marginBottom: 24 }}>
+            <ParticleHero />
+          </div>
 
           <p style={{ fontSize: 19, color: "rgba(255,255,255,0.75)", maxWidth: 560, margin: "0 auto 44px", lineHeight: 1.65 }}>
             Conectamos camioneros con dadores de carga en toda Argentina. Sin intermediarios, sin viajes vacíos, sin burocracia.
