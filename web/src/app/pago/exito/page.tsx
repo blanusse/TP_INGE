@@ -10,15 +10,16 @@ function ExitoContent() {
   const [status, setStatus] = useState<"confirming" | "done" | "error">("confirming");
 
   useEffect(() => {
-    const offerId         = params.get("external_reference");
+    const offerId          = params.get("external_reference");
+    const loadId           = params.get("loadId");
     const collectionStatus = params.get("collection_status");
 
-    if (!offerId || collectionStatus !== "approved") {
+    if (!offerId || !loadId || collectionStatus !== "approved") {
       setStatus("error");
       return;
     }
 
-    fetch(`/api/payments/confirm?offerId=${offerId}`, { method: "POST" })
+    fetch(`/api/payments/confirm?offerId=${offerId}&loadId=${loadId}`, { method: "POST" })
       .then((r) => { if (r.ok) setStatus("done"); else setStatus("error"); })
       .catch(() => setStatus("error"));
   }, [params]);

@@ -1,22 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import { Offer } from "@/lib/models/Offer";
-import { Load } from "@/lib/models/Load";
-import mongoose from "mongoose";
+import { auth } from "@/lib/auth";
+import { apiFetch } from "@/lib/apiFetch";
 
-// POST /api/payments/confirm?offerId=xxx
-// Llamado desde la página de éxito de MP para marcar el pago como confirmado
+// POST /api/payments/confirm?offerId=xxx&loadId=xxx
+// Llamado desde la página de éxito de MP para marcar la carga como in_transit
 export async function POST(req: NextRequest) {
-  const offerId = new URL(req.url).searchParams.get("offerId");
-  if (!offerId) return NextResponse.json({ error: "Falta offerId" }, { status: 400 });
+  const session = await auth();
+  if (!session?.backendToken) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  await connectDB();
+  const { searchParams } = new URL(req.url);
+  const loadId = searchParams.get("loadId");
+  if (!loadId) return NextResponse.json({ error: "Falta loadId" }, { status: 400 });
 
-  const offer = await Offer.findById(new mongoose.Types.ObjectId(offerId));
-  if (!offer) return NextResponse.json({ error: "Oferta no encontrada" }, { status: 404 });
+  const transitRes = await apiFetch(`/loads/${loadId}/in-transit`, session.backendToken, {
+    method: "PATCH",
+  });
+  if (!transitRes.ok) {
+    const err = await transitRes.json();
+    return NextResponse.json(err, { status: transitRes.status });
+  }
 
-  // Pasar la carga a in_transit (pago confirmado)
-  await Load.updateOne({ _id: offer.load_id }, { $set: { status: "in_transit" } });
+  // Confirmar el pago en el registro de pagos
+  await apiFetch(`/payments/${offerId}/confirm`, session.backendToken, {
+    method: "PATCH",
+    body: JSON.stringify({}),
+  });
 
   return NextResponse.json({ ok: true });
 }

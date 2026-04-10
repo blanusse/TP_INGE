@@ -4,6 +4,7 @@ import { Repository, In } from 'typeorm';
 import { Load } from '../entities/load.entity';
 import { Shipper } from '../entities/shipper.entity';
 import { Offer } from '../entities/offer.entity';
+import { User } from '../entities/user.entity';
 
 const TRUCK_TYPE_MAP: Record<string, string> = {
   'Furgón cerrado': 'camion',
@@ -20,6 +21,7 @@ export class LoadsService {
     @InjectRepository(Load) private loadsRepo: Repository<Load>,
     @InjectRepository(Shipper) private shippersRepo: Repository<Shipper>,
     @InjectRepository(Offer) private offersRepo: Repository<Offer>,
+    @InjectRepository(User) private usersRepo: Repository<User>,
   ) {}
 
   async getMyLoads(userId: string) {
@@ -36,6 +38,14 @@ export class LoadsService {
       ? await this.offersRepo.find({ where: { load_id: In(loadIds) } })
       : [];
 
+    const acceptedDriverIds = offers
+      .filter((o) => o.status === 'accepted')
+      .map((o) => o.driver_id);
+    const drivers = acceptedDriverIds.length
+      ? await this.usersRepo.find({ where: { id: In(acceptedDriverIds) }, select: ['id', 'name'] })
+      : [];
+    const driverMap = Object.fromEntries(drivers.map((d) => [d.id, d.name]));
+
     return loads.map((load) => {
       const loadOffers = offers.filter((o) => o.load_id === load.id);
       const accepted = loadOffers.find((o) => o.status === 'accepted');
@@ -43,7 +53,7 @@ export class LoadsService {
         ...load,
         offer_count: loadOffers.length,
         accepted_offer: accepted
-          ? { offerId: accepted.id, precio: Number(accepted.price), driverName: null }
+          ? { offerId: accepted.id, precio: Number(accepted.price), driverName: driverMap[accepted.driver_id] ?? null }
           : null,
       };
     });
@@ -84,6 +94,33 @@ export class LoadsService {
     if (origin) qb.andWhere('l.pickup_city ILIKE :origin', { origin: `%${origin}%` });
 
     return qb.orderBy('l.created_at', 'DESC').getMany();
+  }
+
+  async markInTransitByOffer(offerId: string) {
+    const offer = await this.offersRepo.findOne({ where: { id: offerId } });
+    if (!offer) throw new NotFoundException('Oferta no encontrada.');
+
+    const load = await this.loadsRepo.findOne({ where: { id: offer.load_id } });
+    if (!load) throw new NotFoundException('Carga no encontrada.');
+    if (load.status !== 'matched') return load; // idempotente: si ya avanzó, no rompe
+
+    load.status = 'in_transit';
+    return this.loadsRepo.save(load);
+  }
+
+  async markInTransit(userId: string, loadId: string) {
+    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+    if (!shipper) throw new ForbiddenException();
+
+    const load = await this.loadsRepo.findOne({ where: { id: loadId } });
+    if (!load) throw new NotFoundException('Carga no encontrada.');
+    if (load.shipper_id !== shipper.id) throw new ForbiddenException();
+    if (load.status !== 'matched') {
+      throw new BadRequestException('La carga no está en estado matched.');
+    }
+
+    load.status = 'in_transit';
+    return this.loadsRepo.save(load);
   }
 
   async confirmDelivery(userId: string, loadId: string) {
