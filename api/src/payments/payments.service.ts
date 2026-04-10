@@ -42,26 +42,24 @@ export class PaymentsService {
     const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
     if (!shipper) throw new ForbiddenException();
 
-    return this.paymentsRepo
-      .createQueryBuilder('p')
-      .innerJoin('p.load', 'l')
-      .innerJoin('p.offer', 'o')
-      .innerJoin('o.driver', 'd')
-      .select([
-        'p.id',
-        'p.offer_id',
-        'p.amount',
-        'p.status',
-        'p.mp_preference_id',
-        'p.mp_payment_id',
-        'p.created_at',
-        'l.cargo_type',
-        'l.pickup_city',
-        'l.dropoff_city',
-        'd.name',
-      ])
-      .where('l.shipper_id = :shipperId', { shipperId: shipper.id })
-      .orderBy('p.created_at', 'DESC')
-      .getMany();
+    const payments = await this.paymentsRepo.find({
+      where: { load: { shipper_id: shipper.id } },
+      relations: ['load', 'offer', 'offer.driver'],
+      order: { created_at: 'DESC' },
+    });
+
+    return payments.map((p) => ({
+      id:               p.id,
+      offer_id:         p.offer_id,
+      amount:           Number(p.amount),
+      status:           p.status,
+      mp_preference_id: p.mp_preference_id,
+      mp_payment_id:    p.mp_payment_id,
+      created_at:       p.created_at,
+      cargo_type:       p.load?.cargo_type,
+      pickup_city:      p.load?.pickup_city,
+      dropoff_city:     p.load?.dropoff_city,
+      driver_name:      p.offer?.driver?.name ?? null,
+    }));
   }
 }

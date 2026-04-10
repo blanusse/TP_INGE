@@ -13,20 +13,16 @@ export async function GET() {
   const payments: Array<Record<string, unknown>> = await res.json();
 
   const invoices = payments.map((p, idx) => {
-    const load = p.load as Record<string, string> | null;
-    const driver = p.offer as Record<string, Record<string, string>> | null;
     const date = new Date(p.created_at as string);
     const numero = String(payments.length - idx).padStart(3, "0");
-    const concepto = load
-      ? `${load.cargo_type ?? "Carga"} ${load.pickup_city} → ${load.dropoff_city}`
-      : "Carga";
+    const concepto = `${p.cargo_type ?? "Carga"} ${p.pickup_city} → ${p.dropoff_city}`;
 
     return {
       id:        `F-${date.getFullYear()}-${numero}`,
       offerId:   p.offer_id,
       fecha:     date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }),
       concepto,
-      camionero: driver?.driver?.name ?? "Camionero",
+      camionero: (p.driver_name as string) ?? "Camionero",
       monto:     Number(p.amount),
       estado:    p.status === "confirmed" ? "Pagada" : "Pendiente",
     };

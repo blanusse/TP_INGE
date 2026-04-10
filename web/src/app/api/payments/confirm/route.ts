@@ -10,7 +10,8 @@ export async function POST(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const loadId = searchParams.get("loadId");
-  if (!loadId) return NextResponse.json({ error: "Falta loadId" }, { status: 400 });
+  const offerId = searchParams.get("offerId");
+  if (!loadId || !offerId) return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 });
 
   const transitRes = await apiFetch(`/loads/${loadId}/in-transit`, session.backendToken, {
     method: "PATCH",
