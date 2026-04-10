@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBoxOpen, faClockRotateLeft, faFileInvoiceDollar } from "@fortawesome/free-solid-svg-icons";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 // ── Datos ────────────────────────────────────────────────────────────────────
 
@@ -934,40 +937,26 @@ function SeccionMisCargas({
     const tipoCarga = partes[0];
     const ruta = partes[1] ?? c.titulo;
     const [origen, destino] = ruta.split(" → ");
+    const infoLine = [tipoCarga, c.peso, c.tipoCamion, `Retiro: ${c.retiro}`].filter(Boolean).join(" · ");
+    const conOfertas = c.ofertas > 0;
     return (
-      <div key={c.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: `4px solid var(--color-brand)`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+      <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 10, padding: "18px 20px", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{origen}</span>
-              <span style={{ fontSize: 18, color: "var(--color-brand)", fontWeight: 700 }}>→</span>
-              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{destino}</span>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--heading-color)", marginBottom: 5 }}>
+              {origen} → {destino}
             </div>
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tipoCarga} · {c.hace}</div>
+            <div style={{ fontSize: 13, color: "var(--body-color)", marginBottom: 10 }}>{infoLine}</div>
+            {conOfertas
+              ? <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "#e6f4ee", color: "#2d7a54", fontWeight: 500 }}>{c.ofertas} {c.ofertas === 1 ? "oferta" : "ofertas"}</span>
+              : <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "var(--badge-neutral-bg)", color: "var(--badge-neutral-text)" }}>Sin ofertas</span>
+            }
           </div>
-          <BadgeOfertas n={c.ofertas} />
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
-          {[["Peso", c.peso], ["Tipo de camión", c.tipoCamion], ["Fecha de retiro", c.retiro]].map(([label, val]) => (
-            <div key={label}>
-              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
-              <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{val}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
-          {c.ofertas > 0 ? (
-            <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-              {c.ofertas} {c.ofertas === 1 ? "camionero ofertó" : "camioneros ofertaron"}
-            </span>
-          ) : (
-            <span style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Esperando camioneros...</span>
-          )}
           <button
-            onClick={() => c.ofertas > 0 ? onVerOfertas(c) : onDestacado(c.titulo)}
-            style={{ fontSize: 13, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: c.ofertas > 0 ? "none" : "0.5px solid var(--color-border-secondary)", background: c.ofertas > 0 ? "var(--color-brand)" : "transparent", color: c.ofertas > 0 ? "#fff" : "var(--color-text-primary)", cursor: "pointer", fontWeight: c.ofertas > 0 ? 600 : 400 }}
+            onClick={() => conOfertas ? onVerOfertas(c) : onDestacado(c.titulo)}
+            style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, border: conOfertas ? "none" : "1px solid var(--inactive-border)", background: conOfertas ? "var(--heading-color)" : "transparent", color: conOfertas ? "var(--card-bg)" : "var(--body-color)", cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" as const, fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}
           >
-            {c.ofertas > 0 ? "Ver ofertas →" : "Destacar carga →"}
+            {conOfertas ? "Ver ofertas →" : "Destacar carga →"}
           </button>
         </div>
       </div>
@@ -980,41 +969,27 @@ function SeccionMisCargas({
     const tipoCarga = partes[0];
     const ruta = partes[1] ?? c.titulo;
     const [origen, destino] = ruta.split(" → ");
+    const infoLine = [tipoCarga, c.peso, c.tipoCamion, `Retiro: ${c.retiro}`].filter(Boolean).join(" · ");
     return (
-      <div style={{ background: "var(--color-background-primary)", border: "1.5px solid #16a34a", borderLeft: "4px solid #16a34a", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+      <div style={{ background: "var(--card-bg)", border: "1.5px solid #2d7a54", borderRadius: 10, padding: "18px 20px", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{origen}</span>
-              <span style={{ fontSize: 18, color: "#16a34a", fontWeight: 700 }}>→</span>
-              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{destino}</span>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--heading-color)", marginBottom: 5 }}>
+              {origen} → {destino}
             </div>
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tipoCarga} · {c.hace}</div>
+            <div style={{ fontSize: 13, color: "var(--body-color)", marginBottom: 10 }}>{infoLine}</div>
+            <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "#e6f4ee", color: "#2d7a54", fontWeight: 500 }}>Confirmada</span>
+            {ao && <span style={{ fontSize: 13, color: "var(--body-color)", marginLeft: 10 }}>{ao.driverName} · ${ao.precio.toLocaleString("es-AR")}</span>}
           </div>
-          <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: "#f0fdf4", color: "#16a34a" }}>Confirmado ✓</span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
-          {[["Peso", c.peso], ["Tipo de camión", c.tipoCamion], ["Fecha de retiro", c.retiro]].map(([label, val]) => (
-            <div key={label}>
-              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
-              <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{val}</div>
-            </div>
-          ))}
-        </div>
-        {ao && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, padding: "10px 14px", background: "#f0fdf4", borderRadius: "var(--border-radius-md)", border: "0.5px solid #bbf7d0" }}>
-            <div>
-              <div style={{ fontSize: 12, color: "#15803d", marginBottom: 2 }}>Camionero: <strong>{ao.driverName}</strong></div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#15803d" }}>${ao.precio.toLocaleString("es-AR")}</div>
-            </div>
+          {ao && (
             <button
               onClick={() => onIniciarPago({ offerId: ao.offerId, cargaTitulo: c.titulo, cargaId: c.id, oferta: { nombre: ao.driverName, precio: ao.precio, offerId: ao.offerId, id: 0, iniciales: ao.driverName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2), rating: 0, viajes: 0, nota: "" } })}
-              style={{ fontSize: 13, padding: "9px 20px", borderRadius: "var(--border-radius-md)", border: "none", background: "#16a34a", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, border: "none", background: "#2d7a54", color: "#fff", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const, fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}
             >
               Pagar →
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };
@@ -1025,48 +1000,34 @@ function SeccionMisCargas({
     const tipoCarga = partes[0];
     const ruta = partes[1] ?? c.titulo;
     const [origen, destino] = ruta.split(" → ");
+    const infoLine = [tipoCarga, c.peso, c.tipoCamion, `Retiro: ${c.retiro}`].filter(Boolean).join(" · ");
     return (
-      <div style={{ background: "var(--color-background-primary)", border: "1.5px solid #8b5cf6", borderLeft: "4px solid #8b5cf6", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+      <div style={{ background: "var(--card-bg)", border: "1.5px solid #8b5cf6", borderRadius: 10, padding: "18px 20px", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{origen}</span>
-              <span style={{ fontSize: 18, color: "#8b5cf6", fontWeight: 700 }}>→</span>
-              <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{destino}</span>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--heading-color)", marginBottom: 5 }}>
+              {origen} → {destino}
             </div>
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tipoCarga} · {c.hace}</div>
+            <div style={{ fontSize: 13, color: "var(--body-color)", marginBottom: 10 }}>{infoLine}</div>
+            <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "#f5f3ff", color: "#7c3aed", fontWeight: 500 }}>En tránsito</span>
+            {ao && <span style={{ fontSize: 13, color: "var(--body-color)", marginLeft: 10 }}>{ao.driverName}</span>}
           </div>
-          <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: "#f5f3ff", color: "#8b5cf6" }}>En tránsito 🚛</span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
-          {[["Peso", c.peso], ["Tipo de camión", c.tipoCamion], ["Fecha de retiro", c.retiro]].map(([label, val]) => (
-            <div key={label}>
-              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
-              <div style={{ fontSize: 13, color: "var(--color-text-primary)" }}>{val}</div>
-            </div>
-          ))}
-        </div>
-        {ao && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, padding: "10px 14px", background: "#f5f3ff", borderRadius: "var(--border-radius-md)", border: "0.5px solid #ddd6fe" }}>
-            <div>
-              <div style={{ fontSize: 12, color: "#6d28d9", marginBottom: 2 }}>Camionero: <strong>{ao.driverName}</strong></div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#6d28d9" }}>${ao.precio.toLocaleString("es-AR")}</div>
-            </div>
+          {ao && (
             <button
               onClick={() => confirmarLlegada(c)}
               disabled={confirmando === c.id}
-              style={{ fontSize: 13, padding: "9px 20px", borderRadius: "var(--border-radius-md)", border: "none", background: confirmando === c.id ? "#aaa" : "#8b5cf6", color: "#fff", fontWeight: 700, cursor: confirmando === c.id ? "not-allowed" : "pointer" }}
+              style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, border: "none", background: confirmando === c.id ? "#aaa" : "#7c3aed", color: "#fff", fontWeight: 600, cursor: confirmando === c.id ? "not-allowed" : "pointer", whiteSpace: "nowrap" as const, fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}
             >
-              {confirmando === c.id ? "Confirmando..." : "Confirmar llegada ✓"}
+              {confirmando === c.id ? "Confirmando..." : "Confirmar llegada →"}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };
 
   return (
-    <main style={{ padding: "20px 24px", flex: 1 }}>
+    <main style={{ padding: "36px 40px", flex: 1, fontFamily: "var(--font-ibm-plex), sans-serif" }}>
       {modalCalificar && (
         <ModalCalificarCamionero
           offerId={modalCalificar.offerId}
@@ -1075,27 +1036,33 @@ function SeccionMisCargas({
         />
       )}
 
+      {/* Título */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ fontSize: 34, fontWeight: 700, color: "var(--heading-color)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>Mis cargas</div>
+        <div style={{ fontSize: 14, color: "var(--muted-color)", marginTop: 6 }}>Todas las cargas que publicaste aparecen acá.</div>
+      </div>
+      <hr style={{ border: "none", borderTop: "1px solid var(--divider-color)", margin: "20px 0 24px" }} />
+
       {/* Tab cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 24 }}>
-        {tabCards.map(({ t, icon, color, bg, count, desc }) => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            border: tab === t ? `2px solid ${color}` : "1.5px solid var(--color-border-tertiary)",
-            borderRadius: "var(--border-radius-lg)",
-            background: tab === t ? bg : "var(--color-background-primary)",
-            padding: "14px 16px",
-            cursor: "pointer",
-            textAlign: "left" as const,
-            transition: "all 0.15s",
-            boxShadow: tab === t ? `0 2px 12px ${color}33` : "none",
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div style={{ width: 36, height: 36, borderRadius: "var(--border-radius-md)", background: tab === t ? color : "var(--color-background-secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, transition: "all 0.15s" }}>{icon}</div>
-              <span style={{ fontSize: 26, fontWeight: 700, color: tab === t ? color : "var(--color-text-primary)", lineHeight: 1 }}>{count}</span>
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: tab === t ? color : "var(--color-text-primary)", marginBottom: 2 }}>{t}</div>
-            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{desc}</div>
-          </button>
-        ))}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10, marginBottom: 28 }}>
+        {tabCards.map(({ t, count }) => {
+          const activo = tab === t;
+          return (
+            <button key={t} onClick={() => setTab(t)} style={{
+              border: activo ? "1.5px solid #2d7a54" : "1.5px solid var(--card-border)",
+              borderRadius: 10,
+              background: "var(--card-bg)",
+              padding: "18px 16px",
+              cursor: "pointer",
+              textAlign: "center" as const,
+              fontFamily: "var(--font-ibm-plex), sans-serif",
+              boxShadow: activo ? "none" : "0 2px 8px rgba(0,0,0,0.12)",
+            }}>
+              <div style={{ fontSize: 36, fontWeight: 700, color: "var(--heading-color)", lineHeight: 1, marginBottom: 8 }}>{count}</div>
+              <div style={{ fontSize: 16, color: activo ? "#2d7a54" : "var(--body-color)", fontWeight: activo ? 600 : 400 }}>{t}</div>
+            </button>
+          );
+        })}
       </div>
 
       {loading && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
@@ -1308,11 +1275,26 @@ function SeccionFacturacion() {
 
 interface DadorStats { totalCargas: number; enTransito: number; memberSince: string; calificacionPromedio: number | null; razonSocial: string | null; cuit: string | null; address: string | null; }
 
+function formatMemberSince(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  try {
+    // Parse the UTC date and adjust to UTC-3 (Argentina)
+    const date = new Date(raw);
+    const ar = new Date(date.getTime() - 3 * 60 * 60 * 1000);
+    const day   = ar.getUTCDate();
+    const year  = ar.getUTCFullYear();
+    const month = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][ar.getUTCMonth()];
+    return `${day} de ${month} de ${year}`;
+  } catch {
+    return "—";
+  }
+}
+
 function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) => void; userName: string; userEmail: string }) {
-  const [editando, setEditando]   = useState(false);
-  const [nombre, setNombre]       = useState(userName);
-  const [telefono, setTelefono]   = useState("");
-  const [stats, setStats]         = useState<DadorStats | null>(null);
+  const [editando, setEditando] = useState(false);
+  const [nombre, setNombre]     = useState(userName);
+  const [telefono, setTelefono] = useState("");
+  const [stats, setStats]       = useState<DadorStats | null>(null);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
 
   React.useEffect(() => {
@@ -1322,103 +1304,145 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
       .catch(() => {});
   }, []);
 
-  return (
-    <main style={{ padding: "24px 28px", flex: 1, maxWidth: 820 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>Mi perfil</div>
-        <button
-          onClick={() => { if (editando) onToast("Perfil actualizado."); setEditando(!editando); }}
-          style={{ fontSize: 13, padding: "8px 18px", borderRadius: "var(--border-radius-md)", border: editando ? "none" : "0.5px solid var(--color-border-secondary)", background: editando ? "var(--color-brand)" : "transparent", color: editando ? "#fff" : "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }}
-        >
-          {editando ? "Guardar cambios" : "Editar perfil"}
-        </button>
-      </div>
+  const card: React.CSSProperties = { background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 10, padding: 20 };
+  const fieldLabel: React.CSSProperties = { fontSize: 11, color: "var(--muted-color)", marginBottom: 3, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em" };
+  const fieldVal: React.CSSProperties = { fontSize: 14, fontWeight: 500, color: "var(--heading-color)" };
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-        {/* Tarjeta principal */}
-        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 24, gridColumn: "1 / -1" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 24 }}>
-            <div style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--color-brand)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{initials}</div>
-            <div style={{ flex: 1 }}>
-              {editando
-                ? <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ fontSize: 20, fontWeight: 700, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "4px 10px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", marginBottom: 4, width: "100%", maxWidth: 320 }} />
-                : <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 4 }}>{nombre}</div>
-              }
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Dador de carga</span>
-                <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 20, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontWeight: 600 }}>Verificado ✓</span>
-              </div>
-              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 4 }}>{userEmail}</div>
-            </div>
-          </div>
-          {/* Stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 0, borderTop: "0.5px solid var(--color-border-tertiary)" }}>
-            {[
-              { label: "Cargas publicadas", val: stats ? String(stats.totalCargas) : "—" },
-              { label: "En tránsito ahora", val: stats ? String(stats.enTransito) : "—" },
-              { label: "Calificación promedio", val: stats?.calificacionPromedio != null ? `${stats.calificacionPromedio} ⭐` : "Sin calificaciones" },
-              { label: "En plataforma desde", val: stats?.memberSince ?? "—" },
-            ].map(({ label, val }, i) => (
-              <div key={label} style={{ textAlign: "center", padding: "16px 8px", borderRight: i < 3 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
-                <div style={{ fontSize: 26, fontWeight: 700, color: "var(--color-brand-dark)", marginBottom: 4 }}>{val}</div>
-                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{label}</div>
-              </div>
-            ))}
-          </div>
+  return (
+    <main style={{ padding: "36px 40px", flex: 1, fontFamily: "var(--font-ibm-plex), sans-serif" }}>
+
+      {/* Título */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ fontSize: 34, fontWeight: 700, color: "var(--heading-color)", letterSpacing: "-0.02em" }}>Mi perfil</div>
+      </div>
+      <hr style={{ border: "none", borderTop: "1px solid var(--divider-color)", margin: "20px 0 24px" }} />
+
+      {/* Fila superior: avatar + stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+
+        {/* Avatar card */}
+        <div style={{ ...card, gridColumn: "1 / 2", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 10, padding: 24 }}>
+          <div style={{ width: 68, height: 68, borderRadius: "50%", background: "#3d9e6e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff" }}>{initials}</div>
+          {editando
+            ? <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ fontSize: 15, fontWeight: 700, border: "1px solid var(--card-border)", borderRadius: 8, padding: "4px 8px", background: "var(--page-bg)", color: "var(--heading-color)", outline: "none", textAlign: "center", width: "100%" }} />
+            : <div style={{ fontSize: 15, fontWeight: 700, color: "var(--heading-color)", textAlign: "center" }}>{nombre}</div>
+          }
+          <div style={{ fontSize: 12, color: "var(--body-color)", textAlign: "center" }}>{userEmail}</div>
+          <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "#e6f4ee", color: "#2d7a54", fontWeight: 600 }}>Verificado ✓</span>
         </div>
 
-        {/* Empresa */}
-        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 16 }}>Datos de empresa</div>
+        {/* Stats */}
+        {[
+          { label: "Cargas publicadas",    val: stats ? String(stats.totalCargas) : "—" },
+          { label: "En tránsito ahora",    val: stats ? String(stats.enTransito)  : "—" },
+          { label: "Calificación promedio",val: stats?.calificacionPromedio != null ? `${stats.calificacionPromedio} ★` : "—" },
+        ].map(({ label, val }) => (
+          <div key={label} style={{ ...card, display: "flex", flexDirection: "column", justifyContent: "center", gap: 6, padding: "20px 24px" }}>
+            <div style={{ fontSize: 36, fontWeight: 700, color: "var(--heading-color)", lineHeight: 1 }}>{val}</div>
+            <div style={{ fontSize: 12, color: "var(--body-color)" }}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Fila inferior: empresa, contacto, actividad */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+
+        {/* Datos de empresa */}
+        <div style={card}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading-color)", marginBottom: 16 }}>Datos de empresa</div>
           <div style={{ display: "grid", gap: 14 }}>
             {[
               { label: "Razón social", val: stats?.razonSocial ?? "—" },
-              { label: "CUIT / CUIL",  val: stats?.cuit        ?? "—" },
-              { label: "Dirección",    val: stats?.address     ?? "—" },
+              { label: "CUIT / CUIL",  val: stats?.cuit ?? "—" },
+              { label: "Dirección",    val: stats?.address ?? "—" },
             ].map(({ label, val }) => (
               <div key={label}>
-                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 3 }}>{label}</div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{val}</div>
+                <div style={fieldLabel}>{label}</div>
+                <div style={fieldVal}>{val}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Contacto */}
-        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 16 }}>Contacto</div>
+        <div style={card}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading-color)", marginBottom: 16 }}>Contacto</div>
           <div style={{ display: "grid", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 3 }}>Email</div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{userEmail || "—"}</div>
+              <div style={fieldLabel}>Email</div>
+              <div style={fieldVal}>{userEmail || "—"}</div>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 3 }}>Teléfono</div>
+              <div style={fieldLabel}>Teléfono</div>
               {editando
-                ? <input value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: +54 9 11 1234-5678" style={{ fontSize: 13, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "6px 10px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", width: "100%" }} />
-                : <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{telefono || "—"}</div>
+                ? <input value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="+54 9 11 1234-5678" style={{ fontSize: 13, border: "1px solid var(--card-border)", borderRadius: 8, padding: "6px 10px", background: "var(--page-bg)", color: "var(--heading-color)", outline: "none", width: "100%" }} />
+                : <div style={fieldVal}>{telefono || "—"}</div>
               }
+            </div>
+          </div>
+        </div>
+
+        {/* Actividad */}
+        <div style={card}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading-color)", marginBottom: 16 }}>Actividad</div>
+          <div style={{ display: "grid", gap: 14 }}>
+            <div>
+              <div style={fieldLabel}>En plataforma desde</div>
+              <div style={fieldVal}>{formatMemberSince(stats?.memberSince)}</div>
+            </div>
+            <div>
+              <div style={fieldLabel}>Calificación</div>
+              <div style={fieldVal}>{stats?.calificacionPromedio != null ? `${stats.calificacionPromedio} / 5` : "Sin calificaciones aún"}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <button
-        onClick={() => signOut({ callbackUrl: "/" })}
-        style={{ fontSize: 13, padding: "9px 18px", borderRadius: "var(--border-radius-md)", border: "0.5px solid #fecaca", background: "#fef2f2", color: "#b91c1c", cursor: "pointer", fontWeight: 500 }}
-      >
-        Cerrar sesión
-      </button>
+      {/* Acciones */}
+      <div style={{ display: "flex", gap: 10 }}>
+        <button
+          onClick={() => { if (editando) onToast("Perfil actualizado."); setEditando(!editando); }}
+          style={{ fontSize: 13, padding: "9px 20px", borderRadius: 8, border: editando ? "none" : "1px solid var(--inactive-border)", background: editando ? "#3d9e6e" : "transparent", color: editando ? "#fff" : "var(--heading-color)", cursor: "pointer", fontWeight: 500, fontFamily: "var(--font-ibm-plex), sans-serif" }}
+        >
+          {editando ? "Guardar cambios" : "Editar perfil"}
+        </button>
+        <button
+          onClick={() => signOut({ callbackUrl: "/" })}
+          style={{ fontSize: 13, padding: "9px 20px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#b91c1c", cursor: "pointer", fontWeight: 500, fontFamily: "var(--font-ibm-plex), sans-serif" }}
+        >
+          Cerrar sesión
+        </button>
+      </div>
     </main>
   );
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
+const NAV_ITEMS: { item: NavItem; icon: IconDefinition }[] = [
+  { item: "Mis cargas",  icon: faBoxOpen },
+  { item: "Historial",   icon: faClockRotateLeft },
+  { item: "Facturación", icon: faFileInvoiceDollar },
+];
+
 export default function DadorDashboard() {
   const { data: session } = useSession();
   const [navActivo, setNavActivo] = useState<NavItem>("Mis cargas");
+  const [darkMode, setDarkMode] = useState<boolean | null>(null);
   const [modalPublicar, setModalPublicar] = useState(false);
+
+  React.useEffect(() => {
+    const saved = localStorage.getItem("theme") === "dark";
+    setDarkMode(saved);
+    document.documentElement.classList.toggle("dark", saved);
+  }, []);
+
+  const toggleDark = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("theme", next ? "dark" : "light");
+  };
   const [modalOfertas, setModalOfertas] = useState<Carga | null>(null);
   const [modalPago, setModalPago] = useState<OfertaSeleccionada | null>(null);
   const [modalChat, setModalChat] = useState<OfertaSeleccionada | null>(null);
@@ -1450,29 +1474,30 @@ export default function DadorDashboard() {
   useEffect(() => { fetchCargas(); }, [fetchCargas]);
 
   return (
-    <div style={{ background: "var(--color-background-primary)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ background: "var(--page-bg)", minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
 
       {/* Topbar */}
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 58, background: "#16301a", position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
-          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: "#fff", textDecoration: "none", letterSpacing: "-0.01em" }}>
-            Carga<span style={{ color: "var(--color-brand)" }}>Back</span>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: "#111", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: "#fff", textDecoration: "none", fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}>
+            Carga<span style={{ color: "#6ec99a" }}>Back</span>
           </Link>
-          <nav style={{ display: "flex", gap: 2 }}>
-            {(["Mis cargas", "Historial", "Facturación"] as NavItem[]).map((item) => {
+          <nav style={{ display: "flex", height: 64 }}>
+            {NAV_ITEMS.map(({ item, icon }) => {
+              const activo = navActivo === item;
               const badge = item === "Mis cargas" ? cargas.reduce((s, c) => s + c.ofertas, 0) : 0;
               return (
                 <button key={item} onClick={() => setNavActivo(item)} style={{
-                  fontSize: 16, padding: "9px 16px", borderRadius: "var(--border-radius-md)",
-                  border: "none", cursor: "pointer", position: "relative",
-                  background: navActivo === item ? "rgba(255,255,255,0.14)" : "transparent",
-                  color: navActivo === item ? "#fff" : "rgba(255,255,255,0.62)",
-                  fontWeight: navActivo === item ? 600 : 400,
-                  letterSpacing: navActivo === item ? "-0.01em" : "normal",
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "0 20px", height: "100%",
+                  border: "none", borderBottom: activo ? "2.5px solid #3d9e6e" : "2.5px solid transparent",
+                  background: "transparent", cursor: "pointer", position: "relative",
+                  fontFamily: "var(--font-ibm-plex), sans-serif",
                 }}>
-                  {item}
+                  <FontAwesomeIcon icon={icon} style={{ width: 14, height: 14, color: activo ? "#6ec99a" : "rgba(255,255,255,0.45)" }} />
+                  <span style={{ fontSize: 15, fontWeight: activo ? 600 : 400, color: activo ? "#fff" : "rgba(255,255,255,0.55)" }}>{item}</span>
                   {badge > 0 && (
-                    <span style={{ position: "absolute", top: 5, right: 5, width: 16, height: 16, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                    <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>
                       {badge > 9 ? "9+" : badge}
                     </span>
                   )}
@@ -1481,28 +1506,30 @@ export default function DadorDashboard() {
             })}
           </nav>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={() => setModalPublicar(true)} style={{ fontSize: 13, padding: "7px 14px", borderRadius: "var(--border-radius-md)", background: "var(--color-brand)", border: "none", color: "#fff", fontWeight: 500, cursor: "pointer" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            suppressHydrationWarning
+            onClick={toggleDark}
+            title={darkMode ? "Modo claro" : "Modo oscuro"}
+            style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
+          >
+            <span suppressHydrationWarning>{darkMode ? "☀️" : "🌙"}</span>
+          </button>
+          <button onClick={() => setModalPublicar(true)} style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: "#3d9e6e", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
             + Publicar carga
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{primerNombre}</span>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Dador de carga</span>
-            </div>
-            <button
-              onClick={() => setNavActivo("Mi perfil")}
-              title="Ver mi perfil"
-              style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--color-brand)", border: "2px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}
-            >
-              {initials}
-            </button>
-          </div>
+          <button
+            onClick={() => setNavActivo("Mi perfil")}
+            title="Ver mi perfil"
+            style={{ width: 34, height: 34, borderRadius: "50%", background: "#3d9e6e", border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}
+          >
+            {initials}
+          </button>
         </div>
       </header>
 
       {/* Contenido */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--color-background-tertiary)" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--page-bg)" }}>
         {navActivo === "Mis cargas" && (
           <SeccionMisCargas
             cargas={cargas}

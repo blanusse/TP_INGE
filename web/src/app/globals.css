@@ -20,6 +20,43 @@
   --color-brand: #1d9e75;
   --color-brand-dark: #0f6e56;
   --color-brand-light: #e1f5ee;
+
+  /* Dador dashboard */
+  --page-bg: #ece9e1;
+  --card-bg: #ffffff;
+  --card-border: #e0dcd4;
+  --heading-color: #111111;
+  --body-color: #888888;
+  --muted-color: #777777;
+  --divider-color: #d8d4cb;
+  --inactive-border: #d8d4cb;
+  --inactive-label: #888888;
+  --badge-neutral-bg: #f0ede6;
+  --badge-neutral-text: #888888;
+}
+
+.dark {
+  --color-background-primary: #1e1e1e;
+  --color-background-secondary: #2a2a2a;
+  --color-background-tertiary: #141414;
+  --color-border-tertiary: #2e2e2e;
+  --color-border-secondary: #3a3a3a;
+  --color-text-primary: #efefef;
+  --color-text-secondary: #aaaaaa;
+  --color-text-tertiary: #777777;
+
+  /* Dador dashboard */
+  --page-bg: #141414;
+  --card-bg: #1e1e1e;
+  --card-border: #2e2e2e;
+  --heading-color: #efefef;
+  --body-color: #999999;
+  --muted-color: #888888;
+  --divider-color: #2e2e2e;
+  --inactive-border: #3a3a3a;
+  --inactive-label: #777777;
+  --badge-neutral-bg: #2a2a2a;
+  --badge-neutral-text: #777777;
 }
 
 @theme inline {
