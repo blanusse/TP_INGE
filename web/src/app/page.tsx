@@ -97,19 +97,38 @@ export default async function Home() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
             {[
               {
-                icono: "🚛", titulo: "Camionero independiente",
+                icono: (<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand-dark)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>),
+                titulo: "Camionero independiente",
                 color: "var(--color-brand-dark)", bg: "var(--color-brand-light)",
                 perfil: "camionero", paginaInfo: "/para/camioneros",
                 items: ["Encontrá cargas para tu vuelta en segundos", "Ofertá tu precio directamente", "Historial de viajes y reputación verificada", "Certificaciones y documentación digital"],
               },
               {
-                icono: "🏢", titulo: "Empresa de flota",
+                icono: (<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#185fa5" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  {/* Camión grande arriba */}
+                  <rect x="1" y="2" width="10" height="8" rx="0.8"/>
+                  <path d="M11 4.5h2.5l2 3.5v2H11V4.5z"/>
+                  <circle cx="3.5" cy="12" r="1.5"/>
+                  <circle cx="12" cy="12" r="1.5"/>
+                  {/* Camión chico abajo izquierda */}
+                  <rect x="1" y="15" width="7" height="5" rx="0.6"/>
+                  <path d="M8 16.5h1.5l1.5 2.5v1H8v-3.5z"/>
+                  <circle cx="2.8" cy="21.5" r="1.2"/>
+                  <circle cx="8.5" cy="21.5" r="1.2"/>
+                  {/* Camión chico abajo derecha */}
+                  <rect x="13" y="15" width="7" height="5" rx="0.6"/>
+                  <path d="M20 16.5h1.5l1.5 2.5v1H20v-3.5z"/>
+                  <circle cx="14.8" cy="21.5" r="1.2"/>
+                  <circle cx="20.5" cy="21.5" r="1.2"/>
+                </svg>),
+                titulo: "Empresa de flota",
                 color: "#185fa5", bg: "#e6f1fb",
                 perfil: "flota", paginaInfo: "/para/empresas",
                 items: ["Gestioná múltiples camiones y conductores", "Visión centralizada de toda la operación", "Asignación automática de cargas por ruta", "Reportes y métricas de rendimiento"],
               },
               {
-                icono: "📦", titulo: "Dador de carga",
+                icono: (<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><line x1="12" y1="22" x2="12" y2="12"/></svg>),
+                titulo: "Dador de carga",
                 color: "#7c3aed", bg: "#f3f0ff",
                 perfil: "dador", paginaInfo: "/para/dadores",
                 items: ["Publicá cargas en menos de 2 minutos", "Recibí ofertas de camioneros verificados", "Remitos digitales y seguimiento en tiempo real", "Sin comisiones ocultas ni intermediarios"],
