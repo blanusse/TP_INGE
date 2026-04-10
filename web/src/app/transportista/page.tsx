@@ -22,7 +22,7 @@ function Stars({ value }: { value: number }) {
   return (
     <span>
       {Array.from({ length: 5 }).map((_, i) => (
-        <span key={i} style={{ color: i < Math.floor(value) ? "#BA7517" : "var(--color-border-secondary)", fontSize: 11 }}>★</span>
+        <span key={i} style={{ color: i < Math.floor(value) ? "var(--color-brand)" : "var(--color-border-secondary)", fontSize: 11 }}>★</span>
       ))}
     </span>
   );
@@ -154,52 +154,61 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: {
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", flex: 1 }}>
-      <aside style={{ background: "var(--color-background-primary)", borderRight: "0.5px solid var(--color-border-tertiary)", padding: "16px 14px", overflowY: "auto", maxHeight: "calc(100vh - 58px)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>Filtros</div>
-          {hayFiltros && <button onClick={limpiarFiltros} style={{ fontSize: 12, color: "var(--color-brand-dark)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}>Limpiar todo</button>}
+      <aside style={{ background: "var(--color-background-tertiary)", borderRight: "1px solid #1f3228", padding: "16px 14px", overflowY: "auto", maxHeight: "calc(100vh - 56px)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #1f3228" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#e8f0eb", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <i className="fa-solid fa-sliders" style={{ marginRight: 7, color: "#3a806b" }} />Filtros
+          </span>
+          {hayFiltros && <button onClick={limpiarFiltros} style={{ fontSize: 11, color: "#3a806b", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}>Limpiar todo</button>}
         </div>
+
         <div style={filterGroupStyle}>
-          <div style={filterLabelStyle}>Ruta</div>
+          <div style={filterLabelStyle}><i className="fa-solid fa-map-pin" style={{ marginRight: 6 }} />Ruta</div>
           <input value={origen} onChange={(e) => setOrigen(e.target.value)} placeholder="Origen..." style={{ ...filterInputStyle, marginBottom: 6 }} />
           <input value={destino} onChange={(e) => setDestino(e.target.value)} placeholder="Destino..." style={filterInputStyle} />
         </div>
+
         <div style={filterGroupStyle}>
-          <div style={filterLabelStyle}>Distancia recorrida</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={filterLabelStyle}><i className="fa-solid fa-ruler-horizontal" style={{ marginRight: 6 }} />Distancia recorrida</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
             {[{ key: "todos", label: "Cualquier distancia" }, { key: "corta", label: "Hasta 500 km" }, { key: "media", label: "500 — 1.200 km" }, { key: "larga", label: "1.200 — 2.000 km" }, { key: "muy_larga", label: "Más de 2.000 km" }].map(({ key, label }) => (
-              <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: distanciaRango === key ? "var(--color-brand-dark)" : "var(--color-text-secondary)", fontWeight: distanciaRango === key ? 500 : 400 }}>
-                <input type="radio" name="distancia" checked={distanciaRango === key} onChange={() => setDistanciaRango(key)} style={{ accentColor: "var(--color-brand)", cursor: "pointer" }} />
+              <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: distanciaRango === key ? "#e8f0eb" : "#8fa896", fontWeight: distanciaRango === key ? 500 : 400 }}>
+                <input type="radio" name="distancia" checked={distanciaRango === key} onChange={() => setDistanciaRango(key)} style={{ accentColor: "#3a806b", cursor: "pointer" }} />
                 {label}
               </label>
             ))}
           </div>
         </div>
+
         <div style={filterGroupStyle}>
-          <div style={filterLabelStyle}>Precio (ARS)</div>
+          <div style={filterLabelStyle}><i className="fa-solid fa-peso-sign" style={{ marginRight: 6 }} />Precio (ARS)</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-            <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 3 }}>Mínimo</div><input type="number" value={precioMin} onChange={(e) => setPrecioMin(e.target.value)} placeholder="0" style={filterInputStyle} /></div>
-            <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 3 }}>Máximo</div><input type="number" value={precioMax} onChange={(e) => setPrecioMax(e.target.value)} placeholder="∞" style={filterInputStyle} /></div>
+            <div><div style={{ fontSize: 11, color: "#4d6357", marginBottom: 4 }}>Mínimo</div><input type="number" value={precioMin} onChange={(e) => setPrecioMin(e.target.value)} placeholder="0" style={filterInputStyle} /></div>
+            <div><div style={{ fontSize: 11, color: "#4d6357", marginBottom: 4 }}>Máximo</div><input type="number" value={precioMax} onChange={(e) => setPrecioMax(e.target.value)} placeholder="∞" style={filterInputStyle} /></div>
           </div>
         </div>
+
         <div style={filterGroupStyle}>
-          <div style={filterLabelStyle}>Tipo de carga</div>
+          <div style={filterLabelStyle}><i className="fa-solid fa-box" style={{ marginRight: 6 }} />Tipo de carga</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {["Granel", "Refrigerado", "General", "Plataforma", "Peligroso", "Frágil"].map((t) => { const on = tipos.includes(t); return (<button key={t} onClick={() => toggleChip(tipos, setTipos, t)} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 20, cursor: "pointer", border: on ? "0.5px solid var(--color-brand)" : "0.5px solid var(--color-border-secondary)", background: on ? "var(--color-brand-light)" : "transparent", color: on ? "var(--color-brand-dark)" : "var(--color-text-secondary)", fontWeight: on ? 500 : 400 }}>{t}</button>); })}
+            {["Granel", "Refrigerado", "General", "Plataforma", "Peligroso", "Frágil"].map((t) => { const on = tipos.includes(t); return (<button key={t} onClick={() => toggleChip(tipos, setTipos, t)} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: on ? "1px solid #3a806b" : "1px solid #2a4235", background: on ? "#162e27" : "transparent", color: on ? "#e8f0eb" : "#8fa896", fontWeight: on ? 500 : 400 }}>{t}</button>); })}
           </div>
         </div>
+
         <div style={filterGroupStyle}>
-          <div style={filterLabelStyle}>Tipo de camión requerido</div>
+          <div style={filterLabelStyle}><i className="fa-solid fa-truck" style={{ marginRight: 6 }} />Tipo de camión</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {["Granelero", "Furgón", "Plataforma", "Refrigerado", "Cisterna", "Batea"].map((t) => { const on = tiposCamion.includes(t); return (<button key={t} onClick={() => toggleChip(tiposCamion, setTiposCamion, t)} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 20, cursor: "pointer", border: on ? "0.5px solid var(--color-brand)" : "0.5px solid var(--color-border-secondary)", background: on ? "var(--color-brand-light)" : "transparent", color: on ? "var(--color-brand-dark)" : "var(--color-text-secondary)", fontWeight: on ? 500 : 400 }}>{t}</button>); })}
+            {["Granelero", "Furgón", "Plataforma", "Refrigerado", "Cisterna", "Batea"].map((t) => { const on = tiposCamion.includes(t); return (<button key={t} onClick={() => toggleChip(tiposCamion, setTiposCamion, t)} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: on ? "1px solid #3a806b" : "1px solid #2a4235", background: on ? "#162e27" : "transparent", color: on ? "#e8f0eb" : "#8fa896", fontWeight: on ? 500 : 400 }}>{t}</button>); })}
           </div>
         </div>
+
         <div style={filterGroupStyle}>
-          <div style={filterLabelStyle}>Fecha de retiro desde</div>
+          <div style={filterLabelStyle}><i className="fa-solid fa-calendar-days" style={{ marginRight: 6 }} />Fecha de retiro desde</div>
           <input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} style={filterInputStyle} />
         </div>
+
         <div style={filterGroupStyle}>
-          <div style={filterLabelStyle}>Calificación mínima del dador</div>
+          <div style={filterLabelStyle}><i className="fa-solid fa-star" style={{ marginRight: 6 }} />Calificación mínima</div>
           <select value={ratingMin} onChange={(e) => setRatingMin(e.target.value)} style={{ ...filterInputStyle, cursor: "pointer" }}>
             <option value="0">Cualquier calificación</option>
             <option value="4">4.0 ★ o más</option>
@@ -207,54 +216,64 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: {
             <option value="4.8">4.8 ★ o más</option>
           </select>
         </div>
-        <div style={{ marginBottom: 20 }}>
+
+        <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #1f3228" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-            <input type="checkbox" checked={soloDestacadas} onChange={(e) => setSoloDestacadas(e.target.checked)} style={{ accentColor: "var(--color-brand)", width: 14, height: 14, cursor: "pointer" }} />
-            <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Solo cargas destacadas</span>
+            <input type="checkbox" checked={soloDestacadas} onChange={(e) => setSoloDestacadas(e.target.checked)} style={{ accentColor: "#3a806b", width: 14, height: 14, cursor: "pointer" }} />
+            <span style={{ fontSize: 13, color: "#8fa896" }}>Solo cargas destacadas</span>
           </label>
         </div>
-        <button onClick={onAlerta} style={{ width: "100%", fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", background: "var(--color-brand)", border: "none", color: "#fff", cursor: "pointer", fontWeight: 500 }}>Guardar alerta con estos filtros</button>
+
+        <button onClick={onAlerta} style={{ width: "100%", fontSize: 13, padding: "8px", borderRadius: 6, background: "#3a806b", border: "none", color: "#fff", cursor: "pointer", fontWeight: 500 }}>
+          <i className="fa-solid fa-bell" style={{ marginRight: 7 }} />Guardar alerta
+        </button>
       </aside>
 
-      <main style={{ padding: 16 }}>
+      <main style={{ padding: 16, background: "var(--color-background-tertiary)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-          <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Ordenar por</span>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} style={{ fontSize: 13, padding: "5px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-primary)", color: "var(--color-text-primary)", cursor: "pointer" }}>
+          <span style={{ fontSize: 12, color: "#4d6357" }}>Ordenar por</span>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} style={{ height: 34, fontSize: 13, padding: "0 10px", borderRadius: 6, border: "1px solid #2a4235", background: "#162019", color: "#e8f0eb", cursor: "pointer" }}>
             <option>Mayor precio</option><option>Menor precio</option><option>Más cercano</option><option>Fecha de retiro</option>
           </select>
-          <span style={{ fontSize: 13, color: "var(--color-text-tertiary)", marginLeft: "auto" }}>{loadingDB ? "Cargando..." : `${cargas.length} cargas encontradas`}</span>
+          <span style={{ fontSize: 12, color: "#4d6357", marginLeft: "auto" }}>{loadingDB ? "Cargando..." : `${cargas.length} cargas`}</span>
         </div>
+        {!loadingDB && cargas.length === 0 && (
+          <div style={{ textAlign: "center", padding: "56px 20px" }}>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#162e27", border: "1px solid #2a5e4f", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <i className="fa-solid fa-magnifying-glass" style={{ fontSize: 22, color: "#3a806b" }} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#e8f0eb", marginBottom: 6 }}>No hay cargas disponibles</div>
+            <div style={{ fontSize: 13, color: "#8fa896", marginBottom: 20 }}>Ajustá los filtros o ampliá el rango de distancia y precio.</div>
+            <button onClick={limpiarFiltros} style={{ fontSize: 13, padding: "7px 18px", borderRadius: 6, border: "1px solid #2a4235", background: "transparent", color: "#8fa896", cursor: "pointer" }}>Limpiar filtros</button>
+          </div>
+        )}
         {cargas.map((c) => {
           const partes = c.titulo.split(" — ");
           const tipoCarga = partes[0];
           const ruta = partes[1] ?? c.titulo;
           const [or, dest] = ruta.split(" → ");
           return (
-            <div key={c.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: c.destacado ? "4px solid var(--color-brand)" : "4px solid transparent", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10, cursor: "pointer" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{or}</span>
-                    <span style={{ fontSize: 18, color: "var(--color-brand)", fontWeight: 700 }}>→</span>
-                    <span style={{ fontSize: 19, fontWeight: 700, color: "var(--color-text-primary)" }}>{dest}</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tipoCarga} · {c.empresa} · {c.hace}</div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 16 }}>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-brand-dark)" }}>${c.precio.toLocaleString("es-AR")}</div>
-                  <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Precio base</div>
-                </div>
+            <div key={c.id} style={{ background: "#111a16", border: "1px solid #1f3228", borderLeft: "3px solid #3a806b", borderRadius: 8, padding: 16, marginBottom: 8, cursor: "pointer" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: "#162e27", color: "#3a806b", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" as const }}>{tipoCarga}</span>
+                <span style={{ fontSize: 15, fontWeight: 600, color: "#3a806b" }}>${c.precio.toLocaleString("es-AR")}</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 17, fontWeight: 600, color: "#e8f0eb" }}>{or}</span>
+                <i className="fa-solid fa-arrow-right" style={{ fontSize: 13, color: "#3a806b" }} />
+                <span style={{ fontSize: 17, fontWeight: 600, color: "#e8f0eb" }}>{dest}</span>
+              </div>
+              <div style={{ fontSize: 12, color: "#8fa896", marginBottom: 10 }}>{c.empresa} · {c.hace}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, borderTop: "1px solid #1f3228", paddingTop: 10 }}>
                 {[["Peso", c.peso], ["Camión", c.camion], ["Retiro", c.retiro], ["Distancia", c.distancia]].map(([label, val]) => (
-                  <div key={label}><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 1 }}>{label}</div><div style={{ fontSize: 12, color: "var(--color-text-primary)" }}>{val}</div></div>
+                  <div key={label}><div style={{ fontSize: 10, color: "#4d6357", marginBottom: 2, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>{label}</div><div style={{ fontSize: 12, color: "#e8f0eb" }}>{val}</div></div>
                 ))}
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
-                <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}><Stars value={c.rating} /> {c.rating} · {c.viajes} viajes{c.badge && <span style={{ color: "var(--color-brand-dark)" }}> · {c.badge}</span>}</div>
+                <div style={{ fontSize: 12, color: "#8fa896" }}><Stars value={c.rating} /> {c.rating} · {c.viajes} viajes{c.badge && <span style={{ color: "#3a806b" }}> · {c.badge}</span>}</div>
                 {trucks.length === 0
-                  ? <button onClick={(e) => { e.stopPropagation(); onNoTruck(); }} title="Registrá un camión en Mi flota para poder ofertar" style={{ fontSize: 13, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-tertiary)", cursor: "pointer", fontWeight: 600 }}>Sin camión →</button>
-                  : <button onClick={(e) => { e.stopPropagation(); onOfertar({ cargaId: c.id, titulo: c.titulo, empresa: c.empresa, precioBase: c.precio }); }} style={{ fontSize: 13, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Ofertar →</button>
+                  ? <button onClick={(e) => { e.stopPropagation(); onNoTruck(); }} title="Registrá un camión en Mi flota para poder ofertar" style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: "1px solid #2a4235", background: "transparent", color: "#4d6357", cursor: "pointer" }}>Sin camión</button>
+                  : <button onClick={(e) => { e.stopPropagation(); onOfertar({ cargaId: c.id, titulo: c.titulo, empresa: c.empresa, precioBase: c.precio }); }} style={{ fontSize: 13, padding: "6px 16px", borderRadius: 6, border: "none", background: "#3a806b", color: "#fff", cursor: "pointer", fontWeight: 500 }}>Ofertar</button>
                 }
               </div>
             </div>
@@ -284,13 +303,21 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
   };
 
   const estadoLabel: Record<string, string> = { pending: "Pendiente", countered: "Contraoferta recibida", accepted: "Aceptada", rejected: "Rechazada" };
-  const estadoStyle: Record<string, { bg: string; color: string }> = { pending: { bg: "#fef3c7", color: "#92400e" }, countered: { bg: "#eff6ff", color: "#1d4ed8" }, accepted: { bg: "var(--color-brand-light)", color: "var(--color-brand-dark)" }, rejected: { bg: "#fee2e2", color: "#b91c1c" } };
+  const estadoStyle: Record<string, { bg: string; color: string }> = { pending: { bg: "rgba(58,128,107,0.15)", color: "#3a806b" }, countered: { bg: "rgba(37,99,235,0.15)", color: "#3b82f6" }, accepted: { bg: "rgba(22,163,74,0.15)", color: "#16a34a" }, rejected: { bg: "rgba(220,38,38,0.15)", color: "#dc2626" } };
 
   return (
     <main style={{ padding: 20, flex: 1 }}>
       <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis ofertas</div>
       {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
-      {!loading && ofertas.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>No enviaste ofertas todavía.</div>}
+      {!loading && ofertas.length === 0 && (
+        <div style={{ textAlign: "center", padding: "56px 20px" }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#162e27", border: "1px solid #2a5e4f", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+            <i className="fa-solid fa-handshake" style={{ fontSize: 22, color: "#3a806b" }} />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#e8f0eb", marginBottom: 6 }}>Sin ofertas todavía</div>
+          <div style={{ fontSize: 13, color: "#8fa896" }}>Buscá cargas disponibles y enviá tu primera oferta.</div>
+        </div>
+      )}
       {!loading && ofertas.map((o) => (
         <div key={o.id} style={{ background: "var(--color-background-primary)", border: o.estado === "countered" ? "1.5px solid #3b82f6" : "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
@@ -302,11 +329,11 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
             <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Tu oferta</div><div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-brand-dark)" }}>${o.miOferta.toLocaleString("es-AR")}</div></div>
           </div>
           {o.estado === "countered" && o.counterPrice != null && (
-            <div style={{ marginTop: 12, padding: "12px 14px", background: "#eff6ff", borderRadius: "var(--border-radius-md)", border: "1px solid #bfdbfe" }}>
-              <div style={{ fontSize: 12, color: "#1d4ed8", fontWeight: 600, marginBottom: 8 }}>El dador propuso un nuevo precio: <span style={{ fontSize: 15 }}>${o.counterPrice.toLocaleString("es-AR")}</span></div>
+            <div style={{ marginTop: 12, padding: "12px 14px", background: "rgba(37,99,235,0.1)", borderRadius: "var(--border-radius-md)", border: "1px solid rgba(37,99,235,0.3)" }}>
+              <div style={{ fontSize: 12, color: "#3b82f6", fontWeight: 600, marginBottom: 8 }}>El dador propuso un nuevo precio: <span style={{ fontSize: 15 }}>${o.counterPrice.toLocaleString("es-AR")}</span></div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => accion(o.id, "accept_counter")} disabled={accionando === o.id + "accept_counter"} style={{ flex: 1, padding: "8px 0", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: accionando === o.id + "accept_counter" ? 0.6 : 1 }}>Aceptar contraoferta</button>
-                <button onClick={() => accion(o.id, "reject_counter")} disabled={accionando === o.id + "reject_counter"} style={{ flex: 1, padding: "8px 0", borderRadius: "var(--border-radius-md)", border: "1px solid #fca5a5", background: "#fef2f2", color: "#b91c1c", fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: accionando === o.id + "reject_counter" ? 0.6 : 1 }}>Rechazar</button>
+                <button onClick={() => accion(o.id, "reject_counter")} disabled={accionando === o.id + "reject_counter"} style={{ flex: 1, padding: "8px 0", borderRadius: "var(--border-radius-md)", border: "1px solid rgba(220,38,38,0.4)", background: "rgba(220,38,38,0.1)", color: "#dc2626", fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: accionando === o.id + "reject_counter" ? 0.6 : 1 }}>Rechazar</button>
               </div>
             </div>
           )}
@@ -338,7 +365,7 @@ function ModalCalificarDador({ offerId, empresa, onClose }: { offerId: string; e
       <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
         <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>¿Cómo fue tu experiencia con este dador de carga?</div>
         <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 24 }}>
-          {[1, 2, 3, 4, 5].map((s) => (<button key={s} onMouseEnter={() => setHover(s)} onMouseLeave={() => setHover(0)} onClick={() => setScore(s)} style={{ fontSize: 36, background: "none", border: "none", cursor: "pointer", color: s <= (hover || score) ? "#BA7517" : "var(--color-border-secondary)", transition: "color 0.1s", padding: "0 2px" }}>★</button>))}
+          {[1, 2, 3, 4, 5].map((s) => (<button key={s} onMouseEnter={() => setHover(s)} onMouseLeave={() => setHover(0)} onClick={() => setScore(s)} style={{ fontSize: 36, background: "none", border: "none", cursor: "pointer", color: s <= (hover || score) ? "var(--color-brand)" : "var(--color-border-secondary)", transition: "color 0.1s", padding: "0 2px" }}>★</button>))}
         </div>
         {score > 0 && <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 16 }}>{["", "Muy malo", "Malo", "Regular", "Bueno", "Excelente"][score]}</div>}
         <div style={{ display: "flex", gap: 8 }}>
@@ -408,7 +435,7 @@ function SeccionMisViajes({ userId }: { userId: string }) {
     const retiroExacto = t.pickupExact && t.pickupExact !== t.pickupCity ? t.pickupExact : null;
     const entregaExacta = t.dropoffExact && t.dropoffExact !== t.dropoffCity ? t.dropoffExact : null;
     return (
-      <div onClick={() => setTripSeleccionado(t)} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: `4px solid ${completado ? "#16a34a" : tab === "En curso" ? "#f59e0b" : "#3b82f6"}`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10, cursor: "pointer" }}>
+      <div onClick={() => setTripSeleccionado(t)} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderLeft: `4px solid ${completado ? "#16a34a" : tab === "En curso" ? "#3a806b" : "#3b82f6"}`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10, cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
@@ -421,7 +448,7 @@ function SeccionMisViajes({ userId }: { userId: string }) {
           <div style={{ textAlign: "right" }}><div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-brand-dark)" }}>${t.precio.toLocaleString("es-AR")}</div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Retiro: {t.fechaRetiro}</div></div>
         </div>
         {(retiroExacto || entregaExacta) && (<div style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 8, display: "flex", flexDirection: "column", gap: 4 }}>{retiroExacto && <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>📍 <strong>Retiro:</strong> {retiroExacto}</div>}{entregaExacta && <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>📍 <strong>Entrega:</strong> {entregaExacta}</div>}</div>)}
-        {completado && (<div onClick={(e) => e.stopPropagation()} style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "flex-end" }}>{yaCalif ? (<span style={{ fontSize: 12, color: "var(--color-text-tertiary)", padding: "6px 12px" }}>✓ Ya calificaste este viaje</span>) : (<button onClick={() => setModalCalificar({ offerId: t.offerId, empresa: t.empresa })} style={{ fontSize: 12, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "#BA7517", color: "#fff", fontWeight: 600, cursor: "pointer" }}>⭐ Calificar dador</button>)}</div>)}
+        {completado && (<div onClick={(e) => e.stopPropagation()} style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "flex-end" }}>{yaCalif ? (<span style={{ fontSize: 12, color: "var(--color-text-tertiary)", padding: "6px 12px" }}>✓ Ya calificaste este viaje</span>) : (<button onClick={() => setModalCalificar({ offerId: t.offerId, empresa: t.empresa })} style={{ fontSize: 12, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, cursor: "pointer" }}>⭐ Calificar dador</button>)}</div>)}
       </div>
     );
   };
@@ -431,12 +458,20 @@ function SeccionMisViajes({ userId }: { userId: string }) {
       {modalCalificar && <ModalCalificarDador offerId={modalCalificar.offerId} empresa={modalCalificar.empresa} onClose={() => { setCalificados((prev) => new Set([...prev, modalCalificar.offerId])); setModalCalificar(null); }} />}
       <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis viajes</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
-        {([{ t: "En curso" as TabViajes, icon: "🚛", color: "#f59e0b", bg: "#fffbeb", count: trips.enCurso.length, desc: "Viaje activo ahora" }, { t: "Próximos" as TabViajes, icon: "📅", color: "#3b82f6", bg: "#eff6ff", count: trips.proximos.length, desc: "Confirmados" }, { t: "Completados" as TabViajes, icon: "✓", color: "#16a34a", bg: "#f0fdf4", count: trips.completados.length, desc: "Historial" }]).map(({ t, icon, color, bg, count, desc }) => (<button key={t} onClick={() => setTab(t)} style={{ border: tab === t ? `2px solid ${color}` : "1.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", background: tab === t ? bg : "var(--color-background-primary)", padding: "18px 20px", cursor: "pointer", textAlign: "left" as const, transition: "all 0.15s", boxShadow: tab === t ? `0 2px 12px ${color}33` : "none" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}><div style={{ width: 40, height: 40, borderRadius: "var(--border-radius-md)", background: tab === t ? color : "var(--color-background-secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.15s" }}>{icon}</div><span style={{ fontSize: 30, fontWeight: 700, color: tab === t ? color : "var(--color-text-primary)", lineHeight: 1 }}>{count}</span></div><div style={{ fontSize: 15, fontWeight: 600, color: tab === t ? color : "var(--color-text-primary)", marginBottom: 3 }}>{t}</div><div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>{desc}</div></button>))}
+        {([{ t: "En curso" as TabViajes, icon: "🚛", color: "#3a806b", bg: "rgba(58,128,107,0.12)", count: trips.enCurso.length, desc: "Viaje activo ahora" }, { t: "Próximos" as TabViajes, icon: "📅", color: "#3b82f6", bg: "rgba(37,99,235,0.12)", count: trips.proximos.length, desc: "Confirmados" }, { t: "Completados" as TabViajes, icon: "✓", color: "#16a34a", bg: "rgba(22,163,74,0.12)", count: trips.completados.length, desc: "Historial" }]).map(({ t, icon, color, bg, count, desc }) => (<button key={t} onClick={() => setTab(t)} style={{ border: tab === t ? `2px solid ${color}` : "1.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", background: tab === t ? bg : "var(--color-background-primary)", padding: "18px 20px", cursor: "pointer", textAlign: "left" as const, transition: "all 0.15s", boxShadow: tab === t ? `0 2px 12px ${color}33` : "none" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}><div style={{ width: 40, height: 40, borderRadius: "var(--border-radius-md)", background: tab === t ? color : "var(--color-background-secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.15s" }}>{icon}</div><span style={{ fontSize: 30, fontWeight: 700, color: tab === t ? color : "var(--color-text-primary)", lineHeight: 1 }}>{count}</span></div><div style={{ fontSize: 15, fontWeight: 600, color: tab === t ? color : "var(--color-text-primary)", marginBottom: 3 }}>{t}</div><div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>{desc}</div></button>))}
       </div>
       {loading && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
       {!loading && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
-          <div>{current.length === 0 ? (<div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>No tenés viajes en esta categoría todavía.</div>) : (current.map((t) => <TripCard key={t.offerId} t={t} />))}</div>
+          <div>{current.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "48px 20px" }}>
+              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#162e27", border: "1px solid #2a5e4f", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <i className="fa-solid fa-route" style={{ fontSize: 22, color: "#3a806b" }} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#e8f0eb", marginBottom: 6 }}>Sin viajes en esta categoría</div>
+              <div style={{ fontSize: 13, color: "#8fa896" }}>Los viajes aceptados van a aparecer acá.</div>
+            </div>
+          ) : (current.map((t) => <TripCard key={t.offerId} t={t} />))}</div>
           <Calendario eventos={[]} />
         </div>
       )}
@@ -481,7 +516,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
   };
 
   const statusLabel: Record<string, { label: string; color: string }> = {
-    in_transit: { label: "En tránsito", color: "#f59e0b" },
+    in_transit: { label: "En tránsito", color: "#3a806b" },
     matched:    { label: "Confirmado",  color: "#3b82f6" },
     delivered:  { label: "Entregado",   color: "#16a34a" },
   };
@@ -622,7 +657,7 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
           <FormCampo label="N° póliza de seguro" value={seguroPoliza} onChange={setSeguroPoliza} placeholder="POL-123456" />
         </div>
         <FormCampo label="Seguro — vencimiento" value={seguroVence} onChange={setSeguroVence} type="date" />
-        {error && <div style={{ fontSize: 13, color: "#b91c1c", background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
+        {error && <div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Cancelar</button>
           <button type="submit" disabled={loading} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: 8, border: "none", background: loading ? "#aaa" : "var(--color-brand)", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>{loading ? "Guardando..." : "Agregar camión"}</button>
@@ -665,10 +700,10 @@ function ModalAgregarConductor({ onClose, onAdded }: { onClose: () => void; onAd
           <FormCampo label="DNI" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" />
         </div>
         <FormCampo label="Contraseña inicial" value={password} onChange={setPassword} placeholder="Mínimo 8 caracteres" type="password" required />
-        <div style={{ background: "#fef3c7", border: "0.5px solid #fde68a", borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
-          <p style={{ fontSize: 12, color: "#92400e", margin: 0, lineHeight: 1.5 }}>El conductor va a poder iniciar sesión con este email y contraseña. Compartíselos de forma segura.</p>
+        <div style={{ background: "rgba(58,128,107,0.1)", border: "0.5px solid rgba(58,128,107,0.35)", borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
+          <p style={{ fontSize: 12, color: "#2a6054", margin: 0, lineHeight: 1.5 }}>El conductor va a poder iniciar sesión con este email y contraseña. Compartíselos de forma segura.</p>
         </div>
-        {error && <div style={{ fontSize: 13, color: "#b91c1c", background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
+        {error && <div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Cancelar</button>
           <button type="submit" disabled={loading} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: 8, border: "none", background: loading ? "#aaa" : "var(--color-brand)", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>{loading ? "Guardando..." : "Agregar conductor"}</button>
@@ -718,11 +753,13 @@ function SeccionMiFlota() {
         <>
           {loadingTrucks && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
           {!loadingTrucks && trucks.length === 0 && (
-            <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>🚛</div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>No tenés camiones registrados</div>
-              <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", marginBottom: 20 }}>Agregá tus camiones para poder recibir y aceptar cargas.</div>
-              <button onClick={() => setModalCamion(true)} style={{ fontSize: 13, padding: "9px 20px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>+ Agregar primer camión</button>
+            <div style={{ textAlign: "center", padding: "56px 20px" }}>
+              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#162e27", border: "1px solid #2a5e4f", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <i className="fa-solid fa-truck-front" style={{ fontSize: 22, color: "#3a806b" }} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#e8f0eb", marginBottom: 6 }}>Sin camiones registrados</div>
+              <div style={{ fontSize: 13, color: "#8fa896", marginBottom: 20 }}>Agregá tus camiones para poder recibir y aceptar cargas.</div>
+              <button onClick={() => setModalCamion(true)} style={{ fontSize: 13, padding: "7px 18px", borderRadius: 6, border: "none", background: "#3a806b", color: "#fff", cursor: "pointer", fontWeight: 500 }}>+ Agregar primer camión</button>
             </div>
           )}
           {!loadingTrucks && trucks.length > 0 && (
@@ -812,7 +849,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
   return (
     <main style={{ flex: 1, background: "var(--color-background-tertiary)" }}>
-      <div style={{ background: "linear-gradient(135deg, #16301a 0%, #1e4a24 100%)", padding: "36px 40px 52px" }}>
+      <div style={{ background: "var(--color-header-bg)", padding: "32px 40px 48px", borderBottom: "1px solid #1f3228" }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 24, maxWidth: 800 }}>
           <div style={{ width: 84, height: 84, borderRadius: "50%", background: "var(--color-brand)", border: "3px solid rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{initials}</div>
           <div style={{ flex: 1 }}>
@@ -853,7 +890,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mi flota</div>
               <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Gestioná tus camiones y conductores desde la sección <strong>Mi flota</strong> en el menú.</div>
             </div>
-            <button onClick={() => signOut({ callbackUrl: "/" })} style={{ fontSize: 13, padding: "12px", borderRadius: "var(--border-radius-lg)", border: "0.5px solid #fecaca", background: "#fef2f2", color: "#b91c1c", cursor: "pointer", fontWeight: 500 }}>Cerrar sesión</button>
+            <button onClick={() => signOut({ callbackUrl: "/" })} style={{ fontSize: 13, padding: "12px", borderRadius: "var(--border-radius-lg)", border: "0.5px solid rgba(220,38,38,0.4)", background: "rgba(220,38,38,0.1)", color: "#dc2626", cursor: "pointer", fontWeight: 500 }}>Cerrar sesión</button>
           </div>
         </div>
       )}
@@ -864,7 +901,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
           {stats && (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
-                {[{ val: stats.totalIngresos6m > 0 ? `$${stats.totalIngresos6m.toLocaleString("es-AR")}` : "Sin datos", label: "Ingresos últimos 6 meses", color: "#16a34a" }, { val: stats.viajes6m > 0 ? `${stats.viajes6m} viaje${stats.viajes6m !== 1 ? "s" : ""}` : "Sin datos", label: "Viajes últimos 6 meses", color: "#8b5cf6" }, { val: stats.viajes6m > 0 ? `$${Math.round(stats.totalIngresos6m / stats.viajes6m).toLocaleString("es-AR")}` : "—", label: "Ingreso promedio / viaje", color: "#f59e0b" }].map(({ val, label, color }) => (<div key={label} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "16px 18px" }}><div style={{ fontSize: 18, fontWeight: 700, color, marginBottom: 4 }}>{val}</div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", lineHeight: 1.4 }}>{label}</div></div>))}
+                {[{ val: stats.totalIngresos6m > 0 ? `$${stats.totalIngresos6m.toLocaleString("es-AR")}` : "Sin datos", label: "Ingresos últimos 6 meses", color: "#16a34a" }, { val: stats.viajes6m > 0 ? `${stats.viajes6m} viaje${stats.viajes6m !== 1 ? "s" : ""}` : "Sin datos", label: "Viajes últimos 6 meses", color: "#8b5cf6" }, { val: stats.viajes6m > 0 ? `$${Math.round(stats.totalIngresos6m / stats.viajes6m).toLocaleString("es-AR")}` : "—", label: "Ingreso promedio / viaje", color: "#3a806b" }].map(({ val, label, color }) => (<div key={label} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "16px 18px" }}><div style={{ fontSize: 18, fontWeight: 700, color, marginBottom: 4 }}>{val}</div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", lineHeight: 1.4 }}>{label}</div></div>))}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
                 <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
@@ -941,7 +978,7 @@ function ModalOfertar({ info, onClose, onEnviar, trucks }: { info: ModalOfertaSt
           <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Nota para el dador (opcional)</label>
           <textarea value={nota} onChange={(e) => setNota(e.target.value)} rows={3} placeholder="Contale algo sobre tu experiencia con este tipo de carga..." style={{ width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
         </div>
-        {error && <div style={{ fontSize: 13, color: "#b91c1c", background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
+        {error && <div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Cancelar</button>
           <button type="submit" disabled={loading} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "none", background: loading ? "#aaa" : "var(--color-brand)", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>{loading ? "Enviando..." : "Enviar oferta →"}</button>
@@ -959,6 +996,18 @@ export default function TransportistaDashboard() {
   const [modalOferta, setModalOferta] = useState<ModalOfertaState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("transportista-theme") as "dark" | "light" | null;
+    if (saved) setTheme(saved);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem("transportista-theme", next);
+  };
 
   const userName  = session?.user?.name  ?? "Usuario";
   const userEmail = session?.user?.email ?? "";
@@ -978,30 +1027,42 @@ export default function TransportistaDashboard() {
   const mostrarToast = (msg: string) => setToast(msg);
 
   const navItems: NavItem[] = ["Buscar cargas", "Mis ofertas", "Mis viajes", "Notificaciones", "Mi flota"];
+  const NAV_ICONS: Record<NavItem, string> = {
+    "Buscar cargas": "fa-solid fa-magnifying-glass",
+    "Mis ofertas": "fa-solid fa-handshake",
+    "Mis viajes": "fa-solid fa-route",
+    "Notificaciones": "fa-solid fa-bell",
+    "Mi flota": "fa-solid fa-truck-front",
+    "Mi perfil": "fa-solid fa-user",
+  };
 
   return (
-    <div style={{ background: "var(--color-background-primary)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 58, background: "#16301a", position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
-          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: "#fff", textDecoration: "none", letterSpacing: "-0.01em" }}>Carga<span style={{ color: "var(--color-brand)" }}>Back</span></Link>
-          <nav style={{ display: "flex", gap: 2 }}>
+    <>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+      <div className={`transportista-${theme}`} style={{ background: "var(--color-background-primary)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 56, background: "var(--color-header-bg)", position: "sticky", top: 0, zIndex: 10, borderBottom: "1px solid #1f3228" }}>
+        <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
+          <Link href="/" style={{ fontSize: 16, fontWeight: 600, color: "var(--color-brand)", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>CargaBack</Link>
+          <nav style={{ display: "flex", height: "100%" }}>
             {navItems.map((item) => {
               const badge = item === "Mis ofertas" ? ofertasBadge : 0;
+              const active = navActivo === item;
               return (
-                <button key={item} onClick={() => setNavActivo(item)} style={{ fontSize: 16, padding: "9px 16px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", position: "relative", background: navActivo === item ? "rgba(255,255,255,0.14)" : "transparent", color: navActivo === item ? "#fff" : "rgba(255,255,255,0.62)", fontWeight: navActivo === item ? 600 : 400, letterSpacing: navActivo === item ? "-0.01em" : "normal" }}>
+                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid #3a806b" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "#e8f0eb" : "#8fa896", fontWeight: active ? 500 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 7, transition: "color 0.15s, border-color 0.15s" }}>
+                  <i className={NAV_ICONS[item]} style={{ fontSize: 12 }} />
                   {item}
-                  {badge > 0 && <span style={{ position: "absolute", top: 5, right: 5, width: 16, height: 16, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{badge > 9 ? "9+" : badge}</span>}
+                  {badge > 0 && <span style={{ position: "absolute", top: 10, right: 6, width: 15, height: 15, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{badge > 9 ? "9+" : badge}</span>}
                 </button>
               );
             })}
           </nav>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{primerNombre}</span>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Transportista</span>
-          </div>
-          <button onClick={() => setNavActivo("Mi perfil")} title="Ver mi perfil" style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--color-brand)", border: "2px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}>{initials}</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={toggleTheme} title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"} style={{ width: 30, height: 30, borderRadius: 6, background: "transparent", border: "1px solid #2a4235", color: "#8fa896", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <i className={theme === "dark" ? "fa-solid fa-sun" : "fa-solid fa-moon"} />
+          </button>
+          <span style={{ fontSize: 13, fontWeight: 500, color: "#e8f0eb" }}>{primerNombre}</span>
+          <button onClick={() => setNavActivo("Mi perfil")} title="Ver mi perfil" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--color-brand)", border: "1px solid #2a5e4f", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#fff", cursor: "pointer" }}>{initials}</button>
         </div>
       </header>
 
@@ -1017,15 +1078,16 @@ export default function TransportistaDashboard() {
       {modalOferta && <ModalOfertar info={modalOferta} trucks={trucks} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}
       {toast && <Toast mensaje={toast} onClose={() => setToast(null)} />}
     </div>
+    </>
   );
 }
 
 // ── Estilos auxiliares ────────────────────────────────────────────────────────
-const filterLabelStyle: React.CSSProperties = { fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500 };
-const filterInputStyle: React.CSSProperties = { width: "100%", fontSize: 13, padding: "7px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" };
-const filterGroupStyle: React.CSSProperties = { marginBottom: 20, paddingBottom: 20, borderBottom: "0.5px solid var(--color-border-tertiary)" };
-const formLabelStyle: React.CSSProperties = { display: "block", fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 };
-const formInputStyle: React.CSSProperties = { width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" };
+const filterLabelStyle: React.CSSProperties = { fontSize: 10, color: "#4d6357", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, display: "flex", alignItems: "center" };
+const filterInputStyle: React.CSSProperties = { width: "100%", height: 34, fontSize: 13, padding: "0 10px", borderRadius: 6, border: "1px solid #2a4235", background: "#162019", color: "#e8f0eb", outline: "none", boxSizing: "border-box" as const };
+const filterGroupStyle: React.CSSProperties = { marginBottom: 18, paddingBottom: 18, borderBottom: "1px solid #1f3228" };
+const formLabelStyle: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 500, color: "#8fa896", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.05em" };
+const formInputStyle: React.CSSProperties = { width: "100%", height: 34, fontSize: 13, padding: "0 12px", borderRadius: 6, border: "1px solid #2a4235", background: "#162019", color: "#e8f0eb", outline: "none", boxSizing: "border-box" as const };
 
 function FormCampo({ label, value, onChange, placeholder, type = "text", required }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; required?: boolean }) {
   return (

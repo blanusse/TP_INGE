@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -77,3 +78,79 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* ── Transportista themes ────────────────────────────────────────────────── */
+.transportista-dark,
+.transportista-light {
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.transportista-dark {
+  --color-header-bg: #141414;
+  --color-profile-gradient-start: #141414;
+  --color-profile-gradient-end: #141414;
+  --color-background-primary: #1a1a1a;
+  --color-background-secondary: #202020;
+  --color-background-tertiary: #141414;
+  --color-background-info: #162e27;
+  --color-border-tertiary: #1f3228;
+  --color-border-secondary: #2a4235;
+  --color-text-primary: #e8f0eb;
+  --color-text-secondary: #8fa896;
+  --color-text-tertiary: #4d6357;
+  --color-text-info: #3a806b;
+  --color-brand: #3a806b;
+  --color-brand-dark: #2a5e4f;
+  --color-brand-light: #162e27;
+}
+
+html:has(.transportista-dark) body {
+  background: #141414;
+}
+
+.transportista-light {
+  --color-header-bg: #1e3d2e;
+  --color-profile-gradient-start: #1e3d2e;
+  --color-profile-gradient-end: #1e3d2e;
+  --color-background-primary: #f5faf7;
+  --color-background-secondary: #eaf4ef;
+  --color-background-tertiary: #dceee6;
+  --color-background-info: #cce6d9;
+  --color-border-tertiary: #b8d8c8;
+  --color-border-secondary: #8dbfaa;
+  --color-text-primary: #0d1f18;
+  --color-text-secondary: #3a6050;
+  --color-text-tertiary: #6a9080;
+  --color-text-info: #2a5e4f;
+  --color-brand: #3a806b;
+  --color-brand-dark: #2a5e4f;
+  --color-brand-light: #cce6d9;
+}
+
+html:has(.transportista-light) body {
+  background: #dceee6;
+}
+
+/* ── Input focus glow ────────────────────────────────────────────────────── */
+.transportista-dark input:focus,
+.transportista-dark select:focus,
+.transportista-dark textarea:focus,
+.transportista-light input:focus,
+.transportista-light select:focus,
+.transportista-light textarea:focus {
+  outline: none !important;
+  border-color: #3a806b !important;
+  box-shadow: 0 0 0 3px rgba(58,128,107,0.15) !important;
+}
+
+.transportista-dark input,
+.transportista-dark select,
+.transportista-dark textarea {
+  color-scheme: dark;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+.transportista-dark ::-webkit-scrollbar { width: 6px; height: 6px; }
+.transportista-dark ::-webkit-scrollbar-track { background: #0d1410; }
+.transportista-dark ::-webkit-scrollbar-thumb { background: #2a4235; border-radius: 3px; }
+.transportista-dark ::-webkit-scrollbar-thumb:hover { background: #3a806b; }
