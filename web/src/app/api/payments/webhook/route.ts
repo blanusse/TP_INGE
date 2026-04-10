@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import { Offer } from "@/lib/models/Offer";
-import { Load } from "@/lib/models/Load";
 import { MercadoPagoConfig, Payment } from "mercadopago";
-import mongoose from "mongoose";
 
 // POST /api/payments/webhook — Notificaciones IPN de MercadoPago
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    // MP envía { type: "payment", data: { id: "..." } }
     if (body.type !== "payment") return NextResponse.json({ ok: true });
 
     const paymentId = body.data?.id;
@@ -24,12 +19,22 @@ export async function POST(req: NextRequest) {
     const offerId = payment.external_reference;
     if (!offerId) return NextResponse.json({ ok: true });
 
-    await connectDB();
+    const backendUrl = process.env.BACKEND_URL ?? "http://localhost:3001";
+    const internalHeaders = {
+      "Content-Type": "application/json",
+      "x-internal-secret": process.env.INTERNAL_SECRET ?? "",
+    };
 
-    const offer = await Offer.findById(new mongoose.Types.ObjectId(offerId));
-    if (!offer) return NextResponse.json({ ok: true });
+    await fetch(`${backendUrl}/loads/internal/by-offer/${offerId}`, {
+      method: "PATCH",
+      headers: internalHeaders,
+    });
 
-    await Load.updateOne({ _id: offer.load_id }, { $set: { status: "in_transit" } });
+    await fetch(`${backendUrl}/payments/internal/${offerId}/confirm`, {
+      method: "PATCH",
+      headers: internalHeaders,
+      body: JSON.stringify({ mpPaymentId: String(paymentId) }),
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

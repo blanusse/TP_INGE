@@ -1,31 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { connectDB } from "@/lib/mongodb";
-import { Offer } from "@/lib/models/Offer";
-import { Load } from "@/lib/models/Load";
+import { apiFetch } from "@/lib/apiFetch";
 
+// POST /api/payments/simulate
+// Simula un pago exitoso sin pasar por MercadoPago (útil para desarrollo/testing)
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!session?.backendToken) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { offerId } = await req.json();
   if (!offerId) return NextResponse.json({ error: "offerId requerido" }, { status: 400 });
 
-  await connectDB();
+  // 1. Aceptar la oferta (NestJS verifica permisos, rechaza otras, pone carga en matched)
+  const acceptRes = await apiFetch(`/offers/${offerId}`, session.backendToken, {
+    method: "PATCH",
+    body: JSON.stringify({ action: "accept" }),
+  });
 
-  const offer = await Offer.findById(offerId);
-  if (!offer) return NextResponse.json({ error: "Oferta no encontrada" }, { status: 404 });
-
-  if (offer.status !== "accepted") {
-    offer.status = "accepted";
-    await offer.save();
-    await Offer.updateMany(
-      { load_id: offer.load_id, _id: { $ne: offer._id }, status: { $in: ["pending", "countered"] } },
-      { $set: { status: "rejected" } }
-    );
+  if (!acceptRes.ok) {
+    const err = await acceptRes.json();
+    return NextResponse.json(err, { status: acceptRes.status });
   }
 
-  await Load.findByIdAndUpdate(offer.load_id, { status: "in_transit" });
+  const offer = await acceptRes.json();
+  const loadId = offer.load_id;
+
+  // 2. Registrar el pago como pending
+  await apiFetch("/payments", session.backendToken, {
+    method: "POST",
+    body: JSON.stringify({ offerId, amount: Number(offer.price), mpPreferenceId: "simulate" }),
+  });
+
+  // 3. Pasar la carga a in_transit (simula confirmación de pago)
+  const transitRes = await apiFetch(`/loads/${loadId}/in-transit`, session.backendToken, {
+    method: "PATCH",
+  });
+
+  if (!transitRes.ok) {
+    const err = await transitRes.json();
+    return NextResponse.json(err, { status: transitRes.status });
+  }
+
+  // 4. Confirmar el pago en el registro
+  await apiFetch(`/payments/${offerId}/confirm`, session.backendToken, {
+    method: "PATCH",
+    body: JSON.stringify({}),
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -8,6 +8,7 @@ import { FleetModule } from './fleet/fleet.module';
 import { MessagesModule } from './messages/messages.module';
 import { RatingsModule } from './ratings/ratings.module';
 import { StatsModule } from './stats/stats.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { StatsModule } from './stats/stats.module';
     MessagesModule,
     RatingsModule,
     StatsModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}

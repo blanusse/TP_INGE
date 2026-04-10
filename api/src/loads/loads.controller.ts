@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, Headers, UnauthorizedException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { LoadsService } from './loads.service';
 
@@ -24,6 +24,21 @@ export class LoadsController {
     @Query('origin') origin?: string,
   ) {
     return this.loadsService.getAvailableLoads(cargoType, origin);
+  }
+
+  @Patch('internal/by-offer/:offerId')
+  markInTransitByOffer(
+    @Param('offerId') offerId: string,
+    @Headers('x-internal-secret') secret: string,
+  ) {
+    if (secret !== process.env.INTERNAL_SECRET) throw new UnauthorizedException();
+    return this.loadsService.markInTransitByOffer(offerId);
+  }
+
+  @Patch(':loadId/in-transit')
+  @UseGuards(JwtAuthGuard)
+  markInTransit(@Request() req, @Param('loadId') loadId: string) {
+    return this.loadsService.markInTransit(req.user.id, loadId);
   }
 
   @Patch(':loadId/confirm')
