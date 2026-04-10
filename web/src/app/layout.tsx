@@ -16,7 +16,7 @@ const bebasNeue = Bebas_Neue({
 
 const ibmPlexSans = IBM_Plex_Sans({
   variable: "--font-ibm-plex",
-  weight: ["400", "700"],
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
 });
 
