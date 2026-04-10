@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { NavbarLanding } from "./_components/NavbarLanding";
+import { ParticleHero } from "./_components/ParticleHero";
 
 export default async function Home() {
   const session = await auth();
@@ -13,31 +14,34 @@ export default async function Home() {
       <NavbarLanding />
 
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
-      <section style={{ background: "linear-gradient(160deg, #0f1a16 0%, #0f6e56 60%, #1d9e75 100%)", color: "#fff", padding: "100px 48px 120px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-        {/* Decoración de fondo */}
-        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle at 20% 50%, rgba(29,158,117,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(15,110,86,0.4) 0%, transparent 40%)", pointerEvents: "none" }} />
+      <section style={{ background: "#000", color: "#fff", textAlign: "center", position: "relative", overflow: "hidden" }}>
 
-        <div style={{ position: "relative", maxWidth: 760, margin: "0 auto" }}>
-          <div style={{ display: "inline-block", fontSize: 12, fontWeight: 600, color: "#6ee7b7", background: "rgba(110,231,183,0.12)", border: "0.5px solid rgba(110,231,183,0.3)", padding: "5px 14px", borderRadius: 20, marginBottom: 28, letterSpacing: 0.5, textTransform: "uppercase" }}>
-            Bolsa de cargas digital · Argentina
+        {/* Canvas as full-width background */}
+        <div style={{ position: "relative", width: "100%" }}>
+          <ParticleHero />
+
+          {/* Overlay content centered on top of canvas */}
+          {/* Badge — top */}
+          <div style={{ position: "absolute", top: 32, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+            <div style={{ display: "inline-block", fontSize: 12, fontWeight: 600, color: "#fff", background: "rgba(255,255,255,0.12)", border: "0.5px solid rgba(255,255,255,0.3)", padding: "5px 14px", borderRadius: 20, letterSpacing: 0.5, textTransform: "uppercase" }}>
+              Bolsa de cargas digital · Argentina
+            </div>
           </div>
 
-          <h1 style={{ fontSize: 58, fontWeight: 800, lineHeight: 1.1, marginBottom: 24, letterSpacing: -1.5 }}>
-            El viaje de vuelta<br />
-            <span style={{ color: "#6ee7b7" }}>también genera plata</span>
-          </h1>
+          {/* Text + buttons — bottom */}
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", padding: "0 48px 60px" }}>
+            <p style={{ fontSize: 19, color: "rgba(255,255,255,0.75)", maxWidth: 560, margin: "0 auto 44px", lineHeight: 1.65 }}>
+              Conectamos camioneros con dadores de carga en toda Argentina. Sin intermediarios, sin viajes vacíos, sin burocracia.
+            </p>
 
-          <p style={{ fontSize: 19, color: "rgba(255,255,255,0.75)", maxWidth: 560, margin: "0 auto 44px", lineHeight: 1.65 }}>
-            Conectamos camioneros con dadores de carga en toda Argentina. Sin intermediarios, sin viajes vacíos, sin burocracia.
-          </p>
-
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/login?modo=registro" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "#fff", color: "#0f6e56", fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
-              Registrarse gratis →
-            </Link>
-            <Link href="/login?modo=login" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 600, textDecoration: "none", border: "0.5px solid rgba(255,255,255,0.25)" }}>
-              Ya tengo cuenta
-            </Link>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+              <Link href="/login?modo=registro" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "#fff", color: "#0f6e56", fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
+                Registrarse gratis →
+              </Link>
+              <Link href="/login?modo=login" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 600, textDecoration: "none", border: "0.5px solid rgba(255,255,255,0.25)" }}>
+                Ya tengo cuenta
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -93,19 +97,38 @@ export default async function Home() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
             {[
               {
-                icono: "🚛", titulo: "Camionero independiente",
+                icono: (<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand-dark)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>),
+                titulo: "Camionero independiente",
                 color: "var(--color-brand-dark)", bg: "var(--color-brand-light)",
                 perfil: "camionero", paginaInfo: "/para/camioneros",
                 items: ["Encontrá cargas para tu vuelta en segundos", "Ofertá tu precio directamente", "Historial de viajes y reputación verificada", "Certificaciones y documentación digital"],
               },
               {
-                icono: "🏢", titulo: "Empresa de flota",
+                icono: (<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#185fa5" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  {/* Camión grande arriba */}
+                  <rect x="1" y="2" width="10" height="8" rx="0.8"/>
+                  <path d="M11 4.5h2.5l2 3.5v2H11V4.5z"/>
+                  <circle cx="3.5" cy="12" r="1.5"/>
+                  <circle cx="12" cy="12" r="1.5"/>
+                  {/* Camión chico abajo izquierda */}
+                  <rect x="1" y="15" width="7" height="5" rx="0.6"/>
+                  <path d="M8 16.5h1.5l1.5 2.5v1H8v-3.5z"/>
+                  <circle cx="2.8" cy="21.5" r="1.2"/>
+                  <circle cx="8.5" cy="21.5" r="1.2"/>
+                  {/* Camión chico abajo derecha */}
+                  <rect x="13" y="15" width="7" height="5" rx="0.6"/>
+                  <path d="M20 16.5h1.5l1.5 2.5v1H20v-3.5z"/>
+                  <circle cx="14.8" cy="21.5" r="1.2"/>
+                  <circle cx="20.5" cy="21.5" r="1.2"/>
+                </svg>),
+                titulo: "Empresa de flota",
                 color: "#185fa5", bg: "#e6f1fb",
                 perfil: "flota", paginaInfo: "/para/empresas",
                 items: ["Gestioná múltiples camiones y conductores", "Visión centralizada de toda la operación", "Asignación automática de cargas por ruta", "Reportes y métricas de rendimiento"],
               },
               {
-                icono: "📦", titulo: "Dador de carga",
+                icono: (<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><line x1="12" y1="22" x2="12" y2="12"/></svg>),
+                titulo: "Dador de carga",
                 color: "#7c3aed", bg: "#f3f0ff",
                 perfil: "dador", paginaInfo: "/para/dadores",
                 items: ["Publicá cargas en menos de 2 minutos", "Recibí ofertas de camioneros verificados", "Remitos digitales y seguimiento en tiempo real", "Sin comisiones ocultas ni intermediarios"],

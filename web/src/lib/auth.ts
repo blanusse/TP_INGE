@@ -8,6 +8,7 @@ const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:3001";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  secret: process.env.AUTH_SECRET,
   providers: [
     Credentials({
       credentials: {
