@@ -118,84 +118,96 @@ function sampleOffscreen(
   for (let i = idx; i < pool.length; i++) pool[i].kill(canvas.width, canvas.height)
 }
 
-// ─── South America outline (normalized 0–1) ───────────────────────────────────
+// ─── Argentina outline (normalized 0–1, clockwise from NW) ───────────────────
+// Bounding box: lon [-73.6, -53.6], lat [-55.1, -21.8]
+// nx = (lon + 73.6) / 20,  ny = (lat + 21.8) / -33.3
 
-const SA: [number, number][] = [
-  [0.43, 0.00], [0.48, 0.00], [0.52, 0.01], [0.57, 0.02],
-  [0.62, 0.04], [0.66, 0.06], [0.70, 0.09], [0.72, 0.13],
-  [0.74, 0.18], [0.75, 0.24], [0.74, 0.30], [0.76, 0.36],
-  [0.77, 0.42], [0.75, 0.48], [0.72, 0.54], [0.68, 0.60],
-  [0.64, 0.66], [0.60, 0.72], [0.55, 0.78], [0.50, 0.84],
-  [0.46, 0.89], [0.42, 0.93], [0.39, 0.97], [0.36, 0.99],
-  [0.34, 1.00], [0.32, 0.98], [0.30, 0.94], [0.28, 0.89],
-  [0.26, 0.84], [0.24, 0.79], [0.23, 0.73], [0.21, 0.67],
-  [0.20, 0.61], [0.20, 0.55], [0.20, 0.49], [0.21, 0.43],
-  [0.20, 0.37], [0.21, 0.31], [0.22, 0.26], [0.21, 0.21],
-  [0.23, 0.16], [0.26, 0.11], [0.29, 0.07], [0.33, 0.04],
-  [0.37, 0.02], [0.41, 0.01],
+const ARGENTINA: [number, number][] = [
+  // NW corner (Bolivia border, Jujuy)
+  [0.23, 0.01],
+  // North border (Bolivia) going east
+  [0.38, 0.01],
+  [0.49, 0.00],
+  [0.57, 0.01],
+  // Paraguay border going SE (Formosa / Chaco)
+  [0.68, 0.02],
+  [0.77, 0.05],
+  [0.79, 0.07],
+  // NE Misiones — sticks out east toward Iguazú
+  [0.95, 0.11],
+  [1.00, 0.14],
+  [1.00, 0.19],
+  // East coast going south (Corrientes / Entre Ríos / Uruguay border)
+  [0.79, 0.25],
+  [0.79, 0.37],
+  // Buenos Aires province coast (bulges east then curves back)
+  [0.84, 0.43],
+  [0.81, 0.49],
+  [0.74, 0.51],
+  // Bahía Blanca area
+  [0.57, 0.52],
+  // Patagonia Atlantic coast going south
+  [0.55, 0.58],
+  [0.43, 0.63],
+  [0.41, 0.65],
+  [0.38, 0.70],
+  [0.38, 0.76],
+  [0.40, 0.82],
+  [0.38, 0.85],
+  [0.31, 0.88],
+  [0.23, 0.91],  // Near Strait of Magellan
+  // West side (Andes / Chile border) going north
+  [0.18, 0.88],
+  [0.11, 0.79],
+  [0.08, 0.70],
+  [0.07, 0.61],
+  [0.11, 0.52],
+  [0.16, 0.40],
+  [0.19, 0.31],
+  [0.26, 0.19],
+  [0.23, 0.10],
+  [0.23, 0.01],  // Back to NW start
 ]
 
-const GREEN_DIM: RGB = { r: 34, g: 197, b: 94 }
-const GREEN_BRIGHT: RGB = { r: 110, g: 231, b: 183 }
+// Tierra del Fuego (Argentine portion of the main island)
+const TIERRA_DEL_FUEGO: [number, number][] = [
+  [0.25, 0.92],  // NW (Strait of Magellan, east end)
+  [0.38, 0.92],  // N coast going east
+  [0.50, 0.93],  // NE corner
+  [0.43, 0.99],  // SE tip
+  [0.27, 0.99],  // SW corner
+]
 
-// Argentina = southern 62% of SA shape, left portion
-const isArgentina = (nx: number, ny: number) => ny > 0.38 && nx < 0.56
+const GREEN_BRIGHT: RGB = { r: 110, g: 231, b: 183 }
 
 // ─── Phase functions ──────────────────────────────────────────────────────────
 
+function drawPolygon(ctx: CanvasRenderingContext2D, poly: [number, number][], ox: number, oy: number, sw: number, sh: number) {
+  ctx.beginPath()
+  poly.forEach(([nx, ny], i) => {
+    const px = ox + nx * sw, py = oy + ny * sh
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
+  })
+  ctx.closePath()
+  ctx.fill()
+}
+
 function showMap(canvas: HTMLCanvasElement, pool: Particle[]) {
   const W = canvas.width, H = canvas.height, PAD = 25
-  const saW = W * 0.34, saH = H - PAD * 2
-  const saX = (W - saW) / 2, saY = PAD
+  // Argentina is ~2× taller than wide — scale width to preserve real proportions
+  const argH = H - PAD * 2
+  const argW = argH * 0.49          // true width/height ratio ≈ 0.49
+  const argX = (W - argW) / 2, argY = PAD
 
   const off = document.createElement("canvas")
   off.width = W; off.height = H
   const ctx = off.getContext("2d")!
   ctx.fillStyle = "white"
-  ctx.beginPath()
-  SA.forEach(([nx, ny], i) => {
-    const px = saX + nx * saW, py = saY + ny * saH
-    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
-  })
-  ctx.closePath()
-  ctx.fill()
 
-  sampleOffscreen(off, canvas, pool, (x, y) => {
-    const nx = (x - saX) / saW
-    const ny = (y - saY) / saH
-    return isArgentina(nx, ny) ? GREEN_BRIGHT : GREEN_DIM
-  })
-}
+  drawPolygon(ctx, ARGENTINA, argX, argY, argW, argH)
+  drawPolygon(ctx, TIERRA_DEL_FUEGO, argX, argY, argW, argH)
 
-function zoomArgentina(canvas: HTMLCanvasElement, pool: Particle[]) {
-  const W = canvas.width, H = canvas.height, PAD = 25
-  const saW = W * 0.34, saH = H - PAD * 2
-  const saX = (W - saW) / 2, saY = PAD
-
-  const argXMin = saX + 0.20 * saW
-  const argXMax = saX + 0.56 * saW
-  const argYMin = saY + 0.38 * saH
-  const argYMax = saY + saH
-
-  const argW = argXMax - argXMin
-  const argH = argYMax - argYMin
-  const MARGIN = 50
-  const scale = Math.min((W - MARGIN * 2) / argW, (H - MARGIN * 2) / argH)
-
-  const zoomedW = argW * scale
-  const zoomedH = argH * scale
-  const originX = (W - zoomedW) / 2 - argXMin * scale
-  const originY = (H - zoomedH) / 2 - argYMin * scale
-
-  for (const p of pool) {
-    if (p.isKilled) continue
-    const tx = p.target.x, ty = p.target.y
-    if (tx >= argXMin && tx <= argXMax && ty >= argYMin && ty <= argYMax) {
-      p.target = { x: tx * scale + originX, y: ty * scale + originY }
-    } else {
-      p.kill(W, H)
-    }
-  }
+  sampleOffscreen(off, canvas, pool, () => GREEN_BRIGHT)
 }
 
 function showText(canvas: HTMLCanvasElement, pool: Particle[]) {
@@ -204,10 +216,10 @@ function showText(canvas: HTMLCanvasElement, pool: Particle[]) {
   off.width = W; off.height = H
   const ctx = off.getContext("2d")!
   ctx.fillStyle = "white"
-  ctx.font = `155px "Bebas Neue", Impact, "Arial Black", sans-serif`
+  ctx.font = `bold 130px "IBM Plex Sans", sans-serif`
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
-  ctx.fillText("EFIFLET", W / 2, H / 2)
+  ctx.fillText("CargaBack", W / 2, H / 2)
 
   sampleOffscreen(off, canvas, pool, () => GREEN_BRIGHT)
 }
@@ -219,12 +231,12 @@ export function ParticleHero() {
   const animRef = useRef<number>(0)
   const pool = useRef<Particle[]>([])
   const frame = useRef(0)
-  const phase = useRef<"map" | "zoom" | "text">("map")
+  const phase = useRef<"map" | "text">("map")
 
   useEffect(() => {
     const canvas = canvasRef.current!
-    canvas.width = 1000
-    canvas.height = 480
+    canvas.width = 2500
+    canvas.height = 900
 
     let cancelled = false
 
@@ -251,11 +263,7 @@ export function ParticleHero() {
 
         frame.current++
 
-        if (frame.current === 300 && phase.current === "map") {
-          phase.current = "zoom"
-          zoomArgentina(canvas, pool.current)
-        }
-        if (frame.current === 560 && phase.current === "zoom") {
+        if (frame.current === 420 && phase.current === "map") {
           phase.current = "text"
           showText(canvas, pool.current)
         }

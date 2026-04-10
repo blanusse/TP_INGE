@@ -14,28 +14,34 @@ export default async function Home() {
       <NavbarLanding />
 
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
-      <section style={{ background: "#000", color: "#fff", padding: "80px 48px 100px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+      <section style={{ background: "#000", color: "#fff", textAlign: "center", position: "relative", overflow: "hidden" }}>
 
-        <div style={{ position: "relative", maxWidth: 900, margin: "0 auto" }}>
-          <div style={{ display: "inline-block", fontSize: 12, fontWeight: 600, color: "#6ee7b7", background: "rgba(110,231,183,0.12)", border: "0.5px solid rgba(110,231,183,0.3)", padding: "5px 14px", borderRadius: 20, marginBottom: 28, letterSpacing: 0.5, textTransform: "uppercase" }}>
-            Bolsa de cargas digital · Argentina
+        {/* Canvas as full-width background */}
+        <div style={{ position: "relative", width: "100%" }}>
+          <ParticleHero />
+
+          {/* Overlay content centered on top of canvas */}
+          {/* Badge — top */}
+          <div style={{ position: "absolute", top: 32, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+            <div style={{ display: "inline-block", fontSize: 12, fontWeight: 600, color: "#fff", background: "rgba(255,255,255,0.12)", border: "0.5px solid rgba(255,255,255,0.3)", padding: "5px 14px", borderRadius: 20, letterSpacing: 0.5, textTransform: "uppercase" }}>
+              Bolsa de cargas digital · Argentina
+            </div>
           </div>
 
-          <div style={{ marginBottom: 24 }}>
-            <ParticleHero />
-          </div>
+          {/* Text + buttons — bottom */}
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", padding: "0 48px 60px" }}>
+            <p style={{ fontSize: 19, color: "rgba(255,255,255,0.75)", maxWidth: 560, margin: "0 auto 44px", lineHeight: 1.65 }}>
+              Conectamos camioneros con dadores de carga en toda Argentina. Sin intermediarios, sin viajes vacíos, sin burocracia.
+            </p>
 
-          <p style={{ fontSize: 19, color: "rgba(255,255,255,0.75)", maxWidth: 560, margin: "0 auto 44px", lineHeight: 1.65 }}>
-            Conectamos camioneros con dadores de carga en toda Argentina. Sin intermediarios, sin viajes vacíos, sin burocracia.
-          </p>
-
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/login?modo=registro" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "#fff", color: "#0f6e56", fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
-              Registrarse gratis →
-            </Link>
-            <Link href="/login?modo=login" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 600, textDecoration: "none", border: "0.5px solid rgba(255,255,255,0.25)" }}>
-              Ya tengo cuenta
-            </Link>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+              <Link href="/login?modo=registro" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "#fff", color: "#0f6e56", fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
+                Registrarse gratis →
+              </Link>
+              <Link href="/login?modo=login" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 600, textDecoration: "none", border: "0.5px solid rgba(255,255,255,0.25)" }}>
+                Ya tengo cuenta
+              </Link>
+            </div>
           </div>
         </div>
       </section>
