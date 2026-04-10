@@ -894,7 +894,7 @@ function ModalOfertar({ info, onClose, onEnviar, trucks }: { info: ModalOfertaSt
   const [precio, setPrecio] = useState(info.precioBase.toString());
   const [nota, setNota] = useState("");
   const [disponible, setDisponible] = useState("");
-  const [truckId, setTruckId] = useState(trucks[0]?._id ?? "");
+  const [truckId, setTruckId] = useState(trucks[0]?.id ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const diferencia = parseInt(precio || "0") - info.precioBase;
