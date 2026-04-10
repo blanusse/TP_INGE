@@ -123,59 +123,33 @@ function sampleOffscreen(
 // nx = (lon + 73.6) / 20,  ny = (lat + 21.8) / -33.3
 
 const ARGENTINA: [number, number][] = [
-  // NW corner (Bolivia border, Jujuy)
-  [0.23, 0.01],
-  // North border (Bolivia) going east
-  [0.38, 0.01],
-  [0.49, 0.00],
-  [0.57, 0.01],
-  // Paraguay border going SE (Formosa / Chaco)
-  [0.68, 0.02],
-  [0.77, 0.05],
-  [0.79, 0.07],
-  // NE Misiones — sticks out east toward Iguazú
-  [0.95, 0.11],
-  [1.00, 0.14],
-  [1.00, 0.19],
-  // East coast going south (Corrientes / Entre Ríos / Uruguay border)
-  [0.79, 0.25],
-  [0.79, 0.37],
-  // Buenos Aires province coast (bulges east then curves back)
-  [0.84, 0.43],
-  [0.81, 0.49],
-  [0.74, 0.51],
-  // Bahía Blanca area
-  [0.57, 0.52],
-  // Patagonia Atlantic coast going south
-  [0.55, 0.58],
-  [0.43, 0.63],
-  [0.41, 0.65],
-  [0.38, 0.70],
-  [0.38, 0.76],
-  [0.40, 0.82],
-  [0.38, 0.85],
-  [0.31, 0.88],
-  [0.23, 0.91],  // Near Strait of Magellan
-  // West side (Andes / Chile border) going north
-  [0.18, 0.88],
-  [0.11, 0.79],
-  [0.08, 0.70],
-  [0.07, 0.61],
-  [0.11, 0.52],
-  [0.16, 0.40],
-  [0.19, 0.31],
-  [0.26, 0.19],
-  [0.23, 0.10],
-  [0.23, 0.01],  // Back to NW start
+  // Flat north border (Pilcomayo / Bolivia)
+  [0.28, 0.03], [0.40, 0.01], [0.49, 0.00], [0.57, 0.00], [0.66, 0.00],
+  [0.80, 0.01],   // NE corner
+  // S-curve right side (Formosa inward, Corrientes outward)
+  [0.78, 0.06], [0.75, 0.11], [0.78, 0.14], [0.84, 0.16],
+  // Misiones ear
+  [0.88, 0.17], [0.91, 0.15], [0.94, 0.13], [0.95, 0.12],
+  [0.98, 0.13], [1.00, 0.14], [0.99, 0.16], [0.97, 0.18],
+  [0.94, 0.19], [0.89, 0.20],
+  // East coast
+  [0.78, 0.25], [0.77, 0.31], [0.76, 0.34], [0.75, 0.37],
+  // BA coast
+  [0.77, 0.39], [0.83, 0.44], [0.81, 0.49], [0.75, 0.51], [0.58, 0.52],
+  // Patagonia
+  [0.54, 0.56], [0.47, 0.62], [0.50, 0.63], [0.44, 0.66],
+  [0.39, 0.70], [0.37, 0.76], [0.41, 0.80], [0.37, 0.85],
+  [0.29, 0.88], [0.22, 0.91], [0.26, 0.92],
+  // Andes west border
+  [0.20, 0.92], [0.03, 0.85], [0.03, 0.76], [0.07, 0.65],
+  [0.10, 0.52], [0.15, 0.40], [0.19, 0.31], [0.25, 0.20],
+  [0.23, 0.10], [0.28, 0.03],
 ]
 
 // Tierra del Fuego (Argentine portion of the main island)
 const TIERRA_DEL_FUEGO: [number, number][] = [
-  [0.25, 0.92],  // NW (Strait of Magellan, east end)
-  [0.38, 0.92],  // N coast going east
-  [0.50, 0.93],  // NE corner
-  [0.43, 0.99],  // SE tip
-  [0.27, 0.99],  // SW corner
+  [0.26, 0.92], [0.37, 0.92], [0.50, 0.93],
+  [0.48, 0.97], [0.43, 0.99], [0.27, 0.99],
 ]
 
 const GREEN_BRIGHT: RGB = { r: 110, g: 231, b: 183 }
