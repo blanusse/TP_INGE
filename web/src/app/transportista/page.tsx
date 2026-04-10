@@ -1022,7 +1022,7 @@ export default function TransportistaDashboard() {
 
 // ── Estilos auxiliares ────────────────────────────────────────────────────────
 const filterLabelStyle: React.CSSProperties = { fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500 };
-const filterInputStyle: React.CSSProperties = { width: "100%", fontSize: 13, padding: "7px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" };
+const filterInputStyle: React.CSSProperties = { width: "100%", fontSize: 13, padding: "8px 12px", borderRadius: 10, border: "none", background: "linear-gradient(to right, #1a4d38, #0d1f17)", color: "#e2f5ec", outline: "none", boxSizing: "border-box" };
 const filterGroupStyle: React.CSSProperties = { marginBottom: 20, paddingBottom: 20, borderBottom: "0.5px solid var(--color-border-tertiary)" };
 const formLabelStyle: React.CSSProperties = { display: "block", fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 };
 const formInputStyle: React.CSSProperties = { width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" };
