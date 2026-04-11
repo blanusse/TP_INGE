@@ -33,6 +33,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${geistSans.variable} ${bebasNeue.variable} ${ibmPlexSans.variable} h-full`}>
+      <head>
+        <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+      </head>
       <body className="min-h-full">
         <Providers>{children}</Providers>
       </body>

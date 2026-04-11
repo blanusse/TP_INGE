@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -86,12 +85,12 @@ body {
 }
 
 .transportista-dark {
-  --color-header-bg: #141414;
-  --color-profile-gradient-start: #141414;
-  --color-profile-gradient-end: #141414;
-  --color-background-primary: #1a1a1a;
-  --color-background-secondary: #202020;
-  --color-background-tertiary: #141414;
+  --color-header-bg: #0d1410;
+  --color-profile-gradient-start: #0d1410;
+  --color-profile-gradient-end: #0d1410;
+  --color-background-primary: #111a16;
+  --color-background-secondary: #162019;
+  --color-background-tertiary: #0d1410;
   --color-background-info: #162e27;
   --color-border-tertiary: #1f3228;
   --color-border-secondary: #2a4235;
@@ -102,33 +101,63 @@ body {
   --color-brand: #3a806b;
   --color-brand-dark: #2a5e4f;
   --color-brand-light: #162e27;
+
+  /* Design system tokens */
+  --bg0: #0d1410;
+  --bg1: #111a16;
+  --bg2: #162019;
+  --green: #3a806b;
+  --green-hover: #449478;
+  --green-dim: #2a5e4f;
+  --green-muted: #162e27;
+  --green-glow: rgba(58, 128, 107, 0.15);
+  --text1: #e8f0eb;
+  --text2: #8fa896;
+  --text3: #4d6357;
+  --border: #1f3228;
+  --border2: #2a4235;
 }
 
 html:has(.transportista-dark) body {
-  background: #141414;
+  background: #0d1410;
 }
 
 .transportista-light {
-  --color-header-bg: #1e3d2e;
-  --color-profile-gradient-start: #1e3d2e;
-  --color-profile-gradient-end: #1e3d2e;
-  --color-background-primary: #f5faf7;
-  --color-background-secondary: #eaf4ef;
-  --color-background-tertiary: #dceee6;
-  --color-background-info: #cce6d9;
-  --color-border-tertiary: #b8d8c8;
-  --color-border-secondary: #8dbfaa;
-  --color-text-primary: #0d1f18;
-  --color-text-secondary: #3a6050;
-  --color-text-tertiary: #6a9080;
-  --color-text-info: #2a5e4f;
+  --color-header-bg: #ffffff;
+  --color-profile-gradient-start: #ffffff;
+  --color-profile-gradient-end: #ffffff;
+  --color-background-primary: #f4f7f5;
+  --color-background-secondary: #e8f0ec;
+  --color-background-tertiary: #f4f7f5;
+  --color-background-info: #e0f0ea;
+  --color-border-tertiary: #ddeae4;
+  --color-border-secondary: #c4ddd5;
+  --color-text-primary: #0f1f19;
+  --color-text-secondary: #4a6b5e;
+  --color-text-tertiary: #8aab9e;
+  --color-text-info: #2e6656;
   --color-brand: #3a806b;
-  --color-brand-dark: #2a5e4f;
-  --color-brand-light: #cce6d9;
+  --color-brand-dark: #2e6656;
+  --color-brand-light: #e0f0ea;
+
+  /* Design system tokens */
+  --bg0: #ffffff;
+  --bg1: #f4f7f5;
+  --bg2: #e8f0ec;
+  --green: #3a806b;
+  --green-hover: #2e6656;
+  --green-dim: #b0d4c8;
+  --green-muted: #e0f0ea;
+  --green-glow: rgba(58, 128, 107, 0.12);
+  --text1: #0f1f19;
+  --text2: #4a6b5e;
+  --text3: #8aab9e;
+  --border: #ddeae4;
+  --border2: #c4ddd5;
 }
 
 html:has(.transportista-light) body {
-  background: #dceee6;
+  background: #f4f7f5;
 }
 
 /* ── Input focus glow ────────────────────────────────────────────────────── */
@@ -150,7 +179,11 @@ html:has(.transportista-light) body {
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
-.transportista-dark ::-webkit-scrollbar { width: 6px; height: 6px; }
-.transportista-dark ::-webkit-scrollbar-track { background: #0d1410; }
-.transportista-dark ::-webkit-scrollbar-thumb { background: #2a4235; border-radius: 3px; }
-.transportista-dark ::-webkit-scrollbar-thumb:hover { background: #3a806b; }
+.transportista-dark ::-webkit-scrollbar,
+.transportista-light ::-webkit-scrollbar { width: 6px; height: 6px; }
+.transportista-dark ::-webkit-scrollbar-track { background: var(--bg0); }
+.transportista-dark ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+.transportista-dark ::-webkit-scrollbar-thumb:hover { background: var(--green); }
+.transportista-light ::-webkit-scrollbar-track { background: var(--bg1); }
+.transportista-light ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+.transportista-light ::-webkit-scrollbar-thumb:hover { background: var(--green); }
