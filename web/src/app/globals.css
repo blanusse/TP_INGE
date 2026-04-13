@@ -36,27 +36,30 @@
 }
 
 .dark {
-  --color-background-primary: #1e1e1e;
-  --color-background-secondary: #2a2a2a;
-  --color-background-tertiary: #141414;
-  --color-border-tertiary: #2e2e2e;
-  --color-border-secondary: #3a3a3a;
+  --color-background-primary: #0a0a0a;
+  --color-background-secondary: #111;
+  --color-background-tertiary: #000;
+  --color-border-tertiary: rgba(255,255,255,0.08);
+  --color-border-secondary: rgba(255,255,255,0.12);
   --color-text-primary: #efefef;
   --color-text-secondary: #aaaaaa;
   --color-text-tertiary: #777777;
+  --color-brand: #3a806b;
+  --color-brand-dark: #3a806b;
+  --color-brand-light: rgba(58,128,107,0.15);
 
   /* Dador dashboard */
-  --page-bg: #141414;
-  --card-bg: #1e1e1e;
-  --card-border: #2e2e2e;
+  --page-bg: #000;
+  --card-bg: #0a0a0a;
+  --card-border: rgba(255,255,255,0.1);
   --heading-color: #efefef;
   --body-color: #999999;
   --muted-color: #888888;
-  --divider-color: #2e2e2e;
-  --inactive-border: #3a3a3a;
+  --divider-color: rgba(255,255,255,0.08);
+  --inactive-border: rgba(255,255,255,0.1);
   --inactive-label: #777777;
-  --badge-neutral-bg: #2a2a2a;
-  --badge-neutral-text: #777777;
+  --badge-neutral-bg: rgba(255,255,255,0.07);
+  --badge-neutral-text: #888888;
 }
 
 @theme inline {
@@ -86,41 +89,41 @@ body {
 }
 
 .transportista-dark {
-  --color-header-bg: #0d1410;
-  --color-profile-gradient-start: #0d1410;
-  --color-profile-gradient-end: #0d1410;
-  --color-background-primary: #111a16;
-  --color-background-secondary: #162019;
-  --color-background-tertiary: #0d1410;
-  --color-background-info: #162e27;
-  --color-border-tertiary: #1f3228;
-  --color-border-secondary: #2a4235;
+  --color-header-bg: rgba(0,0,0,0.92);
+  --color-profile-gradient-start: #000;
+  --color-profile-gradient-end: #000;
+  --color-background-primary: #0a0a0a;
+  --color-background-secondary: #111;
+  --color-background-tertiary: #000;
+  --color-background-info: rgba(58,128,107,0.1);
+  --color-border-tertiary: rgba(255,255,255,0.08);
+  --color-border-secondary: rgba(255,255,255,0.12);
   --color-text-primary: #e8f0eb;
   --color-text-secondary: #8fa896;
   --color-text-tertiary: #4d6357;
   --color-text-info: #3a806b;
   --color-brand: #3a806b;
   --color-brand-dark: #2a5e4f;
-  --color-brand-light: #162e27;
+  --color-brand-light: rgba(58,128,107,0.15);
 
   /* Design system tokens */
-  --bg0: #0d1410;
-  --bg1: #111a16;
-  --bg2: #162019;
+  --bg0: #000;
+  --bg1: #0a0a0a;
+  --bg2: #111;
   --green: #3a806b;
   --green-hover: #449478;
   --green-dim: #2a5e4f;
-  --green-muted: #162e27;
+  --green-muted: rgba(58,128,107,0.1);
   --green-glow: rgba(58, 128, 107, 0.15);
   --text1: #e8f0eb;
   --text2: #8fa896;
   --text3: #4d6357;
-  --border: #1f3228;
-  --border2: #2a4235;
+  --border: rgba(255,255,255,0.1);
+  --border2: rgba(255,255,255,0.15);
 }
 
 html:has(.transportista-dark) body {
-  background: #0d1410;
+  background: #000;
 }
 
 .transportista-light {

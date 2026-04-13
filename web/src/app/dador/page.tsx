@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBoxOpen, faClockRotateLeft, faFileInvoiceDollar, faHouse, faTruckFast } from "@fortawesome/free-solid-svg-icons";
+import { faBoxOpen, faClockRotateLeft, faFileInvoiceDollar, faHouse, faTruckFast, faSun, faMoon } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 // ── Datos ────────────────────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ function Toast({ mensaje, onClose }: { mensaje: string; onClose: () => void }) {
       fontSize: 13, fontWeight: 500, boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
       display: "flex", alignItems: "center", gap: 10,
     }}>
-      <span>✓</span> {mensaje}
+      <i className="fa-solid fa-circle-check" /> {mensaje}
       <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 16, padding: 0, marginLeft: 4 }}>×</button>
     </div>
   );
@@ -170,7 +170,7 @@ function InputUbicacion({
           style={{ ...inputStyle, paddingRight: 32 }}
         />
         {cargando && (
-          <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--color-text-tertiary)" }}>⏳</div>
+          <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--color-text-tertiary)" }}><i className="fa-solid fa-spinner fa-spin" /></div>
         )}
         {!cargando && value && (
           <button
@@ -204,7 +204,7 @@ function InputUbicacion({
               onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-background-secondary)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              <span style={{ fontSize: 14, flexShrink: 0 }}>📍</span>
+              <i className="fa-solid fa-location-dot" style={{ fontSize: 14, flexShrink: 0, color: "var(--color-text-tertiary)" }} />
               <span style={{ fontSize: 13, color: "var(--color-text-primary)", lineHeight: 1.4 }}>{s.label}</span>
             </button>
           ))}
@@ -243,8 +243,8 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 function BadgeOfertas({ n }: { n: number }) {
-  if (n === 0) return <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, fontWeight: 500, background: "#f1efe8", color: "#5f5e5a" }}>Sin ofertas</span>;
-  if (n === 1) return <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, fontWeight: 500, background: "#faeeda", color: "#854f0b" }}>1 oferta</span>;
+  if (n === 0) return <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, fontWeight: 500, background: "var(--badge-neutral-bg)", color: "var(--badge-neutral-text)" }}>Sin ofertas</span>;
+  if (n === 1) return <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, fontWeight: 500, background: "var(--color-brand-light)", color: "var(--color-brand-dark)" }}>1 oferta</span>;
   return <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, fontWeight: 500, background: "var(--color-brand-light)", color: "var(--color-brand-dark)" }}>{n} ofertas</span>;
 }
 
@@ -333,7 +333,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
               onSelect={(r) => { set("origen", r.label); setOrigenMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
               placeholder="Dirección exacta de retiro"
             />
-            {origenMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}>📍 Zona visible a camioneros: <strong>{origenMeta.zone}</strong></div>}
+            {origenMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{origenMeta.zone}</strong></div>}
           </div>
           <div>
             <label style={labelStyle}>Destino *</label>
@@ -344,7 +344,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
               onSelect={(r) => { set("destino", r.label); setDestinoMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
               placeholder="Dirección exacta de entrega"
             />
-            {destinoMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}>📍 Zona visible a camioneros: <strong>{destinoMeta.zone}</strong></div>}
+            {destinoMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{destinoMeta.zone}</strong></div>}
           </div>
         </div>
 
@@ -356,7 +356,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
             ) : estimate && (
               <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
                 <div>
-                  <span style={{ color: "#15803d", fontWeight: 600 }}>📍 {estimate.distanceKm.toLocaleString("es-AR")} km</span>
+                  <span style={{ color: "#15803d", fontWeight: 600 }}><i className="fa-solid fa-location-dot" /> {estimate.distanceKm.toLocaleString("es-AR")} km</span>
                   <span style={{ color: "var(--color-text-tertiary)", marginLeft: 6 }}>en línea recta</span>
                 </div>
                 <div style={{ color: "#15803d" }}>
@@ -833,7 +833,7 @@ function ChatInline({ sel, userId }: { sel: OfertaSeleccionada; userId: string }
   return (
     <div>
       <div style={{ background: "var(--color-brand-light)", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 14, fontSize: 12, color: "var(--color-brand-dark)", fontWeight: 500 }}>
-        🚛 {sel.cargaTitulo} · ${sel.oferta.precio.toLocaleString("es-AR")} · Pago en escrow
+        <i className="fa-solid fa-truck" /> {sel.cargaTitulo} · ${sel.oferta.precio.toLocaleString("es-AR")} · Pago en escrow
       </div>
       <div ref={listRef} style={{ height: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14, paddingRight: 4 }}>
         {mensajes.length === 0 && (
@@ -936,7 +936,7 @@ function SeccionMisCargas({
               <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" as const, letterSpacing: "0.06em", background: dc.ofertas > 0 ? "rgba(234,88,12,0.12)" : ao ? "rgba(22,163,74,0.12)" : "rgba(107,114,128,0.1)", color: dc.ofertas > 0 ? "#ea580c" : ao ? "#16a34a" : "#6b7280" }}>
                 {ao ? "ASIGNADA" : dc.ofertas > 0 ? `${dc.ofertas} OFERTA${dc.ofertas > 1 ? "S" : ""}` : "SIN OFERTAS"}
               </span>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 10 }}>{origen} <span style={{ color: "#3d9e6e" }}>&rarr;</span> {destino}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 10 }}>{origen} <span style={{ color: "#3a806b" }}>&rarr;</span> {destino}</div>
             </div>
             <div style={{ fontSize: 24, fontWeight: 700, color: "#16a34a" }}>
               {ao ? `$${ao.precio.toLocaleString("es-AR")}` : ""}
@@ -951,12 +951,12 @@ function SeccionMisCargas({
             {ao && <div>Transportista: <strong style={{ color: "var(--color-text-primary)" }}>{ao.driverName}</strong></div>}
           </div>
           {dc.ofertas > 0 && !ao && (
-            <button onClick={() => { setDetalleCarga(null); onVerOfertas(dc); }} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3d9e6e", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
+            <button onClick={() => { setDetalleCarga(null); onVerOfertas(dc); }} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
               Ver ofertas ({dc.ofertas})
             </button>
           )}
           {ao && (
-            <button onClick={() => { setDetalleCarga(null); onIniciarPago({ offerId: ao.offerId, cargaTitulo: dc.titulo, cargaId: dc.id, oferta: { nombre: ao.driverName, precio: ao.precio, offerId: ao.offerId, id: 0, iniciales: ao.driverName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2), rating: 0, viajes: 0, nota: "" } }); }} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3d9e6e", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
+            <button onClick={() => { setDetalleCarga(null); onIniciarPago({ offerId: ao.offerId, cargaTitulo: dc.titulo, cargaId: dc.id, oferta: { nombre: ao.driverName, precio: ao.precio, offerId: ao.offerId, id: 0, iniciales: ao.driverName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2), rating: 0, viajes: 0, nota: "" } }); }} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
               Pagar &rarr;
             </button>
           )}
@@ -973,7 +973,7 @@ function SeccionMisCargas({
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", margin: 0 }}>Mis cargas</h1>
           <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Publica cargas y gestiona ofertas de transportistas</p>
         </div>
-        <button onClick={onPublicar} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3d9e6e", color: "#fff", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const }}>
+        <button onClick={onPublicar} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const }}>
           + Publicar carga
         </button>
       </div>
@@ -986,9 +986,9 @@ function SeccionMisCargas({
         ]).map(({ key, count }) => {
           const activo = tab === key;
           return (
-            <button key={key} onClick={() => setTab(key)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: activo ? "rgba(61,158,110,0.12)" : "transparent", color: activo ? "#3d9e6e" : "var(--color-text-secondary)", fontWeight: activo ? 600 : 400, fontSize: 13 }}>
+            <button key={key} onClick={() => setTab(key)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: activo ? "rgba(58,128,107,0.12)" : "transparent", color: activo ? "#3a806b" : "var(--color-text-secondary)", fontWeight: activo ? 600 : 400, fontSize: 13 }}>
               {key}
-              <span style={{ fontSize: 11, fontWeight: 600, padding: "1px 7px", borderRadius: 10, background: activo ? "rgba(61,158,110,0.15)" : "var(--color-background-secondary)", color: activo ? "#3d9e6e" : "var(--color-text-tertiary)" }}>{count}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, padding: "1px 7px", borderRadius: 10, background: activo ? "rgba(58,128,107,0.15)" : "var(--color-background-secondary)", color: activo ? "#3a806b" : "var(--color-text-tertiary)" }}>{count}</span>
             </button>
           );
         })}
@@ -1001,7 +1001,7 @@ function SeccionMisCargas({
       {!loading && listado.length === 0 && (
         <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 48, textAlign: "center" }}>
           <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(61,158,110,0.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-            <FontAwesomeIcon icon={faBoxOpen} style={{ width: 20, height: 20, color: "#3d9e6e" }} />
+            <FontAwesomeIcon icon={faBoxOpen} style={{ width: 20, height: 20, color: "#3a806b" }} />
           </div>
           <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>
             {tab === "Publicadas" ? "No tenes cargas publicadas" : "No tenes cargas asignadas"}
@@ -1044,7 +1044,7 @@ function SeccionMisCargas({
 
                 {/* Route */}
                 <div style={{ fontSize: 17, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 8, marginBottom: 4 }}>
-                  {origen} <span style={{ color: "#3d9e6e" }}>&rarr;</span> {destino}
+                  {origen} <span style={{ color: "#3a806b" }}>&rarr;</span> {destino}
                 </div>
 
                 {/* Detail line */}
@@ -1082,7 +1082,7 @@ function SeccionMisCargas({
                     </button>
                   )}
                   {conOfertas && !esAsignada && (
-                    <button onClick={() => onVerOfertas(c)} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "none", background: "#3d9e6e", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
+                    <button onClick={() => onVerOfertas(c)} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "none", background: "#3a806b", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
                       Ver ofertas
                     </button>
                   )}
@@ -1157,7 +1157,7 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
       {enTransito.length === 0 && entregados.length === 0 && (
         <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 48, textAlign: "center" }}>
           <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(61,158,110,0.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-            <FontAwesomeIcon icon={faTruckFast} style={{ width: 20, height: 20, color: "#3d9e6e" }} />
+            <FontAwesomeIcon icon={faTruckFast} style={{ width: 20, height: 20, color: "#3a806b" }} />
           </div>
           <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>No tenes envios en curso</div>
           <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Cuando asignes un transportista a una carga, el envio aparecera aca.</div>
@@ -1190,7 +1190,7 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
                 <button
                   onClick={() => confirmarLlegada(c)}
                   disabled={confirmando === c.id}
-                  style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "none", background: confirmando === c.id ? "#aaa" : "#3d9e6e", color: "#fff", cursor: confirmando === c.id ? "not-allowed" : "pointer", fontWeight: 600 }}
+                  style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "none", background: confirmando === c.id ? "#aaa" : "#3a806b", color: "#fff", cursor: confirmando === c.id ? "not-allowed" : "pointer", fontWeight: 600 }}
                 >
                   {confirmando === c.id ? "Confirmando..." : "Confirmar llegada"}
                 </button>
@@ -1199,7 +1199,7 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
 
             {/* Route */}
             <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 8 }}>
-              {origen} <span style={{ color: "#3d9e6e" }}>&rarr;</span> {destino}
+              {origen} <span style={{ color: "#3a806b" }}>&rarr;</span> {destino}
             </div>
 
             {/* Transportista info */}
@@ -1249,7 +1249,7 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
               <div key={c.id} style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: "14px 18px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 3 }}>
-                    {origen} <span style={{ color: "#3d9e6e" }}>&rarr;</span> {destino}
+                    {origen} <span style={{ color: "#3a806b" }}>&rarr;</span> {destino}
                   </div>
                   <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
                     {tipoCarga} · {ao?.driverName ?? "—"} · Retiro: {c.retiro}
@@ -1487,13 +1487,13 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
         {/* Avatar card */}
         <div style={{ ...card, gridColumn: "1 / 2", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 10, padding: 24 }}>
-          <div style={{ width: 68, height: 68, borderRadius: "50%", background: "#3d9e6e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff" }}>{initials}</div>
+          <div style={{ width: 68, height: 68, borderRadius: "50%", background: "#3a806b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff" }}>{initials}</div>
           {editando
             ? <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ fontSize: 15, fontWeight: 700, border: "1px solid var(--card-border)", borderRadius: 8, padding: "4px 8px", background: "var(--page-bg)", color: "var(--heading-color)", outline: "none", textAlign: "center", width: "100%" }} />
             : <div style={{ fontSize: 15, fontWeight: 700, color: "var(--heading-color)", textAlign: "center" }}>{nombre}</div>
           }
           <div style={{ fontSize: 12, color: "var(--body-color)", textAlign: "center" }}>{userEmail}</div>
-          <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "#e6f4ee", color: "#2d7a54", fontWeight: 600 }}>Verificado ✓</span>
+          <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontWeight: 600 }}>Verificado <i className="fa-solid fa-circle-check" /></span>
         </div>
 
         {/* Stats */}
@@ -1567,7 +1567,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
       <div style={{ display: "flex", gap: 10 }}>
         <button
           onClick={() => { if (editando) onToast("Perfil actualizado."); setEditando(!editando); }}
-          style={{ fontSize: 13, padding: "9px 20px", borderRadius: 8, border: editando ? "none" : "1px solid var(--inactive-border)", background: editando ? "#3d9e6e" : "transparent", color: editando ? "#fff" : "var(--heading-color)", cursor: "pointer", fontWeight: 500, fontFamily: "var(--font-ibm-plex), sans-serif" }}
+          style={{ fontSize: 13, padding: "9px 20px", borderRadius: 8, border: editando ? "none" : "1px solid var(--inactive-border)", background: editando ? "#3a806b" : "transparent", color: editando ? "#fff" : "var(--heading-color)", cursor: "pointer", fontWeight: 500, fontFamily: "var(--font-ibm-plex), sans-serif" }}
         >
           {editando ? "Guardar cambios" : "Editar perfil"}
         </button>
@@ -1733,7 +1733,7 @@ function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userN
                         <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>Transportista: {c.acceptedOffer.driverName}</div>
                       )}
                       {c.acceptedOffer && (
-                        <div style={{ fontSize: 18, fontWeight: 700, color: "#6ec99a", marginBottom: 10 }}>${c.acceptedOffer.precio.toLocaleString("es-AR")}</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: "#3a806b", marginBottom: 10 }}>${c.acceptedOffer.precio.toLocaleString("es-AR")}</div>
                       )}
                       <button style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", fontWeight: 500 }}>
                         Ver tracking
@@ -1831,10 +1831,10 @@ export default function DadorDashboard() {
     <div style={{ background: "var(--page-bg)", minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
 
       {/* Topbar */}
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: "#111", position: "sticky", top: 0, zIndex: 10 }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", borderBottom: "0.5px solid rgba(255,255,255,0.1)", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
           <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: "#fff", textDecoration: "none", fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}>
-            Carga<span style={{ color: "#6ec99a" }}>Back</span>
+            Carga<span style={{ color: "#3a806b" }}>Back</span>
           </Link>
           <nav style={{ display: "flex", height: 64 }}>
             {NAV_ITEMS.map(({ item, icon }) => {
@@ -1844,11 +1844,11 @@ export default function DadorDashboard() {
                 <button key={item} onClick={() => setNavActivo(item)} style={{
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "0 20px", height: "100%",
-                  border: "none", borderBottom: activo ? "2.5px solid #3d9e6e" : "2.5px solid transparent",
+                  border: "none", borderBottom: activo ? "2.5px solid #3a806b" : "2.5px solid transparent",
                   background: "transparent", cursor: "pointer", position: "relative",
                   fontFamily: "var(--font-ibm-plex), sans-serif",
                 }}>
-                  <FontAwesomeIcon icon={icon} style={{ width: 14, height: 14, color: activo ? "#6ec99a" : "rgba(255,255,255,0.45)" }} />
+                  <FontAwesomeIcon icon={icon} style={{ width: 14, height: 14, color: activo ? "#3a806b" : "rgba(255,255,255,0.45)" }} />
                   <span style={{ fontSize: 15, fontWeight: activo ? 600 : 400, color: activo ? "#fff" : "rgba(255,255,255,0.55)" }}>{item}</span>
                   {badge > 0 && (
                     <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>
@@ -1867,15 +1867,15 @@ export default function DadorDashboard() {
             title={darkMode ? "Modo claro" : "Modo oscuro"}
             style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
           >
-            <span suppressHydrationWarning>{darkMode ? "☀️" : "🌙"}</span>
+            <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: "rgba(255,255,255,0.7)" }} />
           </button>
-          <button onClick={() => setModalPublicar(true)} style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: "#3d9e6e", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
+          <button onClick={() => setModalPublicar(true)} style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: "#3a806b", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
             + Publicar carga
           </button>
           <button
             onClick={() => setNavActivo("Mi perfil")}
             title="Ver mi perfil"
-            style={{ width: 34, height: 34, borderRadius: "50%", background: "#3d9e6e", border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}
+            style={{ width: 34, height: 34, borderRadius: "50%", background: "#3a806b", border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}
           >
             {initials}
           </button>

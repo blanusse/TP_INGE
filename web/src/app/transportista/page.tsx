@@ -1498,9 +1498,9 @@ export default function TransportistaDashboard() {
   return (
     <>
       <div className={`transportista-${theme}`} style={{ background: "var(--bg1)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 56, background: "var(--bg0)", position: "sticky", top: 0, zIndex: 10, borderBottom: "1px solid var(--border)" }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 56, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", position: "sticky", top: 0, zIndex: 10, borderBottom: "0.5px solid rgba(255,255,255,0.1)" }}>
         <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
-          <Link href="/" style={{ fontSize: 16, fontWeight: 600, color: "var(--color-brand)", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>CargaBack</Link>
+          <Link href="/" style={{ fontSize: 16, fontWeight: 700, color: "#fff", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>Carga<span style={{ color: "#3a806b" }}>Back</span></Link>
           <nav style={{ display: "flex", height: "100%" }}>
             {navItems.map((item) => {
               const badge = item === "Mis ofertas" ? ofertasBadge : 0;
