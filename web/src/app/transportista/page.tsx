@@ -892,20 +892,24 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
         </div>
       </div>
 
-      <div style={{ padding: "0 40px", marginTop: -28, maxWidth: 840 }}>
+      <div style={{ padding: "0 40px", marginTop: -28, maxWidth: 840, margin: "-28px auto 0" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
-          {[[stats?.calificacionPromedio != null ? `${stats.calificacionPromedio} ⭐` : "— ⭐", "Calificación promedio"], [stats ? String(stats.viajesCompletados) : "—", "Viajes completados"], [stats?.memberSince ?? "—", "En plataforma desde"]].map(([val, label], idx, arr) => (<div key={label} style={{ padding: "20px 0", textAlign: "center", borderRight: idx < arr.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}><div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)" }}>{val}</div><div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 4 }}>{label}</div></div>))}
+          {[
+            { val: stats?.calificacionPromedio != null ? <>{stats.calificacionPromedio} <span style={{ color: "#f59e0b" }}>★</span></> : "—", label: stats?.calificacionPromedio != null ? "Calificación promedio" : "Calificación promedio", sub: stats?.calificacionPromedio == null ? "Sin calificaciones" : undefined },
+            { val: stats ? String(stats.viajesCompletados) : "—", label: "Viajes completados" },
+            { val: stats?.memberSince ? new Date(stats.memberSince).toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" }) : "—", label: "En plataforma desde" },
+          ].map((item, idx, arr) => (<div key={item.label + idx} style={{ padding: "20px 0", textAlign: "center", borderRight: idx < arr.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}><div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)" }}>{item.val}</div><div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 4 }}>{item.label}</div>{item.sub && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 2 }}>{item.sub}</div>}</div>))}
         </div>
       </div>
 
-      <div style={{ padding: "22px 40px 0", maxWidth: 840 }}>
+      <div style={{ padding: "22px 40px 0", maxWidth: 840, margin: "0 auto" }}>
         <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 3, gap: 2 }}>
           {(["Perfil", "Estadísticas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
         </div>
       </div>
 
       {tabPerfil === "Perfil" && (
-        <div style={{ padding: "20px 40px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 840 }}>
+        <div style={{ padding: "20px 40px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 840, margin: "0 auto" }}>
           <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 24 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><i className="fa-solid fa-clipboard-list" style={{ color: "var(--green)" }} /> Contacto</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -924,7 +928,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
       )}
 
       {tabPerfil === "Estadísticas" && (
-        <div style={{ padding: "20px 40px 32px", maxWidth: 840 }}>
+        <div style={{ padding: "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
           {!stats && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando estadísticas...</div>}
           {stats && (
             <>
@@ -1077,15 +1081,15 @@ function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; 
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
           {[
-            { label: "Ingresos — este mes", value: stats ? `$${Math.round(stats.totalIngresos6m / 6).toLocaleString("es-AR")}` : "—", color: "var(--color-brand-dark)", delta: null },
-            { label: "Viajes — últimos 6 meses", value: stats ? String(stats.viajes6m) : "—", color: "var(--color-text-primary)", delta: null },
-            { label: "Viajes completados", value: stats ? String(stats.viajesCompletados) : "—", color: "var(--color-text-primary)", delta: "en total" },
+            { label: "Ingresos — este mes", value: stats ? (isNaN(stats.totalIngresos6m) || stats.totalIngresos6m == null ? "Sin datos" : `$${Math.round(stats.totalIngresos6m / 6).toLocaleString("es-AR")}`) : "—", color: "var(--color-brand)", delta: null },
+            { label: "Viajes — últimos 6 meses", value: stats ? String(stats.viajes6m ?? 0) : "0", color: "var(--color-text-primary)", delta: null },
+            { label: "Viajes completados", value: stats ? String(stats.viajesCompletados ?? 0) : "0", color: "var(--color-text-primary)", delta: "en total" },
             { label: "Calificación", value: stats?.calificacionPromedio != null ? `${stats.calificacionPromedio} ★` : "—", color: "#f59e0b", delta: null },
           ].map(({ label, value, color, delta }) => (
             <div key={label} style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 16 }}>
-              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>{label}</div>
+              <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>{label}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color, marginBottom: 3, lineHeight: 1 }}>{value}</div>
-              {delta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{delta}</div>}
+              {delta && <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{delta}</div>}
             </div>
           ))}
         </div>
@@ -1094,7 +1098,7 @@ function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; 
           <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 18 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>Ofertas activas</div>
-              <button onClick={() => onNavegar("Mis ofertas")} style={{ fontSize: 11, color: "var(--color-brand-dark)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ver todas</button>
+              <button onClick={() => onNavegar("Mis ofertas")} style={{ fontSize: 11, color: "var(--color-brand)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ver todas</button>
             </div>
             {ofertas.length === 0 && <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", textAlign: "center", padding: "20px 0" }}>Sin ofertas activas</div>}
             {ofertas.slice(0, 4).map(o => {
@@ -1138,9 +1142,9 @@ function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; 
                 const isLast = i === arr.length - 1;
                 return (
                   <div key={e.mes} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, height: "100%", justifyContent: "flex-end" }}>
-                    {e.monto > 0 && <div style={{ fontSize: 9, color: isLast ? "var(--color-brand-dark)" : "var(--color-text-tertiary)", fontWeight: isLast ? 700 : 400 }}>${(e.monto / 1000).toFixed(0)}k</div>}
+                    {e.monto > 0 && <div style={{ fontSize: 9, color: isLast ? "var(--color-brand)" : "var(--color-text-secondary)", fontWeight: isLast ? 700 : 400 }}>${(e.monto / 1000).toFixed(0)}k</div>}
                     <div style={{ width: "100%", height: `${Math.max(pct, 3)}%`, background: isLast ? "var(--color-brand)" : e.monto > 0 ? "#2a5e4f" : "var(--color-background-secondary)", borderRadius: "4px 4px 0 0" }} />
-                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{e.mes}</div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{e.mes}</div>
                   </div>
                 );
               })}

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBoxOpen, faClockRotateLeft, faFileInvoiceDollar, faHouse } from "@fortawesome/free-solid-svg-icons";
+import { faBoxOpen, faClockRotateLeft, faFileInvoiceDollar, faHouse, faTruckFast } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 // ── Datos ────────────────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Inicio" | "Mis cargas" | "Historial" | "Facturación" | "Mi perfil";
+type NavItem = "Inicio" | "Mis cargas" | "Mis envios" | "Historial" | "Facturación" | "Mi perfil";
 type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tránsito";
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; }
@@ -887,6 +887,7 @@ function SeccionMisCargas({
   onDestacado,
   onIniciarPago,
   onRefresh,
+  onPublicar,
 }: {
   cargas: Carga[];
   loading: boolean;
@@ -894,33 +895,225 @@ function SeccionMisCargas({
   onDestacado: (titulo: string) => void;
   onIniciarPago: (sel: OfertaSeleccionada) => void;
   onRefresh: () => void;
+  onPublicar: () => void;
 }) {
-  const [tab, setTab] = useState<TabItem>("Todas");
+  type MisCargasTab = "Publicadas" | "Asignadas";
+  const [tab, setTab] = useState<MisCargasTab>("Publicadas");
+  const [detalleCarga, setDetalleCarga] = useState<Carga | null>(null);
+  const [eliminando, setEliminando] = useState<string | null>(null);
+
+  const publicadas = cargas.filter((c) => c.status === "published" || c.status === "open");
+  const asignadas = cargas.filter((c) => c.status === "matched" || c.status === "in_transit" || c.status === "accepted");
+
+  const listado = tab === "Publicadas" ? publicadas : asignadas;
+
+  const eliminarCarga = async (id: string) => {
+    setEliminando(id);
+    try {
+      const res = await fetch(`/api/loads`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loadId: id }) });
+      if (res.ok) onRefresh();
+    } finally {
+      setEliminando(null);
+    }
+  };
+
+  // Detail panel modal
+  if (detalleCarga) {
+    const dc = detalleCarga;
+    const partes = dc.titulo.split(" — ");
+    const tipoCarga = partes[0];
+    const ruta = partes[1] ?? dc.titulo;
+    const [origen, destino] = ruta.split(" → ");
+    const ao = dc.acceptedOffer;
+    return (
+      <main style={{ maxWidth: 700, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
+        <button onClick={() => setDetalleCarga(null)} style={{ fontSize: 13, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", marginBottom: 20, padding: 0, display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 16 }}>&larr;</span> Volver a Mis cargas
+        </button>
+        <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+            <div>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" as const, letterSpacing: "0.06em", background: dc.ofertas > 0 ? "rgba(234,88,12,0.12)" : ao ? "rgba(22,163,74,0.12)" : "rgba(107,114,128,0.1)", color: dc.ofertas > 0 ? "#ea580c" : ao ? "#16a34a" : "#6b7280" }}>
+                {ao ? "ASIGNADA" : dc.ofertas > 0 ? `${dc.ofertas} OFERTA${dc.ofertas > 1 ? "S" : ""}` : "SIN OFERTAS"}
+              </span>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 10 }}>{origen} <span style={{ color: "#3d9e6e" }}>&rarr;</span> {destino}</div>
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "#16a34a" }}>
+              {ao ? `$${ao.precio.toLocaleString("es-AR")}` : ""}
+            </div>
+          </div>
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 16, lineHeight: 1.8 }}>
+            <div>Tipo de carga: <strong style={{ color: "var(--color-text-primary)" }}>{tipoCarga}</strong></div>
+            <div>Peso: <strong style={{ color: "var(--color-text-primary)" }}>{dc.peso}</strong></div>
+            <div>Camion requerido: <strong style={{ color: "var(--color-text-primary)" }}>{dc.tipoCamion}</strong></div>
+            <div>Fecha de retiro: <strong style={{ color: "var(--color-text-primary)" }}>{dc.retiro}</strong></div>
+            <div>Estado: <strong style={{ color: "var(--color-text-primary)" }}>{dc.status}</strong></div>
+            {ao && <div>Transportista: <strong style={{ color: "var(--color-text-primary)" }}>{ao.driverName}</strong></div>}
+          </div>
+          {dc.ofertas > 0 && !ao && (
+            <button onClick={() => { setDetalleCarga(null); onVerOfertas(dc); }} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3d9e6e", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
+              Ver ofertas ({dc.ofertas})
+            </button>
+          )}
+          {ao && (
+            <button onClick={() => { setDetalleCarga(null); onIniciarPago({ offerId: ao.offerId, cargaTitulo: dc.titulo, cargaId: dc.id, oferta: { nombre: ao.driverName, precio: ao.precio, offerId: ao.offerId, id: 0, iniciales: ao.driverName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2), rating: 0, viajes: 0, nota: "" } }); }} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3d9e6e", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
+              Pagar &rarr;
+            </button>
+          )}
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", margin: 0 }}>Mis cargas</h1>
+          <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Publica cargas y gestiona ofertas de transportistas</p>
+        </div>
+        <button onClick={onPublicar} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3d9e6e", color: "#fff", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const }}>
+          + Publicar carga
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        {([
+          { key: "Publicadas" as MisCargasTab, count: publicadas.length },
+          { key: "Asignadas" as MisCargasTab, count: asignadas.length },
+        ]).map(({ key, count }) => {
+          const activo = tab === key;
+          return (
+            <button key={key} onClick={() => setTab(key)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: activo ? "rgba(61,158,110,0.12)" : "transparent", color: activo ? "#3d9e6e" : "var(--color-text-secondary)", fontWeight: activo ? 600 : 400, fontSize: 13 }}>
+              {key}
+              <span style={{ fontSize: 11, fontWeight: 600, padding: "1px 7px", borderRadius: 10, background: activo ? "rgba(61,158,110,0.15)" : "var(--color-background-secondary)", color: activo ? "#3d9e6e" : "var(--color-text-tertiary)" }}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Loading */}
+      {loading && <div style={{ padding: 40, textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13 }}>Cargando...</div>}
+
+      {/* Empty state */}
+      {!loading && listado.length === 0 && (
+        <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 48, textAlign: "center" }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(61,158,110,0.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+            <FontAwesomeIcon icon={faBoxOpen} style={{ width: 20, height: 20, color: "#3d9e6e" }} />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>
+            {tab === "Publicadas" ? "No tenes cargas publicadas" : "No tenes cargas asignadas"}
+          </div>
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
+            {tab === "Publicadas" ? "Publica tu primera carga para empezar a recibir ofertas." : "Las cargas asignadas a un transportista apareceran aca."}
+          </div>
+        </div>
+      )}
+
+      {/* Cards */}
+      {!loading && listado.map((c) => {
+        const partes = c.titulo.split(" — ");
+        const tipoCarga = partes[0];
+        const ruta = partes[1] ?? c.titulo;
+        const [origen, destino] = ruta.split(" → ");
+        const conOfertas = c.ofertas > 0;
+        const esAsignada = c.status === "matched" || c.status === "in_transit" || c.status === "accepted";
+        const ao = c.acceptedOffer;
+
+        const borderColor = esAsignada ? "#16a34a" : conOfertas ? "#ea580c" : "var(--color-border-tertiary)";
+
+        // Parse price from titulo or acceptedOffer
+        const precioDisplay = ao ? `$${ao.precio.toLocaleString("es-AR")}` : null;
+
+        return (
+          <div
+            key={c.id}
+            onClick={() => setDetalleCarga(c)}
+            style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderLeft: `3px solid ${borderColor}`, borderRadius: 10, padding: "16px 20px", marginBottom: 10, cursor: "pointer", transition: "box-shadow 0.15s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.15)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {/* Badge */}
+                <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" as const, letterSpacing: "0.06em", background: esAsignada ? "rgba(22,163,74,0.12)" : conOfertas ? "rgba(234,88,12,0.12)" : "rgba(107,114,128,0.1)", color: esAsignada ? "#16a34a" : conOfertas ? "#ea580c" : "#6b7280" }}>
+                  {esAsignada ? "ASIGNADA" : conOfertas ? `${c.ofertas} OFERTA${c.ofertas > 1 ? "S" : ""}` : "SIN OFERTAS"}
+                </span>
+
+                {/* Route */}
+                <div style={{ fontSize: 17, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 8, marginBottom: 4 }}>
+                  {origen} <span style={{ color: "#3d9e6e" }}>&rarr;</span> {destino}
+                </div>
+
+                {/* Detail line */}
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 10 }}>
+                  {tipoCarga} · {c.peso} · Retiro: {c.retiro}
+                </div>
+
+                {/* Pills */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {[
+                    `Camion: ${c.tipoCamion}`,
+                    c.hace,
+                  ].map((pill) => (
+                    <span key={pill} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--color-background-secondary)", color: "var(--color-text-tertiary)", border: "0.5px solid var(--color-border-tertiary)" }}>
+                      {pill}
+                    </span>
+                  ))}
+                  {ao && (
+                    <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "rgba(22,163,74,0.08)", color: "#16a34a", border: "0.5px solid rgba(22,163,74,0.2)" }}>
+                      {ao.driverName}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Right side: price + buttons */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10, flexShrink: 0 }}>
+                {precioDisplay && (
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "#16a34a" }}>{precioDisplay}</div>
+                )}
+                <div style={{ display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                  {!esAsignada && (
+                    <button onClick={() => onDestacado(c.titulo)} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                      Editar
+                    </button>
+                  )}
+                  {conOfertas && !esAsignada && (
+                    <button onClick={() => onVerOfertas(c)} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "none", background: "#3d9e6e", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
+                      Ver ofertas
+                    </button>
+                  )}
+                  {!conOfertas && !esAsignada && (
+                    <button onClick={() => eliminarCarga(c.id)} disabled={eliminando === c.id} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.3)", background: "transparent", color: "#ef4444", cursor: eliminando === c.id ? "not-allowed" : "pointer", opacity: eliminando === c.id ? 0.5 : 1 }}>
+                      {eliminando === c.id ? "..." : "Eliminar"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </main>
+  );
+}
+
+// ── Seccion Mis Envios ───────────────────────────────────────────────────────
+
+function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: () => void }) {
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [modalCalificar, setModalCalificar] = useState<{ offerId: string; driverName: string } | null>(null);
 
-  const publicadas  = cargas.filter((c) => c.status !== "matched" && c.status !== "in_transit" && c.status !== "delivered");
-  const matched     = cargas.filter((c) => c.status === "matched");
-  const enTransito  = cargas.filter((c) => c.status === "in_transit");
-
-  const cargasBase = tab === "Con ofertas" ? publicadas.filter((c) => c.ofertas > 0)
-    : tab === "Sin ofertas" ? publicadas.filter((c) => c.ofertas === 0)
-    : tab === "Confirmadas" ? matched
-    : tab === "En tránsito" ? enTransito
-    : publicadas;
-
-  const tabCards = [
-    { t: "Todas"       as TabItem, icon: "📦", color: "var(--color-brand)", bg: "var(--color-brand-light)", count: publicadas.length,                             desc: "Buscando camionero" },
-    { t: "Con ofertas" as TabItem, icon: "📩", color: "#3b82f6",            bg: "#eff6ff",                  count: publicadas.filter((c) => c.ofertas > 0).length, desc: "Esperando tu decisión" },
-    { t: "Sin ofertas" as TabItem, icon: "⏳", color: "#f59e0b",            bg: "#fffbeb",                  count: publicadas.filter((c) => c.ofertas === 0).length, desc: "Sin postulantes aún" },
-    { t: "Confirmadas" as TabItem, icon: "✓",  color: "#16a34a",            bg: "#f0fdf4",                  count: matched.length,                                  desc: "Esperando pago" },
-    { t: "En tránsito" as TabItem, icon: "🚛", color: "#8b5cf6",            bg: "#f5f3ff",                  count: enTransito.length,                               desc: "Viajes en curso" },
-  ];
+  const enTransito = cargas.filter((c) => c.status === "in_transit" || c.status === "accepted");
+  const entregados = cargas.filter((c) => c.status === "delivered");
 
   const confirmarLlegada = async (c: Carga) => {
     setConfirmando(c.id);
     try {
-      const res  = await fetch(`/api/loads/${c.id}/confirm`, { method: "POST" });
+      const res = await fetch(`/api/loads/${c.id}/confirm`, { method: "POST" });
       const data = await res.json();
       if (res.ok && data.offerId) {
         onRefresh();
@@ -932,102 +1125,20 @@ function SeccionMisCargas({
     }
   };
 
-  const CargaCard = ({ c }: { c: Carga }) => {
-    const partes = c.titulo.split(" — ");
-    const tipoCarga = partes[0];
-    const ruta = partes[1] ?? c.titulo;
-    const [origen, destino] = ruta.split(" → ");
-    const infoLine = [tipoCarga, c.peso, c.tipoCamion, `Retiro: ${c.retiro}`].filter(Boolean).join(" · ");
-    const conOfertas = c.ofertas > 0;
-    return (
-      <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 10, padding: "18px 20px", marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--heading-color)", marginBottom: 5 }}>
-              {origen} → {destino}
-            </div>
-            <div style={{ fontSize: 13, color: "var(--body-color)", marginBottom: 10 }}>{infoLine}</div>
-            {conOfertas
-              ? <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "#e6f4ee", color: "#2d7a54", fontWeight: 500 }}>{c.ofertas} {c.ofertas === 1 ? "oferta" : "ofertas"}</span>
-              : <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "var(--badge-neutral-bg)", color: "var(--badge-neutral-text)" }}>Sin ofertas</span>
-            }
-          </div>
-          <button
-            onClick={() => conOfertas ? onVerOfertas(c) : onDestacado(c.titulo)}
-            style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, border: conOfertas ? "none" : "1px solid var(--inactive-border)", background: conOfertas ? "var(--heading-color)" : "transparent", color: conOfertas ? "var(--card-bg)" : "var(--body-color)", cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" as const, fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}
-          >
-            {conOfertas ? "Ver ofertas →" : "Destacar carga →"}
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  const MatchedCard = ({ c }: { c: Carga }) => {
-    const ao = c.acceptedOffer;
-    const partes = c.titulo.split(" — ");
-    const tipoCarga = partes[0];
-    const ruta = partes[1] ?? c.titulo;
-    const [origen, destino] = ruta.split(" → ");
-    const infoLine = [tipoCarga, c.peso, c.tipoCamion, `Retiro: ${c.retiro}`].filter(Boolean).join(" · ");
-    return (
-      <div style={{ background: "var(--card-bg)", border: "1.5px solid #2d7a54", borderRadius: 10, padding: "18px 20px", marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--heading-color)", marginBottom: 5 }}>
-              {origen} → {destino}
-            </div>
-            <div style={{ fontSize: 13, color: "var(--body-color)", marginBottom: 10 }}>{infoLine}</div>
-            <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "#e6f4ee", color: "#2d7a54", fontWeight: 500 }}>Confirmada</span>
-            {ao && <span style={{ fontSize: 13, color: "var(--body-color)", marginLeft: 10 }}>{ao.driverName} · ${ao.precio.toLocaleString("es-AR")}</span>}
-          </div>
-          {ao && (
-            <button
-              onClick={() => onIniciarPago({ offerId: ao.offerId, cargaTitulo: c.titulo, cargaId: c.id, oferta: { nombre: ao.driverName, precio: ao.precio, offerId: ao.offerId, id: 0, iniciales: ao.driverName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2), rating: 0, viajes: 0, nota: "" } })}
-              style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, border: "none", background: "#2d7a54", color: "#fff", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const, fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}
-            >
-              Pagar →
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const InTransitCard = ({ c }: { c: Carga }) => {
-    const ao = c.acceptedOffer;
-    const partes = c.titulo.split(" — ");
-    const tipoCarga = partes[0];
-    const ruta = partes[1] ?? c.titulo;
-    const [origen, destino] = ruta.split(" → ");
-    const infoLine = [tipoCarga, c.peso, c.tipoCamion, `Retiro: ${c.retiro}`].filter(Boolean).join(" · ");
-    return (
-      <div style={{ background: "var(--card-bg)", border: "1.5px solid #8b5cf6", borderRadius: 10, padding: "18px 20px", marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--heading-color)", marginBottom: 5 }}>
-              {origen} → {destino}
-            </div>
-            <div style={{ fontSize: 13, color: "var(--body-color)", marginBottom: 10 }}>{infoLine}</div>
-            <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "#f5f3ff", color: "#7c3aed", fontWeight: 500 }}>En tránsito</span>
-            {ao && <span style={{ fontSize: 13, color: "var(--body-color)", marginLeft: 10 }}>{ao.driverName}</span>}
-          </div>
-          {ao && (
-            <button
-              onClick={() => confirmarLlegada(c)}
-              disabled={confirmando === c.id}
-              style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, border: "none", background: confirmando === c.id ? "#aaa" : "#7c3aed", color: "#fff", fontWeight: 600, cursor: confirmando === c.id ? "not-allowed" : "pointer", whiteSpace: "nowrap" as const, fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}
-            >
-              {confirmando === c.id ? "Confirmando..." : "Confirmar llegada →"}
-            </button>
-          )}
-        </div>
-      </div>
-    );
+  // Mock timeline data generator
+  const getTimeline = (c: Carga) => {
+    const createdDate = c.hace.includes("día") ? "hace " + c.hace.split("hace ")[1] : c.hace.split("hace ")[1] ?? "hace 2 dias";
+    return [
+      { label: "Carga publicada", detail: createdDate, status: "done" as const },
+      { label: "Transportista asignado", detail: c.acceptedOffer ? c.acceptedOffer.driverName : "—", status: "done" as const },
+      { label: "Carga retirada", detail: `Retiro: ${c.retiro}`, status: "done" as const },
+      { label: "En camino", detail: "Estimado: en las proximas horas", status: "active" as const },
+      { label: "Entregado", detail: "—", status: "pending" as const },
+    ];
   };
 
   return (
-    <main style={{ padding: "36px 40px", flex: 1, fontFamily: "var(--font-ibm-plex), sans-serif" }}>
+    <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
       {modalCalificar && (
         <ModalCalificarCamionero
           offerId={modalCalificar.offerId}
@@ -1036,67 +1147,121 @@ function SeccionMisCargas({
         />
       )}
 
-      {/* Título */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 34, fontWeight: 700, color: "var(--heading-color)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>Mis cargas</div>
-        <div style={{ fontSize: 14, color: "var(--muted-color)", marginTop: 6 }}>Todas las cargas que publicaste aparecen acá.</div>
-      </div>
-      <hr style={{ border: "none", borderTop: "1px solid var(--divider-color)", margin: "20px 0 24px" }} />
-
-      {/* Tab cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10, marginBottom: 28 }}>
-        {tabCards.map(({ t, count }) => {
-          const activo = tab === t;
-          return (
-            <button key={t} onClick={() => setTab(t)} style={{
-              border: activo ? "1.5px solid #2d7a54" : "1.5px solid var(--card-border)",
-              borderRadius: 10,
-              background: "var(--card-bg)",
-              padding: "18px 16px",
-              cursor: "pointer",
-              textAlign: "center" as const,
-              fontFamily: "var(--font-ibm-plex), sans-serif",
-              boxShadow: activo ? "none" : "0 2px 8px rgba(0,0,0,0.12)",
-            }}>
-              <div style={{ fontSize: 36, fontWeight: 700, color: "var(--heading-color)", lineHeight: 1, marginBottom: 8 }}>{count}</div>
-              <div style={{ fontSize: 16, color: activo ? "#2d7a54" : "var(--body-color)", fontWeight: activo ? 600 : 400 }}>{t}</div>
-            </button>
-          );
-        })}
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", margin: 0 }}>Mis envios</h1>
+        <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Segui el estado de tus cargas en transito</p>
       </div>
 
-      {loading && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+      {/* Active shipments */}
+      {enTransito.length === 0 && entregados.length === 0 && (
+        <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 48, textAlign: "center" }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(61,158,110,0.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+            <FontAwesomeIcon icon={faTruckFast} style={{ width: 20, height: 20, color: "#3d9e6e" }} />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>No tenes envios en curso</div>
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Cuando asignes un transportista a una carga, el envio aparecera aca.</div>
+        </div>
+      )}
 
-      {!loading && (
+      {enTransito.map((c) => {
+        const partes = c.titulo.split(" — ");
+        const tipoCarga = partes[0];
+        const ruta = partes[1] ?? c.titulo;
+        const [origen, destino] = ruta.split(" → ");
+        const ao = c.acceptedOffer;
+        const timeline = getTimeline(c);
+
+        // Mock data for fields not in the Carga interface
+        const mockPatente = "AB 123 CD";
+        const mockCamionTipo = c.tipoCamion || "Semirremolque";
+
+        return (
+          <div key={c.id} style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 24, marginBottom: 16 }}>
+            {/* Top row: badge + buttons */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 10px", borderRadius: 4, textTransform: "uppercase" as const, letterSpacing: "0.06em", background: "rgba(22,163,74,0.12)", color: "#16a34a" }}>
+                EN TRANSITO
+              </span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ fontSize: 14 }}>&#9993;</span> Chat
+                </button>
+                <button
+                  onClick={() => confirmarLlegada(c)}
+                  disabled={confirmando === c.id}
+                  style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "none", background: confirmando === c.id ? "#aaa" : "#3d9e6e", color: "#fff", cursor: confirmando === c.id ? "not-allowed" : "pointer", fontWeight: 600 }}
+                >
+                  {confirmando === c.id ? "Confirmando..." : "Confirmar llegada"}
+                </button>
+              </div>
+            </div>
+
+            {/* Route */}
+            <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 8 }}>
+              {origen} <span style={{ color: "#3d9e6e" }}>&rarr;</span> {destino}
+            </div>
+
+            {/* Transportista info */}
+            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>
+              {ao?.driverName ?? "Transportista"} · {mockCamionTipo} · {mockPatente}
+              {ao && <span style={{ marginLeft: 8, fontWeight: 600, color: "#16a34a" }}>${ao.precio.toLocaleString("es-AR")}</span>}
+            </div>
+
+            {/* Timeline */}
+            <div style={{ position: "relative", paddingLeft: 24 }}>
+              {/* Vertical line */}
+              <div style={{ position: "absolute", left: 5, top: 6, bottom: 6, width: 2, background: "var(--color-border-tertiary)" }} />
+
+              {timeline.map((step, i) => {
+                const dotStyle: React.CSSProperties = step.status === "done"
+                  ? { width: 12, height: 12, borderRadius: "50%", background: "#16a34a", position: "absolute", left: 0, top: 2 }
+                  : step.status === "active"
+                  ? { width: 12, height: 12, borderRadius: "50%", background: "transparent", border: "2.5px solid #16a34a", position: "absolute", left: 0, top: 2, boxSizing: "border-box" as const }
+                  : { width: 12, height: 12, borderRadius: "50%", background: "transparent", border: "2px solid var(--color-border-secondary)", position: "absolute", left: 0, top: 2, boxSizing: "border-box" as const };
+
+                return (
+                  <div key={i} style={{ position: "relative", paddingBottom: i < timeline.length - 1 ? 20 : 0, paddingLeft: 16 }}>
+                    <div style={dotStyle} />
+                    <div style={{ fontSize: 13, fontWeight: step.status === "active" ? 600 : step.status === "done" ? 500 : 400, color: step.status === "pending" ? "var(--color-text-tertiary)" : "var(--color-text-primary)" }}>
+                      {step.label}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 1 }}>{step.detail}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Historial de envios */}
+      {entregados.length > 0 && (
         <>
-          {tab === "Confirmadas" ? (
-            matched.length === 0 ? (
-              <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>✓</div>
-                No tenés cargas con camionero confirmado todavía.
+          <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text-primary)", margin: "28px 0 14px" }}>Historial de envios</h2>
+          {entregados.map((c) => {
+            const partes = c.titulo.split(" — ");
+            const tipoCarga = partes[0];
+            const ruta = partes[1] ?? c.titulo;
+            const [origen, destino] = ruta.split(" → ");
+            const ao = c.acceptedOffer;
+            return (
+              <div key={c.id} style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: "14px 18px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 3 }}>
+                    {origen} <span style={{ color: "#3d9e6e" }}>&rarr;</span> {destino}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                    {tipoCarga} · {ao?.driverName ?? "—"} · Retiro: {c.retiro}
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {ao && <span style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text-primary)" }}>${ao.precio.toLocaleString("es-AR")}</span>}
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: "rgba(22,163,74,0.12)", color: "#16a34a", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>Entregado</span>
+                </div>
               </div>
-            ) : (
-              matched.map((c) => <MatchedCard key={c.id} c={c} />)
-            )
-          ) : tab === "En tránsito" ? (
-            enTransito.length === 0 ? (
-              <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>🚛</div>
-                No tenés viajes en tránsito ahora.
-              </div>
-            ) : (
-              enTransito.map((c) => <InTransitCard key={c.id} c={c} />)
-            )
-          ) : (
-            cargasBase.length === 0 ? (
-              <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>📦</div>
-                {tab === "Todas" ? "No tenés cargas publicadas. Usá el botón \u201C+ Publicar carga\u201D para comenzar." : `No hay cargas en la categoría "${tab}".`}
-              </div>
-            ) : (
-              cargasBase.map((c) => <CargaCard key={c.id} c={c} />)
-            )
-          )}
+            );
+          })}
         </>
       )}
     </main>
@@ -1608,9 +1773,10 @@ function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userN
 
 const NAV_ITEMS: { item: NavItem; icon: IconDefinition }[] = [
   { item: "Inicio",       icon: faHouse },
-  { item: "Mis cargas",  icon: faBoxOpen },
-  { item: "Historial",   icon: faClockRotateLeft },
-  { item: "Facturación", icon: faFileInvoiceDollar },
+  { item: "Mis cargas",   icon: faBoxOpen },
+  { item: "Mis envios",   icon: faTruckFast },
+  { item: "Historial",    icon: faClockRotateLeft },
+  { item: "Facturación",  icon: faFileInvoiceDollar },
 ];
 
 export default function DadorDashboard() {
@@ -1724,11 +1890,13 @@ export default function DadorDashboard() {
             cargas={cargas}
             loading={loadingCargas}
             onVerOfertas={(c) => setModalOfertas(c)}
-            onDestacado={(titulo) => mostrarToast(`Carga "${titulo.split("—")[0].trim()}" destacada. Más camioneros la verán primero.`)}
+            onDestacado={(titulo) => mostrarToast(`Carga "${titulo.split("—")[0].trim()}" destacada. Mas camioneros la veran primero.`)}
             onIniciarPago={(sel) => setModalPago(sel)}
             onRefresh={fetchCargas}
+            onPublicar={() => setModalPublicar(true)}
           />
         )}
+        {navActivo === "Mis envios" && <SeccionMisEnvios cargas={cargas} onRefresh={fetchCargas} />}
         {navActivo === "Historial" && <SeccionHistorial />}
         {navActivo === "Facturación" && <SeccionFacturacion />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
