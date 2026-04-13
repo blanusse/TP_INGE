@@ -152,10 +152,10 @@ function LoginInner() {
 
   // ── Panel izquierdo (branding) ─────────────────────────────────────────────
   const panelIzq = (
-    <div style={{ background: "linear-gradient(160deg, #0a1510 0%, #0f6e56 70%, #1d9e75 100%)", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "40px 36px", height: "100%" }}>
+    <div style={{ background: "linear-gradient(160deg, #0a1510 0%, #3a806b 70%, #3a806b 100%)", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "40px 36px", height: "100%" }}>
       <button onClick={handleBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}>
         <div style={{ fontSize: 36, fontWeight: 800, color: "#fff", letterSpacing: -1 }}>
-          Carga<span style={{ color: "#6ee7b7" }}>Back</span>
+          Carga<span style={{ color: "#5cb899" }}>Back</span>
         </div>
       </button>
 
@@ -172,19 +172,19 @@ function LoginInner() {
             { valor: "12 min", label: "Tiempo de match" },
           ].map((s) => (
             <div key={s.label} style={{ background: "rgba(255,255,255,0.07)", border: "0.5px solid rgba(255,255,255,0.12)", borderRadius: 12, padding: "16px 14px" }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "#6ee7b7", letterSpacing: -1, lineHeight: 1 }}>{s.valor}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "#5cb899", letterSpacing: -1, lineHeight: 1 }}>{s.valor}</div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 5, lineHeight: 1.3 }}>{s.label}</div>
             </div>
           ))}
         </div>
 
         <div style={{ background: "rgba(255,255,255,0.07)", border: "0.5px solid rgba(255,255,255,0.12)", borderRadius: 14, padding: "20px 18px" }}>
-          <div style={{ fontSize: 22, color: "#6ee7b7", marginBottom: 10, lineHeight: 1 }}>"</div>
+          <div style={{ fontSize: 22, color: "#5cb899", marginBottom: 10, lineHeight: 1 }}>"</div>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.65, margin: "0 0 16px", fontStyle: "italic" }}>
             Antes volvía vacío de Buenos Aires siempre. Ahora en 20 minutos encuentro carga para el regreso. Cambió todo.
           </p>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#1d9e75,#6ee7b7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>C</div>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#3a806b,#5cb899)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>C</div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>Carlos M.</div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>Transportista · Rosario</div>
@@ -198,37 +198,41 @@ function LoginInner() {
   );
 
   const panelDer = (
-    <div style={{ background: "#fff", display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}>
+    <div style={{ background: "#000", display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "40px 64px" }}>
 
         {/* ── Inicio ── */}
         {paso === "inicio" && (
           <div style={{ maxWidth: 380, width: "100%" }}>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0a1510", marginBottom: 8, letterSpacing: -0.5 }}>Bienvenido</h1>
-            <p style={{ fontSize: 15, color: "var(--color-text-secondary)", marginBottom: 32 }}>¿Qué querés hacer?</p>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: "#fff", marginBottom: 8, letterSpacing: -0.5 }}>Bienvenido</h1>
+            <p style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", marginBottom: 32 }}>¿Qué querés hacer?</p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <button onClick={() => { resetForm(); setPaso("login"); }}
-                style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderRadius: 12, border: "1.5px solid var(--color-border-secondary)", background: "#fff", cursor: "pointer", textAlign: "left", width: "100%", transition: "all 0.15s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-brand)"; e.currentTarget.style.boxShadow = "0 0 0 3px #1d9e7515"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border-secondary)"; e.currentTarget.style.boxShadow = "none"; }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--color-brand-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>👤</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#0a1510" }}>Iniciar sesión</div>
-                  <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", marginTop: 2 }}>Ya tengo una cuenta</div>
+                style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.2)", background: "#000", cursor: "pointer", textAlign: "left", width: "100%", transition: "all 0.15s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#3a806b"; e.currentTarget.style.boxShadow = "0 0 0 3px #3a806b15"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; e.currentTarget.style.boxShadow = "none"; }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: "#3a806b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
-                <span style={{ color: "var(--color-text-secondary)", fontSize: 18 }}>→</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Iniciar sesión</div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>Ya tengo una cuenta</div>
+                </div>
+                <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 18 }}>→</span>
               </button>
 
               <button onClick={() => { resetForm(); setPaso("perfil"); }}
-                style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderRadius: 12, border: "1.5px solid var(--color-border-secundary)", background: "#fff", cursor: "pointer", textAlign: "left", width: "100%", transition: "all 0.15s"  }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-brand)"; e.currentTarget.style.boxShadow = "0 0 0 3px #1d9e7515"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border-secondary)"; e.currentTarget.style.boxShadow = "none"; }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--color-brand)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>✨</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#0a1510" }}>Registrarse gratis</div>
-                  <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 2 }}>Crear cuenta nueva</div>
+                style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.2)", background: "#000", cursor: "pointer", textAlign: "left", width: "100%", transition: "all 0.15s" }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#3a806b"; e.currentTarget.style.boxShadow = "0 0 0 3px #3a806b15"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; e.currentTarget.style.boxShadow = "none"; }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: "#3a806b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
                 </div>
-                <span style={{ color: "var(--color-brand)", fontSize: 18 }}>→</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Registrarse gratis</div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Crear cuenta nueva</div>
+                </div>
+                <span style={{ color: "#3a806b", fontSize: 18 }}>→</span>
               </button>
             </div>
           </div>
@@ -238,14 +242,14 @@ function LoginInner() {
         {paso === "login" && (
           <div style={{ maxWidth: 400, width: "100%" }}>
             <BtnVolver onClick={irAInicio} />
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 4, letterSpacing: -0.5 }}>Iniciá sesión</h1>
-            <p style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 28 }}>Ingresá con tu email y contraseña</p>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: -0.5 }}>Iniciá sesión</h1>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 28 }}>Ingresá con tu email y contraseña</p>
 
             <form onSubmit={handleLogin} noValidate style={{ display: "flex", flexDirection: "column", gap: 0 }}>
               <Campo label="Email" id="email" type="email" autoComplete="email" value={email} onChange={setEmail} placeholder="tu@email.com" />
               <CampoPassword label="Contraseña" value={password} onChange={setPassword} mostrar={mostrarPwd} onToggle={() => setMostrarPwd(!mostrarPwd)} placeholder="Tu contraseña" />
               <div style={{ textAlign: "right", marginBottom: 20 }}>
-                <button type="button" style={{ background: "none", border: "none", fontSize: 13, color: "var(--color-brand)", cursor: "pointer", padding: 0, fontWeight: 500 }}
+                <button type="button" style={{ background: "none", border: "none", fontSize: 13, color: "#3a806b", cursor: "pointer", padding: 0, fontWeight: 500 }}
                   onClick={() => alert("Próximamente: recuperación de contraseña.")}>
                   ¿Olvidaste tu contraseña?
                 </button>
@@ -255,7 +259,7 @@ function LoginInner() {
             </form>
 
             <Divider />
-            <p style={{ textAlign: "center", fontSize: 14, color: "var(--color-text-secondary)" }}>
+            <p style={{ textAlign: "center", fontSize: 14, color: "rgba(255,255,255,0.7)" }}>
               ¿No tenés cuenta?{" "}
               <button onClick={() => { resetForm(); setPaso("perfil"); }} style={linkBtnStyle}>Registrate gratis</button>
             </p>
@@ -264,56 +268,57 @@ function LoginInner() {
 
         {/* ── Selección de perfil ── */}
         {paso === "perfil" && (
-          <div style={{ maxWidth: 520, width: "100%" }}>
+          <div style={{ maxWidth: 560, width: "100%" }}>
             <BtnVolver onClick={irAInicio} />
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 4, letterSpacing: -0.5 }}>Crear cuenta</h1>
-            <p style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 24 }}>¿Cuál describe mejor tu rol?</p>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: -0.5 }}>Crear cuenta</h1>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 24 }}>¿Cuál describe mejor tu rol?</p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               {([
                 {
                   id: "transportista" as Perfil,
-                  icono: "🚛", titulo: "Soy transportista",
-                  subtitulo: "Camionero independiente o empresa de flota",
-                  color: "#0f6e56", bg: "#e1f5ee", border: "#1d9e75",
+                  icono: (<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>),
+                  titulo: "Soy transportista",
+                  color: "#3a806b",
                   features: ["Encontrá cargas para tu vuelta en minutos", "Ofertá tu precio directamente", "Gestioná tu flota desde un panel unificado"],
                 },
                 {
                   id: "dador" as Perfil,
-                  icono: "📦", titulo: "Tengo cargas para enviar",
-                  subtitulo: "Empresa o persona que necesita transporte",
-                  color: "#7c3aed", bg: "#f3f0ff", border: "#7c3aed",
+                  icono: (<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><line x1="12" y1="22" x2="12" y2="12"/></svg>),
+                  titulo: "Tengo cargas para enviar",
+                  color: "#3a806b",
                   features: ["Publicá tu carga en menos de 2 minutos", "Recibí ofertas de transportistas verificados", "Seguimiento en tiempo real de cada envío"],
                 },
               ]).map((p) => (
-                <button key={p.id} onClick={() => handleSeleccionarPerfil(p.id)}
-                  style={{ display: "block", padding: 0, borderRadius: 14, border: `1.5px solid ${p.border}33`, background: "#fff", cursor: "pointer", textAlign: "left", width: "100%", overflow: "hidden", transition: "box-shadow 0.15s, border-color 0.15s" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 20px ${p.border}22`; e.currentTarget.style.borderColor = p.border; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = `${p.border}33`; }}>
-                  <div style={{ background: p.bg, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <span style={{ fontSize: 28 }}>{p.icono}</span>
-                      <div>
-                        <span style={{ fontSize: 16, fontWeight: 800, color: p.color, display: "block" }}>{p.titulo}</span>
-                        <span style={{ fontSize: 12, color: p.color, opacity: 0.7 }}>{p.subtitulo}</span>
-                      </div>
-                    </div>
-                    <span style={{ fontSize: 18, color: p.color, opacity: 0.7 }}>→</span>
-                  </div>
-                  <div style={{ padding: "14px 20px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
+                <div key={p.id} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, border: "0.5px solid rgba(255,255,255,0.2)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                  <div style={{ padding: "20px 20px 14px" }}>
+                    <div style={{ marginBottom: 12 }}>{p.icono}</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: p.color, marginBottom: 14, lineHeight: 1.3 }}>{p.titulo}</div>
                     {p.features.map((f) => (
-                      <div key={f} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ color: p.color, fontSize: 12, flexShrink: 0 }}>✓</span>
-                        <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{f}</span>
+                      <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+                        <span style={{ color: p.color, flexShrink: 0, marginTop: 1 }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </span>
+                        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", lineHeight: 1.5 }}>{f}</span>
                       </div>
                     ))}
                   </div>
-                </button>
+                  <div style={{ display: "flex", gap: 8, padding: "12px 20px 20px", marginTop: "auto" }}>
+                    <button onClick={() => handleSeleccionarPerfil(p.id)}
+                      style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: "8px", borderRadius: 8, background: p.color, color: "#fff", border: "none", cursor: "pointer", textAlign: "center" as const }}>
+                      Registrarme →
+                    </button>
+                    <button onClick={() => handleSeleccionarPerfil(p.id)}
+                      style={{ fontSize: 12, padding: "8px 12px", borderRadius: 8, background: "none", color: "rgba(255,255,255,0.4)", border: "0.5px solid rgba(255,255,255,0.15)", cursor: "pointer" }}>
+                      Más info
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
 
             <Divider />
-            <p style={{ textAlign: "center", fontSize: 14, color: "var(--color-text-secondary)" }}>
+            <p style={{ textAlign: "center", fontSize: 14, color: "rgba(255,255,255,0.7)" }}>
               ¿Ya tenés cuenta?{" "}
               <button onClick={() => { resetForm(); setPaso("login"); }} style={linkBtnStyle}>Iniciá sesión</button>
             </p>
@@ -324,24 +329,24 @@ function LoginInner() {
         {paso === "dador-tipo" && (
           <div style={{ maxWidth: 420, width: "100%" }}>
             <BtnVolver onClick={irAPerfil} />
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 4, letterSpacing: -0.5 }}>Dador de carga</h1>
-            <p style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 28 }}>¿Cómo vas a operar?</p>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: -0.5 }}>Dador de carga</h1>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 28 }}>¿Cómo vas a operar?</p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {([
-                { id: "personal" as TipoDador, icono: "👤", titulo: "Persona física",   sub: "Publico cargas a título personal" },
-                { id: "empresa"  as TipoDador, icono: "🏢", titulo: "Empresa / S.R.L.", sub: "Opero con razón social y CUIT" },
+                { id: "personal" as TipoDador, icono: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>), titulo: "Persona física",   sub: "Publico cargas a título personal" },
+                { id: "empresa"  as TipoDador, icono: (<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>), titulo: "Empresa / S.R.L.", sub: "Opero con razón social y CUIT" },
               ] as const).map((op) => (
                 <button key={op.id} onClick={() => handleSeleccionarTipoDador(op.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", borderRadius: 12, border: "1.5px solid var(--color-border-secondary)", background: "#fff", cursor: "pointer", textAlign: "left", width: "100%" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-brand)"; e.currentTarget.style.background = "var(--color-brand-light)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border-secondary)"; e.currentTarget.style.background = "#fff"; }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 10, background: "var(--color-background-secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{op.icono}</div>
+                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.2)", background: "#000", cursor: "pointer", textAlign: "left", width: "100%" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#3a806b"; e.currentTarget.style.background = "rgba(58,128,107,0.15)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; e.currentTarget.style.background = "#000"; }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 10, background: "#3a806b", display: "flex", alignItems: "center", justifyContent: "center" }}>{op.icono}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0a1510" }}>{op.titulo}</div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 2 }}>{op.sub}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{op.titulo}</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{op.sub}</div>
                   </div>
-                  <span style={{ color: "var(--color-text-tertiary)", fontSize: 18 }}>→</span>
+                  <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 18 }}>→</span>
                 </button>
               ))}
             </div>
@@ -353,9 +358,13 @@ function LoginInner() {
           <div style={{ maxWidth: 520, width: "100%" }}>
             <BtnVolver onClick={perfil === "dador" ? () => setPaso("dador-tipo") : irAPerfil} />
             <div style={{ marginBottom: 24 }}>
-              <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0a1510", marginBottom: 8, letterSpacing: -0.5 }}>Crear cuenta</h1>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
-                {perfil === "transportista" ? "🚛 Transportista" : "📦 Dador de carga"}
+              <h1 style={{ fontSize: 26, fontWeight: 800, color: "#fff", marginBottom: 8, letterSpacing: -0.5 }}>Crear cuenta</h1>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(58,128,107,0.15)", color: "#3a806b", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
+                {perfil === "transportista" ? (
+                  <><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Transportista</>
+                ) : (
+                  <><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><line x1="12" y1="22" x2="12" y2="12"/></svg> Dador de carga</>
+                )}
                 {perfil === "dador" && tipoDador === "empresa" ? " · Empresa" : perfil === "dador" ? " · Personal" : ""}
               </div>
             </div>
@@ -386,9 +395,9 @@ function LoginInner() {
               </>}
 
               {perfil === "transportista" && (
-                <div style={{ background: "var(--color-brand-light)", border: "0.5px solid var(--color-brand)", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
-                  <p style={{ fontSize: 13, color: "var(--color-brand-dark)", margin: 0, lineHeight: 1.5 }}>
-                    🚛 <strong>Una vez que ingreses</strong>, vas a poder agregar tus camiones y conductores desde la sección <strong>Mi flota</strong>.
+                <div style={{ background: "rgba(58,128,107,0.15)", border: "0.5px solid #3a806b", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+                  <p style={{ fontSize: 13, color: "#3a806b", margin: 0, lineHeight: 1.5 }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }}><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> <strong>Una vez que ingreses</strong>, vas a poder agregar tus camiones y conductores desde la sección <strong>Mi flota</strong>.
                   </p>
                 </div>
               )}
@@ -400,9 +409,9 @@ function LoginInner() {
               {error && <MensajeError mensaje={error} />}
 
               <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 20 }}>
-                <input type="checkbox" id="terminos" checked={aceptaTerminos} onChange={(e) => setAceptaTerminos(e.target.checked)} style={{ marginTop: 3, accentColor: "var(--color-brand)", cursor: "pointer", width: 15, height: 15 }} />
-                <label htmlFor="terminos" style={{ fontSize: 13, color: "var(--color-text-secondary)", cursor: "pointer", lineHeight: 1.4 }}>
-                  Acepto los <span style={{ color: "var(--color-brand)", fontWeight: 600 }}>términos y condiciones</span> y la <span style={{ color: "var(--color-brand)", fontWeight: 600 }}>política de privacidad</span>
+                <input type="checkbox" id="terminos" checked={aceptaTerminos} onChange={(e) => setAceptaTerminos(e.target.checked)} style={{ marginTop: 3, accentColor: "#3a806b", cursor: "pointer", width: 15, height: 15 }} />
+                <label htmlFor="terminos" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", cursor: "pointer", lineHeight: 1.4 }}>
+                  Acepto los <span style={{ color: "#3a806b", fontWeight: 600 }}>términos y condiciones</span> y la <span style={{ color: "#3a806b", fontWeight: 600 }}>política de privacidad</span>
                 </label>
               </div>
 
@@ -410,7 +419,7 @@ function LoginInner() {
             </form>
 
             <Divider />
-            <p style={{ textAlign: "center", fontSize: 14, color: "var(--color-text-secondary)" }}>
+            <p style={{ textAlign: "center", fontSize: 14, color: "rgba(255,255,255,0.7)" }}>
               ¿Ya tenés cuenta?{" "}
               <button onClick={() => { resetForm(); setPaso("login"); }} style={linkBtnStyle}>Iniciá sesión</button>
             </p>
@@ -431,6 +440,20 @@ function LoginInner() {
         }
         .login-panel-izq { height: 100vh; overflow-y: auto; position: sticky; top: 0; }
         .login-panel-der { height: 100vh; overflow-y: auto; }
+        .login-panel-der input {
+          border: 1.5px solid rgba(255,255,255,0.2) !important;
+          outline: none !important;
+        }
+        .login-panel-der input:focus {
+          border: 1.5px solid rgba(255,255,255,0.4) !important;
+        }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+          border: 1.5px solid rgba(255,255,255,0.2) !important;
+          -webkit-box-shadow: 0 0 0 1000px #111 inset !important;
+          -webkit-text-fill-color: #fff !important;
+        }
       `}</style>
       <div className="login-grid">
         <div className="login-panel-izq">{panelIzq}</div>
@@ -448,7 +471,7 @@ export default function LoginPage() {
 
 function BtnVolver({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "var(--color-background-secondary)", border: "1.5px solid var(--color-border-secondary)", cursor: "pointer", color: "var(--color-text-primary)", fontSize: 14, padding: "8px 16px", marginBottom: 24, fontWeight: 600, borderRadius: 8 }}>
+    <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.08)", border: "1.5px solid rgba(255,255,255,0.2)", cursor: "pointer", color: "#fff", fontSize: 14, padding: "8px 16px", marginBottom: 24, fontWeight: 600, borderRadius: 8 }}>
       ← Volver
     </button>
   );
@@ -462,7 +485,7 @@ function Separador({ label }: { label: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 16px" }}>
       <div style={{ flex: 1, height: "0.5px", background: "var(--color-border-tertiary)" }} />
-      <span style={{ fontSize: 12, color: "var(--color-text-tertiary)", whiteSpace: "nowrap", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</span>
+      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</span>
       <div style={{ flex: 1, height: "0.5px", background: "var(--color-border-tertiary)" }} />
     </div>
   );
@@ -499,7 +522,7 @@ function CampoPassword({ label, value, onChange, mostrar, onToggle, placeholder,
         <input type={mostrar ? "text" : "password"} autoComplete={autoComplete} value={value}
           onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
           style={{ ...inputStyle, paddingRight: 64 }} />
-        <button type="button" onClick={onToggle} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-brand)", fontSize: 12, padding: 0, fontWeight: 600 }}>
+        <button type="button" onClick={onToggle} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#3a806b", fontSize: 12, padding: 0, fontWeight: 600 }}>
           {mostrar ? "Ocultar" : "Mostrar"}
         </button>
       </div>
@@ -529,24 +552,24 @@ function MensajeError({ mensaje }: { mensaje: string }) {
 
 function BtnPrimario({ isPending, label, labelPending }: { isPending: boolean; label: string; labelPending: string }) {
   return (
-    <button type="submit" disabled={isPending} style={{ width: "100%", fontSize: 15, padding: "13px", borderRadius: 12, background: isPending ? "#a7d7c5" : "var(--color-brand)", border: "none", color: "#fff", fontWeight: 700, cursor: isPending ? "not-allowed" : "pointer", letterSpacing: 0.2, boxShadow: isPending ? "none" : "0 4px 14px #1d9e7530" }}>
+    <button type="submit" disabled={isPending} style={{ width: "100%", fontSize: 15, padding: "13px", borderRadius: 12, background: isPending ? "#a7d7c5" : "#3a806b", border: "none", color: "#fff", fontWeight: 700, cursor: isPending ? "not-allowed" : "pointer", letterSpacing: 0.2, boxShadow: isPending ? "none" : "0 4px 14px #3a806b30" }}>
       {isPending ? labelPending : label}
     </button>
   );
 }
 
 // ── Estilos ───────────────────────────────────────────────────────────────────
-const linkBtnStyle: React.CSSProperties = { background: "none", border: "none", color: "var(--color-brand)", fontWeight: 700, cursor: "pointer", fontSize: 14, padding: 0 };
+const linkBtnStyle: React.CSSProperties = { background: "none", border: "none", color: "#3a806b", fontWeight: 700, cursor: "pointer", fontSize: 14, padding: 0 };
 
 const labelStyle: React.CSSProperties = {
   display: "block", fontSize: 13, fontWeight: 700,
-  color: "#0a1510", marginBottom: 7, letterSpacing: 0.1,
+  color: "#fff", marginBottom: 7, letterSpacing: 0.1,
 };
 
 const inputStyle: React.CSSProperties = {
   width: "100%", fontSize: 15, padding: "11px 14px",
-  borderRadius: 10, border: "1.5px solid var(--color-border-secondary)",
-  background: "#fff", color: "#0a1510", outline: "none",
+  borderRadius: 10, border: "1.5px solid rgba(255,255,255,0.2)",
+  background: "#111", color: "#fff", outline: "none",
   boxSizing: "border-box", transition: "border-color 0.15s",
 };
 

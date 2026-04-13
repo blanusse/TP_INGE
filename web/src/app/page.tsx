@@ -47,7 +47,7 @@ export default async function Home() {
       </section>
 
       {/* ── Stats ────────────────────────────────────────────────────────────── */}
-      <section style={{ background: "var(--color-background-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)", padding: "36px 48px" }}>
+      <section style={{ background: "#3a806b", borderBottom: "none", padding: "36px 48px" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24, textAlign: "center" }}>
           {[
             { valor: "3.400+",  label: "Camioneros registrados" },
@@ -56,8 +56,8 @@ export default async function Home() {
             { valor: "12 min",  label: "Tiempo promedio de match" },
           ].map((s) => (
             <div key={s.label}>
-              <div style={{ fontSize: 32, fontWeight: 800, color: "#3a806b", letterSpacing: -1 }}>{s.valor}</div>
-              <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 4 }}>{s.label}</div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: -1 }}>{s.valor}</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", marginTop: 4 }}>{s.label}</div>
             </div>
           ))}
         </div>
