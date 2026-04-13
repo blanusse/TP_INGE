@@ -274,7 +274,7 @@ export default async function Home() {
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 14, color: "rgba(255,255,255,0.5)" }}>Contacto</div>
-              {["hola@cargaback.com.ar", "+54 11 5555-0100", "Instagram", "LinkedIn"].map((l) => (
+              {["cargaback.int@gmail.com", "+54 9 11 7166-0411", "Instagram", "LinkedIn"].map((l) => (
                 <div key={l} style={{ marginBottom: 8 }}><a href="#" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", textDecoration: "none" }}>{l}</a></div>
               ))}
             </div>
