@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBoxOpen, faClockRotateLeft, faFileInvoiceDollar } from "@fortawesome/free-solid-svg-icons";
+import { faBoxOpen, faClockRotateLeft, faFileInvoiceDollar, faHouse } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 // ── Datos ────────────────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Mis cargas" | "Historial" | "Facturación" | "Mi perfil";
+type NavItem = "Inicio" | "Mis cargas" | "Historial" | "Facturación" | "Mi perfil";
 type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tránsito";
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; }
@@ -1417,9 +1417,197 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   );
 }
 
+// ── SeccionInicio (KPIs + dashboard) ─────────────────────────────────────────
+
+interface DadorStats {
+  totalCargas: number;
+  enTransito: number;
+  memberSince: string;
+  calificacionPromedio: number | null;
+  razonSocial: string | null;
+  cuit: string | null;
+  address: string | null;
+  gastoEsteMes?: number;
+  tiempoPromedioAsignacion?: number;
+  gastosUltimos6Meses?: { mes: string; monto: number }[];
+}
+
+interface OfertaReciente {
+  id: string;
+  offerId: string;
+  loadTitle: string;
+  driverName: string;
+  precio: number;
+  status: string;
+}
+
+function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userName: string; onNavegar: (nav: NavItem) => void }) {
+  const [stats, setStats] = useState<DadorStats | null>(null);
+  const [ofertas, setOfertas] = useState<OfertaReciente[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/stats/dador").then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/offers?role=dador").then((r) => (r.ok ? r.json() : null)),
+    ]).then(([s, o]) => {
+      if (s) setStats(s);
+      if (o?.offers) setOfertas(o.offers.slice(0, 4));
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  const primerNombre = userName.split(" ")[0];
+  const hoy = new Date();
+  const fechaFormateada = hoy.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+
+  const pendientes = cargas.filter((c) => c.ofertas > 0 && c.status !== "accepted" && c.status !== "in_transit").length;
+  const enTransito = cargas.filter((c) => c.status === "in_transit");
+
+  const kpis = [
+    { label: "Gasto este mes", value: stats?.gastoEsteMes != null ? `$${stats.gastoEsteMes.toLocaleString("es-AR")}` : "$0", icon: "fa-solid fa-dollar-sign", color: "#16a34a" },
+    { label: "Cargas activas", value: cargas.filter((c) => c.status === "published" || c.status === "in_transit").length, icon: "fa-solid fa-box", color: "#3b82f6" },
+    { label: "Tiempo prom. asignación", value: stats?.tiempoPromedioAsignacion != null ? `${stats.tiempoPromedioAsignacion}h` : "—", icon: "fa-solid fa-clock", color: "#f59e0b" },
+    { label: "Ofertas pendientes", value: pendientes, icon: "fa-solid fa-handshake", color: "#8b5cf6" },
+  ];
+
+  const statusLabel: Record<string, { text: string; bg: string; color: string }> = {
+    pending: { text: "Pendiente", bg: "rgba(245,158,11,0.1)", color: "#f59e0b" },
+    countered: { text: "Contraofertada", bg: "rgba(59,130,246,0.1)", color: "#3b82f6" },
+    accepted: { text: "Aceptada", bg: "rgba(22,163,74,0.1)", color: "#16a34a" },
+    rejected: { text: "Rechazada", bg: "rgba(239,68,68,0.1)", color: "#ef4444" },
+  };
+
+  const meses = stats?.gastosUltimos6Meses ?? [];
+  const maxMonto = Math.max(...meses.map((m) => m.monto), 1);
+
+  return (
+    <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%" }}>
+      {/* Saludo */}
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", margin: 0, fontFamily: "var(--font-ibm-plex), sans-serif" }}>
+          Hola, {primerNombre}
+        </h1>
+        <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0", textTransform: "capitalize" }}>{fechaFormateada}</p>
+      </div>
+
+      {/* Alerta ofertas pendientes */}
+      {pendientes > 0 && (
+        <div
+          onClick={() => onNavegar("Mis cargas")}
+          style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 10, marginBottom: 20, cursor: "pointer" }}
+        >
+          <i className="fa-solid fa-circle-info" style={{ color: "#3b82f6", fontSize: 15 }} />
+          <span style={{ fontSize: 13, color: "#3b82f6", fontWeight: 500 }}>
+            Tenés {pendientes} carga{pendientes > 1 ? "s" : ""} con ofertas pendientes de revisión
+          </span>
+        </div>
+      )}
+
+      {/* KPIs */}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-secondary)", fontSize: 13 }}>Cargando...</div>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+            {kpis.map((k, i) => (
+              <div key={i} style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-primary)", borderRadius: 10, padding: "16px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: `${k.color}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <i className={k.icon} style={{ fontSize: 12, color: k.color }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 500 }}>{k.label}</span>
+                </div>
+                <span style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)" }}>{k.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Dos paneles */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+            {/* Ofertas recientes */}
+            <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-primary)", borderRadius: 10, padding: 18 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: "0 0 14px" }}>Ofertas recientes</h3>
+              {ofertas.length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>No hay ofertas recientes</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {ofertas.map((o) => {
+                    const st = statusLabel[o.status] ?? statusLabel.pending;
+                    return (
+                      <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--color-background-secondary)", borderRadius: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{o.driverName}</div>
+                          <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2 }}>{o.loadTitle}</div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: "#16a34a" }}>${o.precio.toLocaleString("es-AR")}</span>
+                          <span style={{ fontSize: 11, fontWeight: 500, padding: "3px 8px", borderRadius: 6, background: st.bg, color: st.color }}>{st.text}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Envio en curso */}
+            <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-primary)", borderRadius: 10, padding: 18 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: "0 0 14px" }}>Envio en curso</h3>
+              {enTransito.length === 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "30px 0", color: "var(--color-text-secondary)" }}>
+                  <i className="fa-solid fa-truck" style={{ fontSize: 28, marginBottom: 10, opacity: 0.3 }} />
+                  <span style={{ fontSize: 13 }}>No hay envios en curso</span>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {enTransito.slice(0, 1).map((c) => (
+                    <div key={c.id} style={{ background: "linear-gradient(135deg, #1a1a2e, #16213e)", borderRadius: 10, padding: 16, color: "#fff" }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>{c.titulo}</div>
+                      {c.acceptedOffer && (
+                        <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>Transportista: {c.acceptedOffer.driverName}</div>
+                      )}
+                      {c.acceptedOffer && (
+                        <div style={{ fontSize: 18, fontWeight: 700, color: "#6ec99a", marginBottom: 10 }}>${c.acceptedOffer.precio.toLocaleString("es-AR")}</div>
+                      )}
+                      <button style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", fontWeight: 500 }}>
+                        Ver tracking
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Grafico de gastos */}
+          {meses.length > 0 && (
+            <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-primary)", borderRadius: 10, padding: 18 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: "0 0 16px" }}>Gasto en fletes ultimos 6 meses</h3>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>
+                {meses.map((m, i) => {
+                  const h = Math.max((m.monto / maxMonto) * 100, 4);
+                  return (
+                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 10, color: "var(--color-text-secondary)", fontWeight: 500 }}>${(m.monto / 1000).toFixed(0)}k</span>
+                      <div style={{ width: "100%", height: h, background: i === meses.length - 1 ? "#3b82f6" : "rgba(59,130,246,0.25)", borderRadius: 4 }} />
+                      <span style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>{m.mes}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </main>
+  );
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 const NAV_ITEMS: { item: NavItem; icon: IconDefinition }[] = [
+  { item: "Inicio",       icon: faHouse },
   { item: "Mis cargas",  icon: faBoxOpen },
   { item: "Historial",   icon: faClockRotateLeft },
   { item: "Facturación", icon: faFileInvoiceDollar },
@@ -1427,7 +1615,7 @@ const NAV_ITEMS: { item: NavItem; icon: IconDefinition }[] = [
 
 export default function DadorDashboard() {
   const { data: session } = useSession();
-  const [navActivo, setNavActivo] = useState<NavItem>("Mis cargas");
+  const [navActivo, setNavActivo] = useState<NavItem>("Inicio");
   const [darkMode, setDarkMode] = useState<boolean | null>(null);
   const [modalPublicar, setModalPublicar] = useState(false);
 
@@ -1530,6 +1718,7 @@ export default function DadorDashboard() {
 
       {/* Contenido */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--page-bg)" }}>
+        {navActivo === "Inicio" && <SeccionInicio cargas={cargas} userName={userName} onNavegar={setNavActivo} />}
         {navActivo === "Mis cargas" && (
           <SeccionMisCargas
             cargas={cargas}

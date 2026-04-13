@@ -6,7 +6,7 @@ import { signOut, useSession } from "next-auth/react";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Buscar cargas" | "Mis ofertas" | "Mis viajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
+type NavItem = "Inicio" | "Buscar cargas" | "Planificar viaje" | "Mis ofertas" | "Mis viajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
 type SortKey = "Mayor precio" | "Menor precio" | "Más cercano" | "Fecha de retiro";
 
 interface ModalOfertaState {
@@ -623,7 +623,7 @@ function SeccionNotificaciones() {
 // ── Mi Flota ──────────────────────────────────────────────────────────────────
 
 interface Driver { id: string; name: string; email: string; phone?: string; dni?: string; }
-interface TruckData { id: string; patente: string; marca?: string; modelo?: string; año?: number; truck_type?: string; capacity_kg?: number; vtv_vence?: string; seguro_poliza?: string; seguro_vence?: string; }
+interface TruckData { id: string; patente: string; marca?: string; modelo?: string; año?: number; truck_type?: string; capacity_kg?: number; vtv_vence?: string; seguro_poliza?: string; seguro_vence?: string; consumo_l_100km?: number; }
 
 const TIPO_CAMION = ["camion", "semi", "acoplado", "frigorifico", "cisterna", "batea", "otros"] as const;
 const REQUIERE_REMOLQUE = new Set(["semi", "acoplado", "batea"]);
@@ -1016,11 +1016,375 @@ function ModalOfertar({ info, onClose, onEnviar, trucks }: { info: ModalOfertaSt
   );
 }
 
+// ── Inicio ────────────────────────────────────────────────────────────────────
+
+interface InicioStats { viajesCompletados: number; calificacionPromedio: number | null; totalIngresos6m: number; viajes6m: number; ingresosUltimos6Meses: { mes: string; monto: number }[]; }
+interface InicioOferta { id: string; titulo: string; miOferta: number; estado: string; }
+interface ProximoViaje { titulo: string; empresa: string; precio: number; fechaRetiro: string; pickupCity: string; dropoffCity: string; }
+
+function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; patente: string; vtv_vence?: string; seguro_vence?: string }[]; userName: string; onNavegar: (nav: NavItem) => void }) {
+  const [stats, setStats] = useState<InicioStats | null>(null);
+  const [ofertas, setOfertas] = useState<InicioOferta[]>([]);
+  const [proximoViaje, setProximoViaje] = useState<ProximoViaje | null>(null);
+
+  useEffect(() => {
+    fetch("/api/stats/camionero").then(r => r.json()).then(d => setStats(d)).catch(() => {});
+    fetch("/api/offers/mine").then(r => r.json()).then(d => { if (d.offers) setOfertas(d.offers.filter((o: InicioOferta) => o.estado === "pending" || o.estado === "countered" || o.estado === "accepted")); }).catch(() => {});
+    fetch("/api/trips/mine").then(r => r.json()).then(d => { const proximos: ProximoViaje[] = d.proximos ?? []; if (proximos.length > 0) setProximoViaje(proximos[0]); }).catch(() => {});
+  }, []);
+
+  const hoy = new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+  const primerNombre = userName.split(" ")[0];
+
+  const alertas: string[] = [];
+  const ahora = new Date();
+  trucks.forEach(t => {
+    const checkDoc = (fecha: string | undefined, tipo: string) => {
+      if (!fecha) return;
+      const diff = Math.floor((new Date(fecha).getTime() - ahora.getTime()) / 86400000);
+      if (diff >= 0 && diff <= 30) alertas.push(`${tipo} del camión ${t.patente} vence en ${diff === 0 ? "hoy" : `${diff} día${diff > 1 ? "s" : ""}`} (${new Date(fecha).toLocaleDateString("es-AR")})`);
+    };
+    checkDoc(t.vtv_vence, "VTV");
+    checkDoc(t.seguro_vence, "Seguro");
+  });
+
+  const estadoLabel: Record<string, string> = { pending: "Pendiente", countered: "Contraoferta recibida", accepted: "Aceptada" };
+  const estadoColor: Record<string, { bg: string; color: string }> = {
+    pending: { bg: "rgba(245,158,11,0.15)", color: "#f59e0b" },
+    countered: { bg: "rgba(59,130,246,0.15)", color: "#60a5fa" },
+    accepted: { bg: "rgba(58,128,107,0.2)", color: "#3a806b" },
+  };
+
+  const ingresos6m = stats?.ingresosUltimos6Meses ?? [];
+  const maxIngreso = ingresos6m.length > 0 ? Math.max(...ingresos6m.map(e => e.monto), 1) : 1;
+
+  return (
+    <main style={{ flex: 1, overflowY: "auto", background: "var(--color-background-tertiary)" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px" }}>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--color-text-primary)", marginBottom: 3 }}>Buen día, {primerNombre}</div>
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{hoy.charAt(0).toUpperCase() + hoy.slice(1)}</div>
+        </div>
+
+        {alertas.map((a, i) => (
+          <div key={i} style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.35)", borderRadius: 10, padding: "12px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 14, color: "#f59e0b", flexShrink: 0 }}>!</span>
+            <span style={{ fontSize: 13, color: "#fbbf24", flex: 1 }}><strong>{a}</strong></span>
+            <button onClick={() => onNavegar("Mi flota")} style={{ fontSize: 11, color: "#fbbf24", background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.35)", borderRadius: 6, padding: "5px 10px", cursor: "pointer", whiteSpace: "nowrap" }}>Ver mi flota</button>
+          </div>
+        ))}
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+          {[
+            { label: "Ingresos — este mes", value: stats ? `$${Math.round(stats.totalIngresos6m / 6).toLocaleString("es-AR")}` : "—", color: "var(--color-brand-dark)", delta: null },
+            { label: "Viajes — últimos 6 meses", value: stats ? String(stats.viajes6m) : "—", color: "var(--color-text-primary)", delta: null },
+            { label: "Viajes completados", value: stats ? String(stats.viajesCompletados) : "—", color: "var(--color-text-primary)", delta: "en total" },
+            { label: "Calificación", value: stats?.calificacionPromedio != null ? `${stats.calificacionPromedio} ★` : "—", color: "#f59e0b", delta: null },
+          ].map(({ label, value, color, delta }) => (
+            <div key={label} style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 16 }}>
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>{label}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color, marginBottom: 3, lineHeight: 1 }}>{value}</div>
+              {delta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{delta}</div>}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+          <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>Ofertas activas</div>
+              <button onClick={() => onNavegar("Mis ofertas")} style={{ fontSize: 11, color: "var(--color-brand-dark)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ver todas</button>
+            </div>
+            {ofertas.length === 0 && <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", textAlign: "center", padding: "20px 0" }}>Sin ofertas activas</div>}
+            {ofertas.slice(0, 4).map(o => {
+              const partes = o.titulo.split(" — "); const ruta = partes[1] ?? o.titulo; const [or, dest] = ruta.split(" → ");
+              return (
+                <div key={o.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--color-border-tertiary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>{or} → {dest}</div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2 }}>${o.miOferta.toLocaleString("es-AR")}</div>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 4, background: estadoColor[o.estado]?.bg ?? "transparent", color: estadoColor[o.estado]?.color ?? "var(--color-text-secondary)", whiteSpace: "nowrap" }}>{estadoLabel[o.estado] ?? o.estado}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 18 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 14 }}>Próximo viaje</div>
+            {!proximoViaje && <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", textAlign: "center", padding: "20px 0" }}>Sin viajes próximos</div>}
+            {proximoViaje && (() => {
+              const partes = proximoViaje.titulo.split(" — "); const ruta = partes[1] ?? proximoViaje.titulo; const [or, dest] = ruta.split(" → ");
+              return (
+                <div style={{ background: "linear-gradient(135deg, #162e27, #0f1e18)", border: "1px solid #2a5e4f", borderRadius: 10, padding: 16 }}>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: "var(--color-text-primary)", marginBottom: 4 }}>{or} → {dest}</div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 12 }}>{proximoViaje.empresa} · Retiro: {proximoViaje.fechaRetiro}</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {[`$${proximoViaje.precio.toLocaleString("es-AR")}`].map(p => <span key={p} style={{ fontSize: 11, background: "#1a3d2e", color: "#8fa896", padding: "3px 9px", borderRadius: 4 }}>{p}</span>)}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+
+        {stats && ingresos6m.length > 0 && (
+          <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 18 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Ingresos últimos 6 meses</div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 90 }}>
+              {ingresos6m.map((e, i, arr) => {
+                const pct = (e.monto / maxIngreso) * 100;
+                const isLast = i === arr.length - 1;
+                return (
+                  <div key={e.mes} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, height: "100%", justifyContent: "flex-end" }}>
+                    {e.monto > 0 && <div style={{ fontSize: 9, color: isLast ? "var(--color-brand-dark)" : "var(--color-text-tertiary)", fontWeight: isLast ? 700 : 400 }}>${(e.monto / 1000).toFixed(0)}k</div>}
+                    <div style={{ width: "100%", height: `${Math.max(pct, 3)}%`, background: isLast ? "var(--color-brand)" : e.monto > 0 ? "#2a5e4f" : "var(--color-background-secondary)", borderRadius: "4px 4px 0 0" }} />
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{e.mes}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+// ── Planificador de viaje ─────────────────────────────────────────────────────
+
+interface Parada { id: string; ciudad: string; fecha: string; }
+type TramoEstado = "carga_propia" | "busco_carga" | "vacio";
+
+const TRAMO_CONFIG: Record<TramoEstado, { label: string; color: string; bg: string }> = {
+  carga_propia: { label: "Ya tengo carga", color: "#16a34a", bg: "rgba(22,163,74,0.08)" },
+  busco_carga:  { label: "Busco carga",    color: "#3b82f6", bg: "rgba(59,130,246,0.08)" },
+  vacio:        { label: "Vacío",           color: "#dc2626", bg: "rgba(220,38,38,0.08)" },
+};
+
+function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
+  const [paradas, setParadas] = useState<Parada[]>([
+    { id: "p1", ciudad: "", fecha: "" },
+    { id: "p2", ciudad: "", fecha: "" },
+  ]);
+  const [tramos, setTramos] = useState<TramoEstado[]>(["busco_carga"]);
+  const [camionId, setCamionId] = useState(trucks[0]?.id ?? "");
+  const [gasoilPrecio, setGasoilPrecio] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("gasoil-precio") ?? "";
+    return "";
+  });
+  const [cargasDisponibles, setCargasDisponibles] = useState<CargaCard[]>([]);
+  const [loadingCargas, setLoadingCargas] = useState(false);
+  const [buscado, setBuscado] = useState(false);
+
+  const addParada = () => {
+    setParadas(prev => [...prev, { id: `p${Date.now()}`, ciudad: "", fecha: "" }]);
+    setTramos(prev => [...prev, "busco_carga"]);
+  };
+
+  const removeParada = (idx: number) => {
+    if (paradas.length <= 2) return;
+    setParadas(prev => prev.filter((_, i) => i !== idx));
+    const tramoIdx = idx === paradas.length - 1 ? idx - 1 : idx;
+    setTramos(prev => prev.filter((_, i) => i !== tramoIdx));
+  };
+
+  const updateParada = (idx: number, field: "ciudad" | "fecha", val: string) =>
+    setParadas(prev => prev.map((p, i) => i === idx ? { ...p, [field]: val } : p));
+
+  const updateTramo = (idx: number, estado: TramoEstado) =>
+    setTramos(prev => prev.map((t, i) => i === idx ? estado : t));
+
+  const buscarCargas = async () => {
+    setLoadingCargas(true);
+    setBuscado(true);
+    if (gasoilPrecio && typeof window !== "undefined") localStorage.setItem("gasoil-precio", gasoilPrecio);
+    try {
+      const r = await fetch("/api/loads/available");
+      const d = await r.json();
+      if (d.loads) setCargasDisponibles(d.loads.map(dbLoadToCard));
+    } catch {}
+    finally { setLoadingCargas(false); }
+  };
+
+  const selectedTruck = trucks.find(t => t.id === camionId);
+  const canSearch = paradas[0].ciudad.trim() !== "" && paradas[paradas.length - 1].ciudad.trim() !== "";
+
+  const cargasPorTramo: { idx: number; cargas: CargaCard[] }[] = tramos
+    .map((estado, i) => {
+      if (estado !== "busco_carga") return null;
+      const desde = paradas[i].ciudad.trim().toLowerCase();
+      const hasta = paradas[i + 1]?.ciudad.trim().toLowerCase() ?? "";
+      if (!desde || !hasta) return { idx: i, cargas: [] };
+      const matches = cargasDisponibles.filter(c => {
+        const parts = c.titulo.split(" — ");
+        const ruta = parts[1] ?? c.titulo;
+        const [or, dest] = ruta.split(" → ");
+        const orLow = (or ?? "").toLowerCase();
+        const destLow = (dest ?? "").toLowerCase();
+        return (orLow.includes(desde) || desde.includes(orLow)) && (destLow.includes(hasta) || hasta.includes(destLow));
+      });
+      return { idx: i, cargas: matches };
+    })
+    .filter((x): x is { idx: number; cargas: CargaCard[] } => x !== null);
+
+  return (
+    <main style={{ flex: 1, overflowY: "auto", background: "var(--color-background-tertiary)" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: "28px 24px" }}>
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--color-text-primary)", marginBottom: 4 }}>Planificar viaje</div>
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Ingresá tu ruta y encontrá cargas para los tramos que quieras llenar.</div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 20, alignItems: "start" }}>
+          <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 18 }}>Ruta</div>
+
+            {paradas.map((parada, idx) => (
+              <div key={parada.id}>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 4 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 10, flexShrink: 0 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: idx === 0 ? "var(--color-brand)" : idx === paradas.length - 1 ? "#3b82f6" : "var(--color-text-tertiary)", boxShadow: `0 0 0 2px ${idx === 0 ? "rgba(29,158,117,0.3)" : idx === paradas.length - 1 ? "rgba(59,130,246,0.3)" : "var(--color-border-secondary)"}` }} />
+                  </div>
+                  <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+                    <input value={parada.ciudad} onChange={(e) => updateParada(idx, "ciudad", e.target.value)} placeholder={idx === 0 ? "Ciudad de salida" : idx === paradas.length - 1 ? "Ciudad destino" : `Parada ${idx}`} style={{ height: 33, fontSize: 13, padding: "0 9px", borderRadius: 6, border: "1px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }} />
+                    <input type="date" value={parada.fecha} onChange={(e) => updateParada(idx, "fecha", e.target.value)} style={{ height: 33, fontSize: 12, padding: "0 8px", borderRadius: 6, border: "1px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }} />
+                  </div>
+                  {paradas.length > 2 && (
+                    <button onClick={() => removeParada(idx)} style={{ marginTop: 7, width: 22, height: 22, borderRadius: "50%", border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-tertiary)", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
+                  )}
+                </div>
+
+                {idx < paradas.length - 1 && (
+                  <div style={{ marginLeft: 13, marginBottom: 4 }}>
+                    <div style={{ width: 2, height: 8, background: "var(--color-border-secondary)", marginLeft: 4 }} />
+                    <div style={{ background: TRAMO_CONFIG[tramos[idx]].bg, border: `1px solid ${TRAMO_CONFIG[tramos[idx]].color}40`, borderRadius: 8, padding: "7px 10px", marginBottom: 0 }}>
+                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 5 }}>{parada.ciudad || "..."} → {paradas[idx + 1].ciudad || "..."}</div>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {(["carga_propia", "busco_carga", "vacio"] as TramoEstado[]).map(e => {
+                          const cfg = TRAMO_CONFIG[e];
+                          const active = tramos[idx] === e;
+                          return (
+                            <button key={e} onClick={() => updateTramo(idx, e)} style={{ flex: 1, fontSize: 10, padding: "3px 0", borderRadius: 5, cursor: "pointer", border: active ? `1.5px solid ${cfg.color}` : "1px solid var(--color-border-secondary)", background: active ? cfg.bg : "transparent", color: active ? cfg.color : "var(--color-text-tertiary)", fontWeight: active ? 600 : 400 }}>
+                              {cfg.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div style={{ width: 2, height: 8, background: "var(--color-border-secondary)", marginLeft: 4 }} />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            <button onClick={addParada} style={{ width: "100%", fontSize: 12, padding: "7px", borderRadius: 6, border: "1px dashed var(--color-border-secondary)", background: "transparent", color: "var(--color-text-tertiary)", cursor: "pointer", marginTop: 4, marginBottom: 16 }}>
+              + Agregar parada intermedia
+            </button>
+
+            <div style={{ borderTop: "1px solid var(--color-border-tertiary)", paddingTop: 16 }}>
+              {trucks.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 5, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Camión</label>
+                  <select value={camionId} onChange={(e) => setCamionId(e.target.value)} style={{ width: "100%", height: 33, fontSize: 13, padding: "0 9px", borderRadius: 6, border: "1px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }}>
+                    {trucks.map(t => (<option key={t.id} value={t.id}>{t.patente}{t.marca ? ` — ${t.marca}` : ""}{t.consumo_l_100km ? ` (${t.consumo_l_100km} L/100km)` : ""}</option>))}
+                  </select>
+                  {selectedTruck?.consumo_l_100km && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}>Consumo registrado: {selectedTruck.consumo_l_100km} L/100km</div>}
+                </div>
+              )}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 5, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Precio del gasoil ($/litro)</label>
+                <input type="number" value={gasoilPrecio} onChange={(e) => setGasoilPrecio(e.target.value)} placeholder="ej: 1350" style={{ width: "100%", height: 33, fontSize: 13, padding: "0 9px", borderRadius: 6, border: "1px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" as const }} />
+              </div>
+            </div>
+
+            <button onClick={buscarCargas} disabled={!canSearch || loadingCargas} style={{ width: "100%", fontSize: 13, padding: "10px", borderRadius: 8, border: "none", background: canSearch ? "var(--color-brand)" : "var(--color-background-secondary)", color: canSearch ? "#fff" : "var(--color-text-tertiary)", cursor: canSearch ? "pointer" : "not-allowed", fontWeight: 600 }}>
+              {loadingCargas ? "Buscando..." : "Buscar cargas disponibles"}
+            </button>
+          </div>
+
+          <div>
+            {!buscado && (
+              <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 48, textAlign: "center" }}>
+                <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(29,158,117,0.08)", border: "1px solid rgba(29,158,117,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                  <i className="fa-solid fa-route" style={{ fontSize: 20, color: "var(--color-brand-dark)" }} />
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>Configurá tu ruta</div>
+                <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Completá las paradas y marcá los tramos donde buscás carga.</div>
+              </div>
+            )}
+
+            {buscado && loadingCargas && (
+              <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 40, textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13 }}>
+                Buscando cargas disponibles...
+              </div>
+            )}
+
+            {buscado && !loadingCargas && cargasPorTramo.length === 0 && (
+              <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 32, textAlign: "center" }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>Sin tramos de búsqueda</div>
+                <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Marcá al menos un tramo como "Busco carga" para ver resultados.</div>
+              </div>
+            )}
+
+            {buscado && !loadingCargas && cargasPorTramo.map(({ idx, cargas }) => (
+              <div key={idx} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 8 }}>
+                  Tramo {idx + 1} — {paradas[idx].ciudad || "..."} → {paradas[idx + 1]?.ciudad || "..."}
+                </div>
+                {cargas.length === 0 ? (
+                  <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 20, textAlign: "center" }}>
+                    <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>No hay cargas disponibles para este tramo.</div>
+                  </div>
+                ) : (
+                  cargas.map(c => {
+                    const partes = c.titulo.split(" — ");
+                    const tipoCarga = partes[0];
+                    const ruta = partes[1] ?? c.titulo;
+                    const [or, dest] = ruta.split(" → ");
+                    return (
+                      <div key={c.id} style={{ background: "var(--color-background-primary)", border: "1.5px solid rgba(59,130,246,0.25)", borderRadius: 10, padding: 16, marginBottom: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: "rgba(59,130,246,0.1)", color: "#60a5fa", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>{tipoCarga}</span>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 5 }}>{or} → {dest}</div>
+                            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 2 }}>{c.empresa} · Retiro: {c.retiro}</div>
+                          </div>
+                          <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
+                            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginBottom: 1 }}>Ingreso adicional</div>
+                            <div style={{ fontSize: 22, fontWeight: 800, color: "#16a34a", lineHeight: 1 }}>+${c.precio.toLocaleString("es-AR")}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
+                          {[["Peso", c.peso], ["Distancia", c.distancia], ["Camión", c.camion]].filter(([, v]) => v && v !== "—").map(([label, val]) => (
+                            <span key={label} style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, background: "var(--color-background-secondary)", color: "var(--color-text-secondary)", border: "0.5px solid var(--color-border-tertiary)" }}>
+                              <span style={{ color: "var(--color-text-tertiary)", marginRight: 3 }}>{label}:</span>{val}
+                            </span>
+                          ))}
+                        </div>
+                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                          <button style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>Ver detalle</button>
+                          <button style={{ fontSize: 12, padding: "5px 14px", borderRadius: 6, border: "none", background: "#3b82f6", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Ofertar por esta carga</button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function TransportistaDashboard() {
   const { data: session } = useSession();
-  const [navActivo, setNavActivo] = useState<NavItem>("Buscar cargas");
+  const [navActivo, setNavActivo] = useState<NavItem>("Inicio");
   const [modalOferta, setModalOferta] = useState<ModalOfertaState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
@@ -1054,9 +1418,11 @@ export default function TransportistaDashboard() {
 
   const mostrarToast = (msg: string) => setToast(msg);
 
-  const navItems: NavItem[] = ["Buscar cargas", "Mis ofertas", "Mis viajes", "Notificaciones", "Mi flota"];
+  const navItems: NavItem[] = ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Notificaciones", "Mi flota"];
   const NAV_ICONS: Record<NavItem, string> = {
+    "Inicio": "fa-solid fa-house",
     "Buscar cargas": "fa-solid fa-magnifying-glass",
+    "Planificar viaje": "fa-solid fa-map-location-dot",
     "Mis ofertas": "fa-solid fa-handshake",
     "Mis viajes": "fa-solid fa-route",
     "Notificaciones": "fa-solid fa-bell",
@@ -1094,7 +1460,9 @@ export default function TransportistaDashboard() {
       </header>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--bg1)" }}>
+        {navActivo === "Inicio" && <SeccionInicio trucks={trucks} userName={userName} onNavegar={setNavActivo} />}
         {navActivo === "Buscar cargas" && <SeccionBuscar onOfertar={(c) => setModalOferta(c)} onAlerta={() => mostrarToast("¡Alerta guardada! Te avisamos cuando aparezca una carga que te interese.")} excluirIds={ofertadasIds} trucks={trucks} onNoTruck={() => mostrarToast("Necesitás registrar al menos un camión en Mi flota para poder ofertar.")} />}
+        {navActivo === "Planificar viaje" && <SeccionPlanificar trucks={trucks} />}
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
