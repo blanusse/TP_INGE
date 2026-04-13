@@ -20,7 +20,6 @@ export default async function Home() {
         <div style={{ position: "relative", width: "100%" }}>
           <ParticleHero />
 
-          {/* Overlay content centered on top of canvas */}
           {/* Badge — top */}
           <div style={{ position: "absolute", top: 32, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
             <div style={{ display: "inline-block", fontSize: 12, fontWeight: 600, color: "#fff", background: "rgba(255,255,255,0.12)", border: "0.5px solid rgba(255,255,255,0.3)", padding: "5px 14px", borderRadius: 20, letterSpacing: 0.5, textTransform: "uppercase" }}>
@@ -28,9 +27,9 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* Text + buttons — bottom */}
-          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", padding: "0 48px 60px" }}>
-            <p style={{ fontSize: 19, color: "rgba(255,255,255,0.75)", maxWidth: 560, margin: "0 auto 44px", lineHeight: 1.65 }}>
+          {/* Text + buttons — bottom 20% del canvas */}
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", padding: "0 48px 56px" }}>
+            <p style={{ fontSize: 19, color: "rgba(255,255,255,0.75)", maxWidth: 560, margin: "0 auto 16px", lineHeight: 1.65 }}>
               Conectamos camioneros con dadores de carga en toda Argentina. Sin intermediarios, sin viajes vacíos, sin burocracia.
             </p>
 
