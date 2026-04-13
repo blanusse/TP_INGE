@@ -152,7 +152,7 @@ const TIERRA_DEL_FUEGO: [number, number][] = [
   [0.48, 0.97], [0.43, 0.99], [0.27, 0.99],
 ]
 
-const GREEN_BRIGHT: RGB = { r: 110, g: 231, b: 183 }
+const GREEN_BRIGHT: RGB = { r: 58, g: 128, b: 107 }
 
 // ─── Phase functions ──────────────────────────────────────────────────────────
 

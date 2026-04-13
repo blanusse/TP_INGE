@@ -13,13 +13,13 @@ export function NavbarLanding() {
   return (
     <header style={{
       position: "sticky", top: 0, zIndex: 50,
-      background: "rgba(255,255,255,0.92)", backdropFilter: "blur(8px)",
-      borderBottom: "0.5px solid var(--color-border-tertiary)",
+      background: "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)",
+      borderBottom: "0.5px solid rgba(255,255,255,0.1)",
       display: "flex", alignItems: "center", justifyContent: "space-between",
       padding: "14px 48px",
     }}>
-      <Link href="/" style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.5, textDecoration: "none", color: "var(--color-text-primary)" }}>
-        Carga<span style={{ color: "var(--color-brand)" }}>Back</span>
+      <Link href="/" style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.5, textDecoration: "none", color: "#fff" }}>
+        Carga<span style={{ color: "#3a806b" }}>Back</span>
       </Link>
 
       <nav style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -35,20 +35,20 @@ export function NavbarLanding() {
 
 const navBtnStyle: React.CSSProperties = {
   background: "none", border: "none", cursor: "pointer",
-  fontSize: 13, color: "var(--color-text-secondary)",
+  fontSize: 13, color: "rgba(255,255,255,0.7)",
   padding: "6px 12px", borderRadius: 6,
 };
 
 const btnSecStyle: React.CSSProperties = {
   fontSize: 13, padding: "7px 16px",
   borderRadius: "var(--border-radius-md)",
-  border: "0.5px solid var(--color-border-secondary)",
-  color: "var(--color-text-primary)", textDecoration: "none", fontWeight: 500,
+  border: "0.5px solid rgba(255,255,255,0.2)",
+  color: "#fff", textDecoration: "none", fontWeight: 500,
 };
 
 const btnPriStyle: React.CSSProperties = {
   fontSize: 13, padding: "7px 16px",
   borderRadius: "var(--border-radius-md)",
-  background: "var(--color-brand)", color: "#fff",
+  background: "#3a806b", color: "#fff",
   textDecoration: "none", fontWeight: 600,
 };
