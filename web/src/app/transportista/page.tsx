@@ -1384,6 +1384,64 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
   );
 }
 
+// ── Onboarding ────────────────────────────────────────────────────────────────
+
+const ONBOARDING_STEPS = [
+  {
+    titulo: "¡Bienvenido a CargaBack! 👋",
+    desc: "Te mostramos cómo sacarle el máximo provecho a la plataforma. Son solo 3 pasos rápidos.",
+    target: null,
+  },
+  {
+    titulo: "Buscá cargas disponibles",
+    desc: "En la sección Buscar cargas encontrás todas las cargas disponibles cerca de tu ruta. Filtrá por origen, destino, tipo de camión y precio.",
+    target: "Buscar cargas",
+  },
+  {
+    titulo: "Planificá tu próximo viaje",
+    desc: "En Planificar viaje podés armar tu ruta, ver qué cargas calzan con tu recorrido y optimizar tus tiempos para nunca volver vacío.",
+    target: "Planificar viaje",
+  },
+];
+
+function OnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void; onNavegar: (nav: NavItem) => void }) {
+  const [paso, setPaso] = useState(0);
+  const step = ONBOARDING_STEPS[paso];
+  const esUltimo = paso === ONBOARDING_STEPS.length - 1;
+
+  const siguiente = () => {
+    if (step.target) onNavegar(step.target as NavItem);
+    if (esUltimo) { onFinish(); return; }
+    setPaso(paso + 1);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: "#3a806b", color: "#fff", borderRadius: 16, padding: "36px 40px", maxWidth: 420, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.4)", position: "relative" }}>
+
+        {/* Indicador de pasos */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 28 }}>
+          {ONBOARDING_STEPS.map((_, i) => (
+            <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= paso ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)" }} />
+          ))}
+        </div>
+
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 12, lineHeight: 1.3 }}>{step.titulo}</h2>
+        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.65, marginBottom: 32 }}>{step.desc}</p>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button onClick={onFinish} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer", padding: 0 }}>
+            Omitir tour
+          </button>
+          <button onClick={siguiente} style={{ background: "#fff", color: "#3a806b", border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            {esUltimo ? "¡Empezar!" : "Siguiente →"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function TransportistaDashboard() {
@@ -1393,10 +1451,13 @@ export default function TransportistaDashboard() {
   const [toast, setToast] = useState<string | null>(null);
   const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("transportista-theme") as "dark" | "light" | null;
     if (saved) setTheme(saved);
+    const visto = localStorage.getItem("transportista-onboarding-done");
+    if (!visto) setShowOnboarding(true);
   }, []);
 
   const toggleTheme = () => {
@@ -1477,6 +1538,12 @@ export default function TransportistaDashboard() {
       {modalOferta && <ModalOfertar info={modalOferta} trucks={trucks} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}
       {toast && <Toast mensaje={toast} onClose={() => setToast(null)} />}
     </div>
+    {showOnboarding && (
+      <OnboardingOverlay
+        onFinish={() => { localStorage.setItem("transportista-onboarding-done", "1"); setShowOnboarding(false); }}
+        onNavegar={setNavActivo}
+      />
+    )}
     </>
   );
 }
