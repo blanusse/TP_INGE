@@ -2,43 +2,47 @@
 
 :root {
   --color-background-primary: #ffffff;
-  --color-background-secondary: #f7f7f6;
-  --color-background-tertiary: #f0efed;
-  --color-background-info: #e6f1fb;
+  --color-background-secondary: #f4f7f5;
+  --color-background-tertiary: #f4f7f5;
+  --color-background-info: #e0f0ea;
 
-  --color-border-tertiary: #e8e7e4;
-  --color-border-secondary: #d4d3cf;
+  --color-border-primary: #ddeae4;
+  --color-border-tertiary: #ddeae4;
+  --color-border-secondary: #c4ddd5;
 
-  --color-text-primary: #1a1917;
-  --color-text-secondary: #6b6a66;
-  --color-text-tertiary: #9e9c97;
-  --color-text-info: #185fa5;
+  --color-text-primary: #0f1f19;
+  --color-text-secondary: #4a6b5e;
+  --color-text-tertiary: #8aab9e;
+  --color-text-info: #2e6656;
 
   --border-radius-md: 8px;
   --border-radius-lg: 12px;
 
-  --color-brand: #1d9e75;
-  --color-brand-dark: #0f6e56;
-  --color-brand-light: #e1f5ee;
+  --color-brand: #3a806b;
+  --color-brand-dark: #2a5e4f;
+  --color-brand-light: #e0f0ea;
 
   /* Dador dashboard */
-  --page-bg: #ece9e1;
+  --page-bg: #f4f7f5;
   --card-bg: #ffffff;
-  --card-border: #e0dcd4;
-  --heading-color: #111111;
-  --body-color: #888888;
-  --muted-color: #777777;
-  --divider-color: #d8d4cb;
-  --inactive-border: #d8d4cb;
-  --inactive-label: #888888;
-  --badge-neutral-bg: #f0ede6;
-  --badge-neutral-text: #888888;
+  --card-border: #ddeae4;
+  --heading-color: #0f1f19;
+  --body-color: #4a6b5e;
+  --muted-color: #8aab9e;
+  --divider-color: #ddeae4;
+  --inactive-border: #ddeae4;
+  --inactive-label: #8aab9e;
+  --badge-neutral-bg: #e8f0ec;
+  --badge-neutral-text: #4a6b5e;
 }
 
 .dark {
+  font-family: 'IBM Plex Sans', sans-serif;
+
   --color-background-primary: #0a0a0a;
   --color-background-secondary: #111;
   --color-background-tertiary: #000;
+  --color-border-primary: rgba(255,255,255,0.08);
   --color-border-tertiary: rgba(255,255,255,0.08);
   --color-border-secondary: rgba(255,255,255,0.12);
   --color-text-primary: #efefef;
@@ -65,9 +69,9 @@
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --color-brand: #1d9e75;
-  --color-brand-dark: #0f6e56;
-  --color-brand-light: #e1f5ee;
+  --color-brand: #3a806b;
+  --color-brand-dark: #2a5e4f;
+  --color-brand-light: #e0f0ea;
 }
 
 html {
