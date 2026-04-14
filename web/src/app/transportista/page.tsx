@@ -739,6 +739,151 @@ function ModalAgregarConductor({ onClose, onAdded }: { onClose: () => void; onAd
   );
 }
 
+function ModalEditarCamion({ truck, onClose, onSaved }: { truck: TruckData; onClose: () => void; onSaved: (t: TruckData) => void }) {
+  const [patente, setPatente] = useState(truck.patente ?? "");
+  const [patenteRemolque, setPatenteRemolque] = useState((truck as any).patente_remolque ?? "");
+  const [marca, setMarca] = useState(truck.marca ?? "");
+  const [modelo, setModelo] = useState(truck.modelo ?? "");
+  const [año, setAño] = useState(truck.año ? String(truck.año) : "");
+  const [tipo, setTipo] = useState(truck.truck_type ?? "");
+  const [capacidad, setCapacidad] = useState(truck.capacity_kg ? String(truck.capacity_kg) : "");
+  const [vtvVence, setVtvVence] = useState(truck.vtv_vence ?? "");
+  const [seguroPoliza, setSeguroPoliza] = useState(truck.seguro_poliza ?? "");
+  const [seguroVence, setSeguroVence] = useState(truck.seguro_vence ?? "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(null);
+    if (!patente.trim()) { setError("La patente es obligatoria."); return; }
+    if (!/^[A-Za-z0-9]{6,7}$/.test(patente.replace(/\s/g, ""))) { setError("Patente inválida (ej: AB123CD)."); return; }
+    if (!tipo) { setError("Seleccioná el tipo de camión."); return; }
+    if (REQUIERE_REMOLQUE.has(tipo) && !patenteRemolque.trim()) { setError(`Los ${tipo}s necesitan la patente del remolque.`); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/fleet/trucks/${truck.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patente: patente.toUpperCase(), patente_remolque: patenteRemolque || undefined, marca, modelo, año: año || undefined, truck_type: tipo, capacity_kg: capacidad || undefined, vtv_vence: vtvVence || undefined, seguro_poliza: seguroPoliza || undefined, seguro_vence: seguroVence || undefined }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Error al guardar los cambios."); return; }
+      onSaved(data.truck);
+      onClose();
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <Modal title="Editar camión" onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+          <FormCampo label="Patente" value={patente} onChange={(v) => setPatente(v.toUpperCase())} placeholder="AB123CD" required />
+          <FormCampo label="Año" value={año} onChange={setAño} placeholder="2018" type="number" />
+          <FormCampo label="Marca" value={marca} onChange={setMarca} placeholder="Mercedes-Benz" />
+          <FormCampo label="Modelo" value={modelo} onChange={setModelo} placeholder="Actros 2651" />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={formLabelStyle}>Tipo de camión<span style={{ color: "#ef4444", marginLeft: 2 }}>*</span></label>
+          <select value={tipo} onChange={(e) => setTipo(e.target.value)} style={{ ...formInputStyle, appearance: "none" as React.CSSProperties["appearance"] }}>
+            <option value="">Seleccioná un tipo</option>
+            {TIPO_CAMION.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+          </select>
+        </div>
+        {REQUIERE_REMOLQUE.has(tipo) && (
+          <FormCampo label="Patente del remolque / acoplado" value={patenteRemolque} onChange={(v) => setPatenteRemolque(v.toUpperCase())} placeholder="AB123CD" required />
+        )}
+        <FormCampo label="Capacidad (kg)" value={capacidad} onChange={setCapacidad} placeholder="20000" type="number" />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+          <FormCampo label="VTV — vencimiento" value={vtvVence} onChange={setVtvVence} type="date" />
+          <FormCampo label="N° póliza de seguro" value={seguroPoliza} onChange={setSeguroPoliza} placeholder="POL-123456" />
+        </div>
+        <FormCampo label="Seguro — vencimiento" value={seguroVence} onChange={setSeguroVence} type="date" />
+        {error && <div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Cancelar</button>
+          <button type="submit" disabled={loading} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: 8, border: "none", background: loading ? "#aaa" : "var(--color-brand)", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>{loading ? "Guardando..." : "Guardar cambios"}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function ModalEditarConductor({ driver, onClose, onSaved }: { driver: Driver; onClose: () => void; onSaved: (d: Driver) => void }) {
+  const [name, setName] = useState(driver.name ?? "");
+  const [phone, setPhone] = useState(driver.phone ?? "");
+  const [dni, setDni] = useState(driver.dni ?? "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(null);
+    if (!name.trim()) { setError("El nombre es obligatorio."); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/fleet/drivers/${driver.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, phone: phone || undefined, dni: dni || undefined }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Error al guardar los cambios."); return; }
+      onSaved({ ...driver, ...data.driver });
+      onClose();
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <Modal title="Editar conductor" onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+        <FormCampo label="Nombre y apellido" value={name} onChange={setName} placeholder="Juan Rodríguez" required />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+          <FormCampo label="Celular" value={phone} onChange={setPhone} placeholder="+54 9 11 1234-5678" />
+          <FormCampo label="DNI" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" />
+        </div>
+        {error && <div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Cancelar</button>
+          <button type="submit" disabled={loading} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: 8, border: "none", background: loading ? "#aaa" : "var(--color-brand)", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>{loading ? "Guardando..." : "Guardar cambios"}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function MenuAcciones({ onEditar, onEliminar }: { onEditar: () => void; onEliminar: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button onClick={() => setOpen((v) => !v)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+        Acciones ▾
+      </button>
+      {open && (
+        <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 130, overflow: "hidden" }}>
+          <button onClick={() => { setOpen(false); onEditar(); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 13, background: "transparent", border: "none", color: "var(--color-text-primary)", cursor: "pointer" }}>
+            Editar
+          </button>
+          <button onClick={() => { setOpen(false); onEliminar(); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 13, background: "transparent", border: "none", color: "#dc2626", cursor: "pointer" }}>
+            Eliminar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModalConfirmarEliminar({ mensaje, onConfirmar, onCancelar }: { mensaje: string; onConfirmar: () => void; onCancelar: () => void }) {
+  const [loading, setLoading] = useState(false);
+  return (
+    <Modal title="Confirmar eliminación" onClose={onCancelar}>
+      <p style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>{mensaje}</p>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={onCancelar} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Cancelar</button>
+        <button disabled={loading} onClick={async () => { setLoading(true); await onConfirmar(); }} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: 8, border: "none", background: loading ? "#aaa" : "#dc2626", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>{loading ? "Eliminando..." : "Sí, eliminar"}</button>
+      </div>
+    </Modal>
+  );
+}
+
 function SeccionMiFlota() {
   const [tabFlota, setTabFlota] = useState<"Camiones" | "Conductores">("Camiones");
   const [trucks, setTrucks] = useState<TruckData[]>([]);
@@ -747,6 +892,10 @@ function SeccionMiFlota() {
   const [loadingDrivers, setLoadingDrivers] = useState(true);
   const [modalCamion, setModalCamion] = useState(false);
   const [modalConductor, setModalConductor] = useState(false);
+  const [editandoCamion, setEditandoCamion] = useState<TruckData | null>(null);
+  const [editandoConductor, setEditandoConductor] = useState<Driver | null>(null);
+  const [eliminandoCamion, setEliminandoCamion] = useState<TruckData | null>(null);
+  const [eliminandoConductor, setEliminandoConductor] = useState<Driver | null>(null);
 
   useEffect(() => {
     fetch("/api/fleet/trucks").then((r) => r.json()).then((d) => { if (d.trucks) setTrucks(d.trucks); }).catch(() => {}).finally(() => setLoadingTrucks(false));
@@ -757,6 +906,22 @@ function SeccionMiFlota() {
     <main style={{ padding: "20px 24px", flex: 1, maxWidth: 900 }}>
       {modalCamion && <ModalAgregarCamion onClose={() => setModalCamion(false)} onAdded={(t) => setTrucks((prev) => [...prev, t])} />}
       {modalConductor && <ModalAgregarConductor onClose={() => setModalConductor(false)} onAdded={(d) => setDrivers((prev) => [...prev, d])} />}
+      {editandoCamion && <ModalEditarCamion truck={editandoCamion} onClose={() => setEditandoCamion(null)} onSaved={(t) => { setTrucks((prev) => prev.map((x) => x.id === t.id ? t : x)); setEditandoCamion(null); }} />}
+      {editandoConductor && <ModalEditarConductor driver={editandoConductor} onClose={() => setEditandoConductor(null)} onSaved={(d) => { setDrivers((prev) => prev.map((x) => x.id === d.id ? d : x)); setEditandoConductor(null); }} />}
+      {eliminandoCamion && (
+        <ModalConfirmarEliminar
+          mensaje={`¿Seguro que querés eliminar el camión ${eliminandoCamion.patente}? Esta acción no se puede deshacer.`}
+          onCancelar={() => setEliminandoCamion(null)}
+          onConfirmar={async () => { await fetch(`/api/fleet/trucks/${eliminandoCamion.id}`, { method: "DELETE" }); setTrucks((prev) => prev.filter((x) => x.id !== eliminandoCamion.id)); setEliminandoCamion(null); }}
+        />
+      )}
+      {eliminandoConductor && (
+        <ModalConfirmarEliminar
+          mensaje={`¿Seguro que querés eliminar al conductor ${eliminandoConductor.name}? Esta acción no se puede deshacer.`}
+          onCancelar={() => setEliminandoConductor(null)}
+          onConfirmar={async () => { await fetch(`/api/fleet/drivers/${eliminandoConductor.id}`, { method: "DELETE" }); setDrivers((prev) => prev.filter((x) => x.id !== eliminandoConductor.id)); setEliminandoConductor(null); }}
+        />
+      )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>Mi flota</div>
@@ -794,10 +959,11 @@ function SeccionMiFlota() {
                 <div key={t.id} style={{ background: "var(--bg0)", border: "1px solid var(--border)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
                     <div style={{ width: 44, height: 44, borderRadius: "var(--border-radius-md)", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center" }}><i className="fa-solid fa-truck-moving" style={{ fontSize: 18, color: "var(--green)" }} /></div>
-                    <div>
+                    <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>{t.patente}</div>
                       <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{[t.marca, t.modelo, t.año].filter(Boolean).join(" ") || "Sin datos"}</div>
                     </div>
+                    <MenuAcciones onEditar={() => setEditandoCamion(t)} onEliminar={() => setEliminandoCamion(t)} />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     {[["Tipo", t.truck_type ?? "—"], ["Capacidad", t.capacity_kg ? `${t.capacity_kg.toLocaleString("es-AR")} kg` : "—"], ["VTV vence", t.vtv_vence ?? "—"], ["Seguro vence", t.seguro_vence ?? "—"]].map(([label, val]) => (
@@ -830,7 +996,7 @@ function SeccionMiFlota() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--color-background-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
-                    {["Nombre", "DNI", "Email", "Teléfono"].map((h) => (<th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase" }}>{h}</th>))}
+                    {["Nombre", "DNI", "Email", "Teléfono", ""].map((h) => (<th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase" }}>{h}</th>))}
                   </tr>
                 </thead>
                 <tbody>
@@ -845,6 +1011,7 @@ function SeccionMiFlota() {
                       <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.dni ?? "—"}</td>
                       <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.email}</td>
                       <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.phone ?? "—"}</td>
+                      <td style={{ padding: "12px 16px" }}><MenuAcciones onEditar={() => setEditandoConductor(d)} onEliminar={() => setEliminandoConductor(d)} /></td>
                     </tr>
                   ))}
                 </tbody>
