@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Truck } from '../entities/truck.entity';
@@ -24,11 +24,48 @@ export class FleetService {
     return this.trucksRepo.save(truck);
   }
 
+  async updateTruck(userId: string, truckId: string, body: Partial<Truck>) {
+    const truck = await this.trucksRepo.findOne({ where: { id: truckId } });
+    if (!truck) throw new NotFoundException('Camión no encontrado.');
+    if (truck.owner_id !== userId) throw new ForbiddenException();
+    const { owner_id, id, ...updates } = body as any;
+    Object.assign(truck, updates);
+    return this.trucksRepo.save(truck);
+  }
+
+  async updateDriver(userId: string, driverId: string, body: { name?: string; phone?: string; dni?: string }) {
+    const driver = await this.usersRepo.findOne({ where: { id: driverId } });
+    if (!driver) throw new NotFoundException('Conductor no encontrado.');
+    if (driver.fleet_id !== userId) throw new ForbiddenException();
+    if (body.name !== undefined) driver.name = body.name;
+    if (body.phone !== undefined) driver.phone = body.phone;
+    if (body.dni !== undefined) driver.dni = body.dni;
+    const saved = await this.usersRepo.save(driver);
+    const { password_hash, ...result } = saved as any;
+    return result;
+  }
+
   async getFleetDrivers(userId: string) {
     return this.usersRepo.find({
       where: { fleet_id: userId },
       select: ['id', 'name', 'email', 'phone', 'role', 'created_at'],
     });
+  }
+
+  async deleteTruck(userId: string, truckId: string) {
+    const truck = await this.trucksRepo.findOne({ where: { id: truckId } });
+    if (!truck) throw new NotFoundException('Camión no encontrado.');
+    if (truck.owner_id !== userId) throw new ForbiddenException();
+    await this.trucksRepo.remove(truck);
+    return { ok: true };
+  }
+
+  async deleteDriver(userId: string, driverId: string) {
+    const driver = await this.usersRepo.findOne({ where: { id: driverId } });
+    if (!driver) throw new NotFoundException('Conductor no encontrado.');
+    if (driver.fleet_id !== userId) throw new ForbiddenException();
+    await this.usersRepo.remove(driver);
+    return { ok: true };
   }
 
   async addFleetDriver(userId: string, body: { email: string; password: string; name: string; phone?: string }) {
