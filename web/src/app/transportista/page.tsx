@@ -1406,8 +1406,22 @@ const ONBOARDING_STEPS = [
 
 function OnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void; onNavegar: (nav: NavItem) => void }) {
   const [paso, setPaso] = useState(0);
+  const [arrowX, setArrowX] = useState<number | null>(null);
   const step = ONBOARDING_STEPS[paso];
   const esUltimo = paso === ONBOARDING_STEPS.length - 1;
+
+  useEffect(() => {
+    if (!step.target) { setArrowX(null); return; }
+    const btns = document.querySelectorAll<HTMLButtonElement>("button");
+    for (const btn of btns) {
+      if (btn.textContent?.trim() === step.target) {
+        const rect = btn.getBoundingClientRect();
+        setArrowX(rect.left + rect.width / 2);
+        return;
+      }
+    }
+    setArrowX(null);
+  }, [paso, step.target]);
 
   const siguiente = () => {
     if (step.target) onNavegar(step.target as NavItem);
@@ -1416,18 +1430,54 @@ function OnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void; onNa
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "#3a806b", color: "#fff", borderRadius: 16, padding: "36px 40px", maxWidth: 420, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.4)", position: "relative" }}>
+    <>
+      <style>{`
+        @keyframes ob-bounce {
+          0%   { transform: translateX(-50%) translateY(0); }
+          100% { transform: translateX(-50%) translateY(-7px); }
+        }
+      `}</style>
 
+      {/* Overlay semitransparente */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.18)", pointerEvents: "none" }} />
+
+      {/* Flecha hacia el ítem de nav */}
+      {arrowX !== null && (
+        <div style={{
+          position: "fixed", left: arrowX, top: 60, zIndex: 1002,
+          transform: "translateX(-50%)",
+          animation: "ob-bounce 0.7s ease-in-out infinite alternate",
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+          filter: "drop-shadow(0 2px 6px rgba(58,128,107,0.5))",
+          pointerEvents: "none",
+        }}>
+          <svg width="22" height="30" viewBox="0 0 22 30" fill="none">
+            <path d="M11 28 L11 4" stroke="#3a806b" strokeWidth="3" strokeLinecap="round"/>
+            <path d="M2 13 L11 4 L20 13" stroke="#3a806b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      )}
+
+      {/* Card */}
+      <div style={{
+        position: "fixed", zIndex: 1001,
+        left: "50%", transform: "translateX(-50%)",
+        top: arrowX !== null ? 100 : "50%",
+        marginTop: arrowX !== null ? 0 : undefined,
+        translate: arrowX !== null ? undefined : "0 -50%",
+        background: "#3a806b", color: "#fff", borderRadius: 16,
+        padding: "32px 36px", maxWidth: 400, width: "90%",
+        boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+      }}>
         {/* Indicador de pasos */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 28 }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
           {ONBOARDING_STEPS.map((_, i) => (
             <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= paso ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)" }} />
           ))}
         </div>
 
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 12, lineHeight: 1.3 }}>{step.titulo}</h2>
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.65, marginBottom: 32 }}>{step.desc}</p>
+        <h2 style={{ fontSize: 19, fontWeight: 800, color: "#fff", marginBottom: 10, lineHeight: 1.3 }}>{step.titulo}</h2>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.65, marginBottom: 28 }}>{step.desc}</p>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <button onClick={onFinish} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer", padding: 0 }}>
@@ -1438,7 +1488,7 @@ function OnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void; onNa
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

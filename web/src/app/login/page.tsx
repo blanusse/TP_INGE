@@ -303,14 +303,10 @@ function LoginInner() {
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: "flex", gap: 8, padding: "12px 20px 20px", marginTop: "auto" }}>
+                  <div style={{ padding: "12px 20px 20px", marginTop: "auto" }}>
                     <button onClick={() => handleSeleccionarPerfil(p.id)}
-                      style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: "8px", borderRadius: 8, background: p.color, color: "#fff", border: "none", cursor: "pointer", textAlign: "center" as const }}>
+                      style={{ width: "100%", fontSize: 12, fontWeight: 600, padding: "8px", borderRadius: 8, background: p.color, color: "#fff", border: "none", cursor: "pointer", textAlign: "center" as const }}>
                       Registrarme →
-                    </button>
-                    <button onClick={() => handleSeleccionarPerfil(p.id)}
-                      style={{ fontSize: 12, padding: "8px 12px", borderRadius: 8, background: "none", color: "rgba(255,255,255,0.4)", border: "0.5px solid rgba(255,255,255,0.15)", cursor: "pointer" }}>
-                      Más info
                     </button>
                   </div>
                 </div>
