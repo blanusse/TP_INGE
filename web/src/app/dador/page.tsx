@@ -1778,16 +1778,19 @@ const DADOR_ONBOARDING_STEPS = [
     titulo: "¡Bienvenido a CargaBack! 👋",
     desc: "Te mostramos cómo gestionar tus cargas y envíos. Son solo 3 pasos rápidos.",
     target: null as string | null,
+    xOffset: 0,
   },
   {
     titulo: "Gestioná tus cargas",
     desc: "En Mis cargas podés ver todas las cargas que publicaste, las ofertas que recibiste y aceptar al transportista que más te convenga.",
     target: "Mis cargas" as string | null,
+    xOffset: 0,
   },
   {
     titulo: "Seguí tus envíos",
     desc: "En Mis envíos encontrás el estado de cada despacho en curso: desde la confirmación hasta la entrega.",
     target: "Mis envios" as string | null,
+    xOffset: -40,
   },
 ];
 
@@ -1799,16 +1802,17 @@ function DadorOnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void;
 
   useEffect(() => {
     if (!step.target) { setArrowX(null); return; }
-    const btns = document.querySelectorAll<HTMLButtonElement>("button");
-    for (const btn of btns) {
-      if (btn.textContent?.trim() === step.target) {
+    const spans = document.querySelectorAll<HTMLElement>("button span");
+    for (const span of spans) {
+      if (span.textContent?.trim() === step.target) {
+        const btn = span.closest("button")!;
         const rect = btn.getBoundingClientRect();
-        setArrowX(rect.left + rect.width / 2);
+        setArrowX(rect.left + rect.width / 2 + step.xOffset);
         return;
       }
     }
     setArrowX(null);
-  }, [paso, step.target]);
+  }, [paso, step.target, step.xOffset]);
 
   const siguiente = () => {
     if (step.target) onNavegar(step.target as NavItem);
