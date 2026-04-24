@@ -10,6 +10,7 @@ import { Truck } from '../entities/truck.entity';
 import { Rating } from '../entities/rating.entity';
 import { User } from '../entities/user.entity';
 import { Shipper } from '../entities/shipper.entity';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class OffersService {
@@ -20,6 +21,7 @@ export class OffersService {
     @InjectRepository(Rating) private ratingsRepo: Repository<Rating>,
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Shipper) private shippersRepo: Repository<Shipper>,
+    private mailService: MailService,
   ) {}
 
   async submitOffer(userId: string, body: { load_id: string; price: number; truck_id?: string; note?: string }) {
@@ -42,7 +44,29 @@ export class OffersService {
       note: body.note,
       status: 'pending',
     });
-    return this.offersRepo.save(offer);
+    const saved = await this.offersRepo.save(offer);
+
+    const [shipperRecord, driverUser] = await Promise.all([
+      this.shippersRepo.findOne({ where: { id: load.shipper_id } }),
+      this.usersRepo.findOne({ where: { id: userId } }),
+    ]);
+    if (shipperRecord) {
+      const dadorUser = await this.usersRepo.findOne({ where: { id: shipperRecord.user_id } });
+      if (dadorUser) {
+        this.mailService.sendNuevaOferta({
+          dadorEmail: dadorUser.email,
+          dadorName: dadorUser.name,
+          camioneroName: driverUser?.name ?? 'Un camionero',
+          pickup: load.pickup_city,
+          dropoff: load.dropoff_city,
+          price: body.price,
+          note: body.note,
+          loadId: load.id,
+        });
+      }
+    }
+
+    return saved;
   }
 
   async getOffersForLoad(userId: string, loadId: string) {
@@ -59,7 +83,7 @@ export class OffersService {
 
     const driverIds = [...new Set(offers.map((o) => o.driver_id))];
     const [drivers, ratings] = await Promise.all([
-      this.usersRepo.find({ where: { id: In(driverIds) }, select: ['id', 'name', 'email', 'phone', 'role', 'created_at'] }),
+      this.usersRepo.find({ where: { id: In(driverIds) }, select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at'] }),
       this.ratingsRepo.createQueryBuilder('r')
         .select(['r.to_user_id', 'AVG(r.score) as avg_score', 'COUNT(*) as count'])
         .where('r.to_user_id IN (:...ids)', { ids: driverIds.length ? driverIds : ['none'] })
@@ -74,6 +98,7 @@ export class OffersService {
       ...offer,
       driver: driverMap[offer.driver_id],
       avg_rating: ratingMap[offer.driver_id]?.avg_score ?? null,
+      rating_count: ratingMap[offer.driver_id]?.count ?? 0,
     }));
   }
 
@@ -108,6 +133,8 @@ export class OffersService {
 
     if (!isShipper && !isDriver) throw new ForbiddenException();
 
+    let bulkRejectedDriverIds: string[] = [];
+
     if (isShipper) {
       if (action === 'accept') {
         if (offer.status !== 'pending' && offer.status !== 'countered') {
@@ -116,6 +143,12 @@ export class OffersService {
         offer.status = 'accepted';
         load.status = 'matched';
         await this.loadsRepo.save(load);
+        // Collect drivers that will be bulk-rejected for later notification
+        const toReject = await this.offersRepo.find({
+          where: { load_id: load.id, status: In(['pending', 'countered']) },
+          select: ['id', 'driver_id'],
+        });
+        bulkRejectedDriverIds = toReject.filter((o) => o.id !== offerId).map((o) => o.driver_id);
         // Reject all other pending offers
         await this.offersRepo.createQueryBuilder()
           .update(Offer)
@@ -151,6 +184,58 @@ export class OffersService {
       }
     }
 
-    return this.offersRepo.save(offer);
+    const saved = await this.offersRepo.save(offer);
+
+    if (isShipper && ['accept', 'reject', 'counter'].includes(action)) {
+      const driverUser = await this.usersRepo.findOne({ where: { id: offer.driver_id } });
+      if (driverUser) {
+        const baseOpts = {
+          camioneroEmail: driverUser.email,
+          camioneroName: driverUser.name,
+          pickup: load.pickup_city,
+          dropoff: load.dropoff_city,
+          loadId: load.id,
+        };
+        if (action === 'accept') {
+          this.mailService.sendOfertaAceptada({ ...baseOpts, price: Number(saved.price) });
+          if (bulkRejectedDriverIds.length > 0) {
+            const rejectedUsers = await this.usersRepo.find({ where: { id: In(bulkRejectedDriverIds) } });
+            for (const u of rejectedUsers) {
+              this.mailService.sendOfertaRechazada({ ...baseOpts, camioneroEmail: u.email, camioneroName: u.name });
+            }
+          }
+        } else if (action === 'reject') {
+          this.mailService.sendOfertaRechazada(baseOpts);
+        } else if (action === 'counter') {
+          this.mailService.sendContraofertaRecibida({ ...baseOpts, counterPrice: Number(saved.counter_price) });
+        }
+      }
+    }
+
+    if (isDriver && ['withdraw', 'accept_counter', 'reject_counter'].includes(action) && shipper) {
+      const [dadorUser, driverUser] = await Promise.all([
+        this.usersRepo.findOne({ where: { id: shipper.user_id } }),
+        this.usersRepo.findOne({ where: { id: userId } }),
+      ]);
+      if (dadorUser) {
+        const baseOpts = {
+          dadorEmail: dadorUser.email,
+          dadorName: dadorUser.name,
+          camioneroName: driverUser?.name ?? 'Un camionero',
+          pickup: load.pickup_city,
+          dropoff: load.dropoff_city,
+          loadId: load.id,
+        };
+        if (action === 'accept_counter') {
+          this.mailService.sendContraofertaAceptada({ ...baseOpts, price: Number(saved.price) });
+        } else if (action === 'reject_counter') {
+          this.mailService.sendContraofertaRechazada(baseOpts);
+        } else if (action === 'withdraw') {
+          this.mailService.sendOfertaRetirada(baseOpts);
+        }
+      }
+    }
+
+    return saved;
   }
 }

@@ -22,11 +22,14 @@ export async function GET(req: NextRequest) {
       nombre: name,
       iniciales,
       rating: o.avg_rating ? Number(o.avg_rating) : 0,
-      viajes: 0,
+      viajes: o.rating_count ? Number(o.rating_count) : 0,
       precio: Number(o.price),
       counterPrice: o.counter_price ? Number(o.counter_price) : null,
       status: o.status,
       nota: o.note ?? "",
+      telefono: driver?.phone ?? null,
+      email: driver?.email ?? null,
+      dni: driver?.dni ?? null,
     };
   });
   return NextResponse.json({ offers }, { status: res.status });

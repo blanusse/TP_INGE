@@ -15,7 +15,7 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 type NavItem = "Inicio" | "Mis cargas" | "Mis envios" | "Historial" | "Facturación" | "Mi perfil";
 type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tránsito";
 
-interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; }
+interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
 interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
 interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; }
 
@@ -458,6 +458,7 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
   const [confirmRechazar, setConfirmRechazar] = useState<Oferta | null>(null);
   const [contraofertaId, setContraofertaId]   = useState<string | null>(null);
   const [contraPrice, setContraPrice]         = useState("");
+  const [perfilExpandido, setPerfilExpandido] = useState<string | null>(null);
 
   React.useEffect(() => {
     fetch(`/api/offers?loadId=${carga.id}`)
@@ -551,6 +552,20 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
             {o.nota && (
               <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: "6px 10px", background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-md)", marginBottom: 10 }}>
                 &ldquo;{o.nota}&rdquo;
+              </div>
+            )}
+            <button
+              onClick={() => setPerfilExpandido(perfilExpandido === o.offerId ? null : o.offerId)}
+              style={{ fontSize: 11, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", padding: "0 0 8px 0", textDecoration: "underline" }}
+            >
+              {perfilExpandido === o.offerId ? "Ocultar perfil" : "Ver perfil del camionero"}
+            </button>
+            {perfilExpandido === o.offerId && (
+              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-md)", padding: "10px 12px", marginBottom: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+                {o.telefono && <div><span style={{ fontWeight: 600 }}>Teléfono:</span> {o.telefono}</div>}
+                {o.email    && <div><span style={{ fontWeight: 600 }}>Email:</span> {o.email}</div>}
+                {o.dni      && <div><span style={{ fontWeight: 600 }}>DNI:</span> {o.dni}</div>}
+                <div><span style={{ fontWeight: 600 }}>Calificaciones:</span> {o.viajes} {o.viajes === 1 ? "viaje calificado" : "viajes calificados"}</div>
               </div>
             )}
             {esContraoferta ? (
@@ -902,7 +917,7 @@ function SeccionMisCargas({
   const [detalleCarga, setDetalleCarga] = useState<Carga | null>(null);
   const [eliminando, setEliminando] = useState<string | null>(null);
 
-  const publicadas = cargas.filter((c) => c.status === "published" || c.status === "open");
+  const publicadas = cargas.filter((c) => c.status === "available");
   const asignadas = cargas.filter((c) => c.status === "matched" || c.status === "in_transit" || c.status === "accepted");
 
   const listado = tab === "Publicadas" ? publicadas : asignadas;
@@ -1631,7 +1646,7 @@ function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userN
 
   const kpis = [
     { label: "Gasto este mes", value: stats?.gastoEsteMes != null ? `$${stats.gastoEsteMes.toLocaleString("es-AR")}` : "$0", icon: "fa-solid fa-dollar-sign", color: "#16a34a" },
-    { label: "Cargas activas", value: cargas.filter((c) => c.status === "published" || c.status === "in_transit").length, icon: "fa-solid fa-box", color: "#3b82f6" },
+    { label: "Cargas activas", value: cargas.filter((c) => c.status === "available" || c.status === "in_transit").length, icon: "fa-solid fa-box", color: "#3b82f6" },
     { label: "Tiempo prom. asignación", value: stats?.tiempoPromedioAsignacion != null ? `${stats.tiempoPromedioAsignacion}h` : "—", icon: "fa-solid fa-clock", color: "#f59e0b" },
     { label: "Ofertas pendientes", value: pendientes, icon: "fa-solid fa-handshake", color: "#8b5cf6" },
   ];
