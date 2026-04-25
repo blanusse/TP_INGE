@@ -1,6 +1,6 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { Shipper } from '../entities/shipper.entity';
 import { Load } from '../entities/load.entity';
@@ -86,6 +86,69 @@ export class StatsService {
       rutasFrecuentes,
       calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,
       memberSince: user.created_at,
+    };
+  }
+
+  async getFleetStats(userId: string, from?: string, to?: string, driverId?: string) {
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user || user.role !== 'transportista') throw new ForbiddenException();
+
+    const subDrivers = await this.usersRepo.find({ where: { fleet_id: userId } });
+    const allDriverIds = [userId, ...subDrivers.map((d) => d.id)];
+
+    if (driverId && !allDriverIds.includes(driverId)) throw new ForbiddenException();
+    const targetIds = driverId ? [driverId] : allDriverIds;
+
+    const fromDate = from ? new Date(from) : null;
+    const toDate   = to   ? new Date(to)   : null;
+    if (toDate) toDate.setHours(23, 59, 59, 999);
+
+    const offers = await this.offersRepo.find({
+      where: { driver_id: In(targetIds), status: 'accepted' },
+      relations: ['load'],
+    });
+
+    const delivered = offers.filter((o) => {
+      if (o.load?.status !== 'delivered') return false;
+      const d = new Date(o.created_at);
+      if (fromDate && d < fromDate) return false;
+      if (toDate && d > toDate) return false;
+      return true;
+    });
+
+    const totalViajes  = delivered.length;
+    const totalIngresos = delivered.reduce((sum, o) => sum + Number(o.price), 0);
+
+    const driverUsers = await this.usersRepo.find({ where: { id: In(allDriverIds) } });
+    const driverMap   = Object.fromEntries(driverUsers.map((d) => [d.id, d]));
+
+    const perConductor = targetIds.map((dId) => {
+      const dOffers = delivered.filter((o) => o.driver_id === dId);
+      return {
+        id:       dId,
+        name:     driverMap[dId]?.name ?? 'Desconocido',
+        viajes:   dOffers.length,
+        ingresos: dOffers.reduce((sum, o) => sum + Number(o.price), 0),
+      };
+    });
+
+    const mejorConductor = perConductor.reduce<{ id: string; name: string; viajes: number; ingresos: number } | null>(
+      (best, d) => (!best || d.viajes > best.viajes ? d : best),
+      null,
+    );
+
+    const ratingAgg = await this.ratingsRepo
+      .createQueryBuilder('r')
+      .select('AVG(r.score)', 'avg')
+      .where('r.to_user_id IN (:...ids)', { ids: allDriverIds })
+      .getRawOne();
+
+    return {
+      totalViajes,
+      totalIngresos,
+      mejorConductor: mejorConductor ? { name: mejorConductor.name, viajes: mejorConductor.viajes } : null,
+      calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,
+      perConductor,
     };
   }
 

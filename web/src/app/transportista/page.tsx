@@ -884,8 +884,129 @@ function ModalConfirmarEliminar({ mensaje, onConfirmar, onCancelar }: { mensaje:
   );
 }
 
+interface FleetStats {
+  totalViajes: number;
+  totalIngresos: number;
+  mejorConductor: { name: string; viajes: number } | null;
+  calificacionPromedio: string | null;
+  perConductor: { id: string; name: string; viajes: number; ingresos: number }[];
+}
+
+function TabEstadisticas({ drivers }: { drivers: Driver[] }) {
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
+
+  const [from, setFrom] = useState(firstOfMonth);
+  const [to, setTo] = useState(today);
+  const [driverId, setDriverId] = useState("");
+  const [stats, setStats] = useState<FleetStats | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchStats = async (f = from, t = to, d = driverId) => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (f) params.set("from", f);
+    if (t) params.set("to", t);
+    if (d) params.set("driverId", d);
+    const res = await fetch(`/api/fleet/stats?${params}`);
+    const data = await res.json();
+    if (data.totalViajes !== undefined) setStats(data);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchStats(); }, []);
+
+  const kpiCard = (label: string, value: string, sub?: string, icon?: string) => (
+    <div style={{ background: "var(--bg0)", border: "1px solid var(--border)", borderRadius: "var(--border-radius-lg)", padding: "18px 20px", flex: 1, minWidth: 160 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        {icon && <i className={icon} style={{ fontSize: 14, color: "var(--color-brand)" }} />}
+        <span style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text-primary)", lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div>
+      {/* Filtros */}
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", marginBottom: 24, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", marginBottom: 4, textTransform: "uppercase" }}>Desde</div>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ fontSize: 13, padding: "7px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }} />
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", marginBottom: 4, textTransform: "uppercase" }}>Hasta</div>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ fontSize: 13, padding: "7px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }} />
+        </div>
+        {drivers.length > 0 && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", marginBottom: 4, textTransform: "uppercase" }}>Conductor</div>
+            <select value={driverId} onChange={(e) => setDriverId(e.target.value)} style={{ fontSize: 13, padding: "7px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", cursor: "pointer" }}>
+              <option value="">Todos</option>
+              {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+        )}
+        <button onClick={() => fetchStats()} style={{ fontSize: 13, padding: "8px 18px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
+          Aplicar
+        </button>
+      </div>
+
+      {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+
+      {!loading && stats && (
+        <>
+          {/* KPI cards */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+            {kpiCard("Viajes en período", String(stats.totalViajes), undefined, "fa-solid fa-route")}
+            {kpiCard("Ingresos en período", `$${stats.totalIngresos.toLocaleString("es-AR")}`, undefined, "fa-solid fa-dollar-sign")}
+            {kpiCard("Mejor conductor", stats.mejorConductor?.name ?? "—", stats.mejorConductor ? `${stats.mejorConductor.viajes} viajes` : undefined, "fa-solid fa-trophy")}
+            {kpiCard("Calificación promedio", stats.calificacionPromedio ? `${stats.calificacionPromedio} ★` : "—", undefined, "fa-solid fa-star")}
+          </div>
+
+          {/* Tabla por conductor */}
+          {stats.perConductor.length > 0 && (
+            <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "0.5px solid var(--color-border-tertiary)", fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>Detalle por conductor</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "var(--color-background-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
+                    {["Conductor", "Viajes", "Ingresos"].map((h) => (
+                      <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.perConductor.map((c, i) => (
+                    <tr key={c.id} style={{ borderBottom: i < stats.perConductor.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                      <td style={{ padding: "12px 16px", fontWeight: 500, color: "var(--color-text-primary)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--green-muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--green)", flexShrink: 0 }}>{c.name.charAt(0).toUpperCase()}</div>
+                          {c.name}
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{c.viajes}</td>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>${c.ingresos.toLocaleString("es-AR")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {stats.perConductor.length === 0 && (
+            <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--color-text-tertiary)", fontSize: 14 }}>No hay viajes completados en el período seleccionado.</div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function SeccionMiFlota() {
-  const [tabFlota, setTabFlota] = useState<"Camiones" | "Conductores">("Camiones");
+  const [tabFlota, setTabFlota] = useState<"Camiones" | "Conductores" | "Estadísticas">("Camiones");
   const [trucks, setTrucks] = useState<TruckData[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loadingTrucks, setLoadingTrucks] = useState(true);
@@ -903,7 +1024,7 @@ function SeccionMiFlota() {
   }, []);
 
   return (
-    <main style={{ padding: "20px 24px", flex: 1, maxWidth: 900 }}>
+    <main style={{ padding: "20px 24px", flex: 1, maxWidth: 900, margin: "0 auto", width: "100%" }}>
       {modalCamion && <ModalAgregarCamion onClose={() => setModalCamion(false)} onAdded={(t) => setTrucks((prev) => [...prev, t])} />}
       {modalConductor && <ModalAgregarConductor onClose={() => setModalConductor(false)} onAdded={(d) => setDrivers((prev) => [...prev, d])} />}
       {editandoCamion && <ModalEditarCamion truck={editandoCamion} onClose={() => setEditandoCamion(null)} onSaved={(t) => { setTrucks((prev) => prev.map((x) => x.id === t.id ? t : x)); setEditandoCamion(null); }} />}
@@ -925,16 +1046,18 @@ function SeccionMiFlota() {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>Mi flota</div>
-        <button
-          onClick={() => tabFlota === "Camiones" ? setModalCamion(true) : setModalConductor(true)}
-          style={{ fontSize: 13, padding: "8px 18px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
-          + Agregar {tabFlota === "Camiones" ? "camión" : "conductor"}
-        </button>
+        {tabFlota !== "Estadísticas" && (
+          <button
+            onClick={() => tabFlota === "Camiones" ? setModalCamion(true) : setModalConductor(true)}
+            style={{ fontSize: 13, padding: "8px 18px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
+            + Agregar {tabFlota === "Camiones" ? "camión" : "conductor"}
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
       <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 2, marginBottom: 20 }}>
-        {(["Camiones", "Conductores"] as const).map((t) => (
+        {(["Camiones", "Conductores", "Estadísticas"] as const).map((t) => (
           <button key={t} onClick={() => setTabFlota(t)} style={{ fontSize: 14, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", background: tabFlota === t ? "var(--color-background-primary)" : "transparent", color: tabFlota === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabFlota === t ? 600 : 400, boxShadow: tabFlota === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>{t}</button>
         ))}
       </div>
@@ -1020,6 +1143,8 @@ function SeccionMiFlota() {
           )}
         </>
       )}
+
+      {tabFlota === "Estadísticas" && <TabEstadisticas drivers={drivers} />}
     </main>
   );
 }
