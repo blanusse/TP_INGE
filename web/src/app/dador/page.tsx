@@ -1351,33 +1351,26 @@ function SeccionMensajesDador({ userId }: { userId: string }) {
   );
 }
 
-interface Factura { id: string; offerId: string; fecha: string; concepto: string; camionero: string; monto: number; estado: string; }
+interface Factura { id: string; paymentId: string; offerId: string; fecha: string; concepto: string; camionero: string; monto: number; estado: string; }
 
-function descargarFactura(f: Factura) {
-  const contenido = [
-    "========================================",
-    "         CARGABACK — COMPROBANTE",
-    "========================================",
-    `N° Factura : ${f.id}`,
-    `Fecha      : ${f.fecha}`,
-    `Concepto   : ${f.concepto}`,
-    `Camionero  : ${f.camionero}`,
-    `Monto      : $${f.monto.toLocaleString("es-AR")} ARS`,
-    `Estado     : ${f.estado}`,
-    "========================================",
-  ].join("\n");
-  const blob = new Blob([contenido], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${f.id}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 function SeccionFacturacion() {
   const [facturas, setFacturas] = useState<Factura[]>([]);
   const [loading, setLoading] = useState(true);
+  const descargar = async (f: Factura) => {
+    const url = `/api/invoices/${f.paymentId}/pdf?numero=${encodeURIComponent(f.id)}`;
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = `factura-${f.id}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 500);
+  };
 
   useEffect(() => {
     fetch("/api/invoices")
@@ -1389,7 +1382,7 @@ function SeccionFacturacion() {
 
   const totalMes = facturas.reduce((acc, f) => acc + f.monto, 0);
 
-  const descargarTodas = () => facturas.forEach((f) => descargarFactura(f));
+  const descargarTodas = () => facturas.forEach((f) => descargar(f));
 
   return (
     <main style={{ padding: 20, flex: 1 }}>
@@ -1439,10 +1432,12 @@ function SeccionFacturacion() {
               <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>${f.monto.toLocaleString("es-AR")}</div>
               <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 20, fontWeight: 500, background: "var(--color-brand-light)", color: "var(--color-brand-dark)" }}>{f.estado}</span>
               <button
-                onClick={() => descargarFactura(f)}
+                onClick={() => descargar(f)}
                 title="Descargar factura"
-                style={{ fontSize: 14, padding: "4px 8px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}
-              >↓</button>
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: "var(--border-radius-md)", border: "none", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}
+              >
+                <i className="fa-solid fa-download" style={{ fontSize: 16 }} />
+              </button>
             </div>
           ))}
         </div>

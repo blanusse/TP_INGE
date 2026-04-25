@@ -19,6 +19,7 @@ export async function GET() {
 
     return {
       id:        `F-${date.getFullYear()}-${numero}`,
+      paymentId: p.id as string,
       offerId:   p.offer_id,
       fecha:     date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }),
       concepto,

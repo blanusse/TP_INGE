@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards, Request, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, Headers, Res, UnauthorizedException } from '@nestjs/common';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PaymentsService } from './payments.service';
 
@@ -36,5 +37,23 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   getMyPayments(@Request() req) {
     return this.paymentsService.getMyPayments(req.user.id);
+  }
+
+  // Descarga de factura en PDF
+  @Get(':paymentId/invoice')
+  @UseGuards(JwtAuthGuard)
+  async downloadInvoice(
+    @Param('paymentId') paymentId: string,
+    @Query('numero') numero: string,
+    @Request() req,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.paymentsService.generateInvoicePdf(paymentId, req.user.id, numero ?? 'F-0000-000');
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="factura-${numero ?? paymentId}.pdf"`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
   }
 }
