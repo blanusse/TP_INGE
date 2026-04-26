@@ -650,7 +650,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
   const [payoutDestination, setPayoutDestination] = useState("");
   const [confirmando, setConfirmando] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
-  const [confirmSuccess, setConfirmSuccess] = useState<{ amount: number } | null>(null);
+  const [confirmSuccess, setConfirmSuccess] = useState<{ amount: number; transfer_initiated: boolean } | null>(null);
 
   let km: number | null = null;
   if (t.pickupLat != null && t.pickupLon != null && t.dropoffLat != null && t.dropoffLon != null) {
@@ -709,7 +709,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
       const data = await res.json();
       if (!res.ok) { setConfirmError(data.message ?? data.error ?? "Error al confirmar."); return; }
       setEntregaCompletada(true);
-      setConfirmSuccess({ amount: data.amount });
+      setConfirmSuccess({ amount: data.amount, transfer_initiated: !!data.transfer_initiated });
     } catch {
       setConfirmError("Error de conexión. Intentá de nuevo.");
     } finally {
@@ -791,9 +791,18 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
                 ¡Entrega completada!
               </div>
               {confirmSuccess && (
-                <div style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>
-                  El cobro de <strong>${confirmSuccess.amount.toLocaleString("es-AR")}</strong> fue solicitado.
-                  La transferencia se va a procesar en las próximas horas.
+                <div style={{ fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+                  {confirmSuccess.transfer_initiated ? (
+                    <>
+                      <span style={{ color: "#16a34a", fontWeight: 600 }}>¡Transferencia iniciada!</span>{" "}
+                      El cobro de <strong>${confirmSuccess.amount.toLocaleString("es-AR")}</strong> está en camino. Llegará en las próximas horas.
+                    </>
+                  ) : (
+                    <>
+                      El cobro de <strong>${confirmSuccess.amount.toLocaleString("es-AR")}</strong> fue registrado.
+                      Lo procesaremos manualmente en breve.
+                    </>
+                  )}
                 </div>
               )}
               {entregaCompletada && !confirmSuccess && (
@@ -808,22 +817,22 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
           {!entregaCompletada && !codigoVerificado && (
             <>
               <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
-                Pedile el código de 6 caracteres a la persona que recibe la carga.
+                Pedile el código de confirmación de 8 caracteres a la persona que recibe la carga.
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  value={codigoInput}
-                  onChange={(e) => setCodigoInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
-                  placeholder="ABC123"
-                  maxLength={6}
-                  style={{ flex: 1, fontSize: 24, fontWeight: 700, letterSpacing: "0.2em", textAlign: "center", padding: "10px 14px", borderRadius: 8, border: "1.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", fontFamily: "monospace", textTransform: "uppercase" }}
-                />
-                <button
-                  onClick={() => { if (codigoInput.length === 6) setCodigoVerificado(true); }}
-                  disabled={codigoInput.length !== 6}
-                  style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: codigoInput.length === 6 ? "#3b82f6" : "#d1d5db", color: "#fff", fontWeight: 700, cursor: codigoInput.length === 6 ? "pointer" : "not-allowed", fontSize: 14 }}>
-                  Verificar
-                </button>
+              <input
+                value={codigoInput}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+                  setCodigoInput(val);
+                  if (val.length === 8) setTimeout(() => setCodigoVerificado(true), 200);
+                }}
+                placeholder="XXXX-XXXX"
+                maxLength={8}
+                autoComplete="off"
+                style={{ width: "100%", fontSize: 28, fontWeight: 700, letterSpacing: "0.25em", textAlign: "center", padding: "12px 14px", borderRadius: 8, border: `1.5px solid ${codigoInput.length === 8 ? "#3b82f6" : "var(--color-border-secondary)"}`, background: "var(--color-background-secondary)", color: codigoInput.length === 8 ? "#3b82f6" : "var(--color-text-primary)", outline: "none", fontFamily: "monospace", textTransform: "uppercase", boxSizing: "border-box" as const, transition: "border-color 0.15s, color 0.15s" }}
+              />
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "center", marginTop: 6 }}>
+                {codigoInput.length}/8 caracteres{codigoInput.length === 8 ? " — verificando..." : ""}
               </div>
             </>
           )}

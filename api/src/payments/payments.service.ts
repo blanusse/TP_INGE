@@ -34,11 +34,76 @@ export class PaymentsService {
     return this.paymentsRepo.save(payment);
   }
 
+  private static readonly CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin O/0/I/1
+  private static readonly CODE_LENGTH = 8;
+
   private generateDeliveryCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin O, 0, I, 1 para evitar confusión
     let code = '';
-    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    for (let i = 0; i < PaymentsService.CODE_LENGTH; i++) {
+      code += PaymentsService.CODE_CHARS[Math.floor(Math.random() * PaymentsService.CODE_CHARS.length)];
+    }
     return code;
+  }
+
+  /** Intenta hacer la transferencia al transportista vía MercadoPago.
+   *  Devuelve { success, transferId?, error? } — nunca lanza excepción. */
+  private async initiatePayoutTransfer(
+    payment: Payment,
+    payoutMethod: string,
+    payoutDestination: string,
+  ): Promise<{ success: boolean; transferId?: string; error?: string }> {
+    const mpToken = process.env.MP_ACCESS_TOKEN;
+    if (!mpToken) return { success: false, error: 'MP_ACCESS_TOKEN not set' };
+
+    const amount = Number(payment.amount);
+    const idempotencyKey = `payout-${payment.id}`;
+    const description = `CargaBack — pago por servicio de transporte (referencia ${payment.id.slice(0, 8)})`;
+
+    try {
+      let url: string;
+      let body: Record<string, unknown>;
+
+      if (payoutMethod === 'cvu_cbu') {
+        // Transferencia bancaria: CBU, CVU o alias
+        url = 'https://api.mercadopago.com/v1/bank_transfers';
+        body = {
+          amount,
+          currency_id: 'ARS',
+          description,
+          external_reference: idempotencyKey,
+          receiver: { account_id: payoutDestination },
+        };
+      } else {
+        // Transferencia a cuenta de MercadoPago (por email)
+        url = 'https://api.mercadopago.com/v1/transfers';
+        body = {
+          amount,
+          currency_id: 'ARS',
+          description,
+          external_reference: idempotencyKey,
+          receiver: { email: payoutDestination },
+        };
+      }
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${mpToken}`,
+          'Content-Type': 'application/json',
+          'X-Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if ((res.ok || res.status === 201) && data.id) {
+        return { success: true, transferId: String(data.id) };
+      }
+      return { success: false, error: data.message ?? data.error ?? `HTTP ${res.status}` };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
   }
 
   async confirmPayment(offerId: string, mpPaymentId?: string) {
@@ -128,7 +193,23 @@ export class PaymentsService {
       await this.loadsRepo.save(load);
     }
 
-    return { ok: true, amount: Number(payment.amount), payout_method: payoutMethod };
+    // Intentar la transferencia a MercadoPago
+    const transfer = await this.initiatePayoutTransfer(payment, payoutMethod, payoutDestination.trim());
+    if (transfer.success && transfer.transferId) {
+      payment.payout_status = 'done';
+      payment.payout_transfer_id = transfer.transferId;
+    } else {
+      payment.payout_status = transfer.error?.includes('not set') ? 'requested' : 'transfer_failed';
+    }
+    await this.paymentsRepo.save(payment);
+
+    return {
+      ok: true,
+      amount: Number(payment.amount),
+      payout_method: payoutMethod,
+      transfer_initiated: transfer.success,
+      transfer_id: transfer.transferId ?? null,
+    };
   }
 
   async getMyPayments(userId: string) {
