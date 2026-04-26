@@ -4,6 +4,8 @@ interface NominatimResult {
   lat: string;
   lon: string;
   display_name: string;
+  type: string;
+  class: string;
   address: {
     road?: string;
     house_number?: string;
@@ -76,20 +78,30 @@ export async function GET(req: NextRequest) {
         "User-Agent":      "CargaBack/1.0 (student-logistics-project)",
         "Accept-Language": "es",
       },
-      next: { revalidate: 60 },
+      next: { revalidate: 300 },
     });
 
     if (!res.ok) return NextResponse.json({ results: [] });
 
     const data: NominatimResult[] = await res.json();
 
-    const results = data.map((item) => ({
-      label: formatLabel(item),
-      zone:  formatZone(item),
-      full:  item.display_name,
-      lat:   parseFloat(item.lat),
-      lon:   parseFloat(item.lon),
-    }));
+    // Solo resultados con calle y número — excluye calles sin altura, ciudades, provincias
+    const streetLevel = data.filter((item) => !!item.address.road && !!item.address.house_number);
+
+    const seen = new Set<string>();
+    const results = streetLevel
+      .map((item) => ({
+        label: formatLabel(item),
+        zone:  formatZone(item),
+        full:  item.display_name,
+        lat:   parseFloat(item.lat),
+        lon:   parseFloat(item.lon),
+      }))
+      .filter((r) => {
+        if (seen.has(r.zone)) return false;
+        seen.add(r.zone);
+        return true;
+      });
 
     return NextResponse.json({ results });
   } catch {
