@@ -34,7 +34,7 @@ export class User {
 
   // Estado de verificación de identidad
   @Column({ default: 'pending' })
-  verification_status: 'pending' | 'verified' | 'rejected';
+  verification_status: string;
 
   // For fleet sub-drivers: points to the owner transportista
   @Column({ nullable: true, type: 'uuid' })

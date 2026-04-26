@@ -45,8 +45,6 @@ function LoginInner() {
   const [telefonoDisponible, setTelefonoDisponible]   = useState<boolean | null>(null);
   const [dniDisponible, setDniDisponible]             = useState<boolean | null>(null);
   const [cuitDisponible, setCuitDisponible]           = useState<boolean | null>(null);
-  const [dniFile, setDniFile]                         = useState<File | null>(null);
-  const [uploadingDni, setUploadingDni]               = useState(false);
 
   // Verificación en tiempo real: DNI
   useEffect(() => {
@@ -140,7 +138,6 @@ function LoginInner() {
       const num = parseInt(dniLimpio);
       if (num < 1_000_000 || num > 99_999_999) return "El DNI ingresado no está en el rango argentino válido.";
       if (dniDisponible === false) return "Ya existe una cuenta registrada con ese DNI.";
-      if (!dniFile) return "Adjuntá una foto de tu DNI para verificar tu identidad.";
     }
 
     if (!telefono.trim()) return "El teléfono es obligatorio.";
@@ -166,34 +163,12 @@ function LoginInner() {
     if (err) { setError(err); return; }
 
     startTransition(async () => {
-      // 1. Subir foto DNI si se seleccionó
-      let dniPhotoUrl: string | null = null;
-      if (dniFile) {
-        setUploadingDni(true);
-        try {
-          const fd = new FormData();
-          fd.append("file", dniFile);
-          fd.append("folder", "dni-pendientes");
-          const upRes = await fetch("/api/documents/upload-public", { method: "POST", body: fd });
-          const upData = await upRes.json();
-          if (!upRes.ok) { setError(upData.error ?? "Error al subir la foto del DNI."); setUploadingDni(false); return; }
-          dniPhotoUrl = upData.url;
-        } catch {
-          setError("Error de conexión al subir la foto. Intentá de nuevo.");
-          setUploadingDni(false);
-          return;
-        }
-        setUploadingDni(false);
-      }
-
-      // 2. Registrar el usuario
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email, password, name: nombre, role: perfil,
           tipo_dador: tipoDador || null, phone: telefono || null, dni: dni || null,
-          dni_photo_url: dniPhotoUrl,
           razon_social: razonSocial || null, cuit: cuit || null, address: direccion || null,
         }),
       });
@@ -445,9 +420,6 @@ function LoginInner() {
                   <Campo label="DNI" id="dni" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" required
                     hint={dniDisponible === false ? { text: "⚠ Ya existe una cuenta con ese DNI.", color: "#ef4444" } : dniDisponible === true ? { text: "✓ DNI disponible.", color: "#16a34a" } : undefined} />
                 )}
-                {(perfil === "transportista" || (perfil === "dador" && tipoDador === "personal")) && (
-                  <CampoDniPhoto file={dniFile} onFile={setDniFile} />
-                )}
                 <Campo label="Celular" id="tel" type="tel" value={telefono} onChange={(v) => setTelefono(v.replace(/[^\d+\s]/g, ""))} placeholder="+54 9 11 1234-5678" maxLength={15} inputMode="tel" required
                   hint={telefonoDisponible === false ? { text: "⚠ Este celular ya está registrado.", color: "#ef4444" } : telefonoDisponible === true ? { text: "✓ Celular disponible.", color: "#16a34a" } : undefined} />
                 <Campo label="Email" id="email" type="email" autoComplete="email" value={email} onChange={setEmail} placeholder="tu@email.com" style={{ gridColumn: "1 / -1" }} required
@@ -485,7 +457,7 @@ function LoginInner() {
                 </label>
               </div>
 
-              <BtnPrimario isPending={isPending || uploadingDni} label="Crear cuenta" labelPending={uploadingDni ? "Subiendo foto DNI..." : "Procesando..."} />
+              <BtnPrimario isPending={isPending} label="Crear cuenta" labelPending="Procesando..." />
             </form>
 
             <Divider />
@@ -662,46 +634,6 @@ function validarCuitChecksum(cuit: string): boolean {
   return parseInt(limpio[10]) === resto;
 }
 
-function CampoDniPhoto({ file, onFile }: { file: File | null; onFile: (f: File | null) => void }) {
-  const inputId = "dni-photo";
-  return (
-    <div style={{ marginBottom: 16, gridColumn: "1 / -1" }}>
-      <label htmlFor={inputId} style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 6 }}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M7 15h2"/><path d="M13 15h4"/></svg>
-        Foto del DNI <span style={{ color: "#ef4444", marginLeft: 2 }}>*</span>
-      </label>
-      <label htmlFor={inputId} style={{ display: "block", cursor: "pointer" }}>
-        <div style={{
-          border: `1.5px dashed ${file ? "#3a806b" : "rgba(255,255,255,0.3)"}`,
-          borderRadius: 10,
-          padding: "14px 16px",
-          background: file ? "rgba(58,128,107,0.1)" : "#111",
-          textAlign: "center",
-          transition: "all 0.15s",
-        }}>
-          {file ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              <span style={{ fontSize: 13, color: "#3a806b", fontWeight: 600 }}>{file.name}</span>
-              <button type="button" onClick={(e) => { e.preventDefault(); onFile(null); }} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
-            </div>
-          ) : (
-            <>
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block", margin: "0 auto 8px" }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 4 }}>Subí una foto del frente de tu DNI</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>JPG, PNG o WEBP · máx. 5 MB</div>
-            </>
-          )}
-        </div>
-      </label>
-      <input id={inputId} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }}
-        onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
-      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: "5px 0 0" }}>
-        La imagen se usa únicamente para verificar tu identidad.
-      </p>
-    </div>
-  );
-}
 
 function passwordStrength(pwd: string): number {
   let s = 0;

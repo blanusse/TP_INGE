@@ -1,6 +1,6 @@
 import { Injectable, ForbiddenException, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DeepPartial } from 'typeorm';
 import { Truck } from '../entities/truck.entity';
 import { User } from '../entities/user.entity';
 import * as bcrypt from 'bcryptjs';
@@ -72,8 +72,8 @@ export class FleetService {
     }
 
     // Vigencias
-    validarVigencia(body.vtv_vence, 'VTV');
-    validarVigencia(body.seguro_vence, 'seguro');
+    validarVigencia(body.vtv_vence ?? '', 'VTV');
+    validarVigencia(body.seguro_vence ?? '', 'seguro');
 
     const truck = this.trucksRepo.create({ ...body, patente, owner_id: userId });
     return this.trucksRepo.save(truck);
@@ -98,8 +98,8 @@ export class FleetService {
     if (body.año !== undefined && !validarAnio(body.año)) {
       throw new BadRequestException(`El año debe estar entre 1960 y ${new Date().getFullYear() + 1}.`);
     }
-    validarVigencia(body.vtv_vence, 'VTV');
-    validarVigencia(body.seguro_vence, 'seguro');
+    validarVigencia(body.vtv_vence ?? '', 'VTV');
+    validarVigencia(body.seguro_vence ?? '', 'seguro');
 
     const { owner_id, id, ...updates } = body as any;
     Object.assign(truck, updates);
@@ -162,7 +162,7 @@ export class FleetService {
       dni: body.dni ? body.dni.replace(/\./g, '') : null,
       fleet_id: userId,
       verification_status: 'pending',
-    });
+    } as DeepPartial<User>);
     const saved = await this.usersRepo.save(driver);
     const { password_hash: _, ...result } = saved as any;
     return result;
