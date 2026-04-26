@@ -55,7 +55,10 @@ export class Payment {
   payout_destination: string; // CVU/CBU/alias o email/usuario de MP
 
   @Column({ type: 'varchar', nullable: true, default: null })
-  payout_status: string; // null | 'requested' | 'done'
+  payout_status: string; // null | 'requested' | 'done' | 'transfer_failed'
+
+  @Column({ type: 'varchar', nullable: true })
+  payout_transfer_id: string; // ID de la transferencia MP si fue exitosa
 
   @CreateDateColumn()
   created_at: Date;
