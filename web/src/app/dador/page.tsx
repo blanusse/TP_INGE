@@ -675,7 +675,7 @@ function ModalPago({ sel, onClose }: {
       <div style={{ background: "#f0f4ff", border: "0.5px solid #c7d7fd", borderRadius: "var(--border-radius-lg)", padding: 14, marginBottom: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#1e3a8a", marginBottom: 6 }}>Pago seguro con MercadoPago</div>
         <div style={{ fontSize: 12, color: "#1e40af", lineHeight: 1.6 }}>
-          Serás redirigido al checkout oficial de MercadoPago. El dinero queda retenido en escrow y se libera al camionero cuando confirmes la entrega.
+          Serás redirigido al checkout oficial de MercadoPago. El pago se acredita al instante una vez confirmado.
         </div>
       </div>
 
