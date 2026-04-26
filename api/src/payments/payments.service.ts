@@ -172,99 +172,181 @@ export class PaymentsService {
     const driver = payment.offer?.driver;
 
     const assetsDir = join(process.cwd(), 'src', 'assets');
-    const fontRegular = join(assetsDir, 'Arial-Regular.ttf');
-    const fontBold    = join(assetsDir, 'Arial-Bold.ttf');
+    const fontR = join(assetsDir, 'Roboto-Regular.ttf');
+    const fontB = join(assetsDir, 'Roboto-Bold.ttf');
+
+    const emisionDate = new Date(payment.created_at).toLocaleDateString('es-AR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+    });
+    const viajeDate = load?.ready_at
+      ? new Date(load.ready_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : '-';
+    const monto = Number(payment.amount);
 
     return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
-      doc.registerFont('Roboto', fontRegular);
-      doc.registerFont('Roboto-Bold', fontBold);
+      const doc = new PDFDocument({ margin: 0, size: 'A4' });
+      doc.registerFont('R', fontR);
+      doc.registerFont('B', fontB);
 
       const chunks: Buffer[] = [];
-      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('data', (c) => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      const BLUE = '#1a56db';
-      const GRAY = '#6b7280';
-      const LIGHT = '#f3f4f6';
-      const BLACK = '#111827';
-      const pageW = doc.page.width - 100;
+      const L = 40;           // left margin
+      const R = doc.page.width - 40; // right edge
+      const W = R - L;        // usable width
+      const GREEN  = '#1a7a52';
+      const GREEN2 = '#e8f5ee';
+      const GRAY1  = '#374151';
+      const GRAY2  = '#6b7280';
+      const GRAY3  = '#f3f4f6';
+      const BLACK  = '#111827';
+      const WHITE  = '#ffffff';
+      let y = 0;
 
-      // ── Header ────────────────────────────────────────────────
-      doc.rect(50, 40, pageW, 70).fill(BLUE);
-      doc.fillColor('#ffffff').fontSize(22).font('Roboto-Bold').text('CargaBack', 65, 55);
-      doc.fontSize(10).font('Roboto').text('Plataforma de logística de cargas', 65, 82);
-      doc.fillColor('#ffffff').fontSize(10).text('COMPROBANTE DE PAGO', 50, 60, { align: 'right', width: pageW - 15 });
-      doc.fontSize(16).font('Roboto-Bold').text(invoiceNumber, 50, 76, { align: 'right', width: pageW - 15 });
+      // ── Banda superior verde ──────────────────────────────────
+      doc.rect(0, 0, doc.page.width, 8).fill(GREEN);
+      y = 24;
 
-      // ── Fecha de emisión ──────────────────────────────────────
-      const emisionDate = new Date(payment.created_at).toLocaleDateString('es-AR', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-      });
-      doc.fillColor(GRAY).fontSize(9).font('Roboto').text(`Fecha de emisión: ${emisionDate}`, 50, 118, { align: 'right', width: pageW });
+      // ── Cabecera: logo izq | datos comprobante der ──────────
+      // Logo / nombre app
+      doc.font('B').fontSize(22).fillColor(GREEN).text('CargaBack', L, y, { continued: false });
+      doc.font('R').fontSize(9).fillColor(GRAY2).text('Plataforma de logística de cargas · cargaback.up.railway.app', L, y + 26);
 
-      // ── Sección: Dador / Camionero ────────────────────────────
-      const sectionTop = 140;
-      const colW = (pageW - 20) / 2;
+      // Bloque comprobante (derecha)
+      const cX = R - 200;
+      doc.rect(cX, y - 4, 200, 58).fill(GREEN2);
+      doc.font('B').fontSize(9).fillColor(GREEN).text('COMPROBANTE DE SERVICIO', cX + 10, y + 2);
+      doc.font('B').fontSize(16).fillColor(BLACK).text(invoiceNumber, cX + 10, y + 14);
+      doc.font('R').fontSize(8).fillColor(GRAY2)
+        .text(`Fecha de emisión: ${emisionDate}`, cX + 10, y + 36)
+        .text(`N° pago MP: ${payment.mp_payment_id ?? 'Pendiente'}`, cX + 10, y + 48);
 
-      // Dador (izquierda)
-      doc.rect(50, sectionTop, colW, 110).fill(LIGHT);
-      doc.fillColor(BLUE).fontSize(9).font('Roboto-Bold').text('DADOR DE CARGA', 62, sectionTop + 10);
-      doc.fillColor(BLACK).fontSize(10).font('Roboto-Bold')
-        .text(shipper.razon_social || dadorUser?.name || '-', 62, sectionTop + 26, { width: colW - 24 });
-      doc.fontSize(9).font('Roboto').fillColor(GRAY);
-      if (shipper.cuit)     doc.text(`CUIT: ${shipper.cuit}`,    62, doc.y + 4, { width: colW - 24 });
-      if (shipper.cuil)     doc.text(`CUIL: ${shipper.cuil}`,    62, doc.y + 2, { width: colW - 24 });
-      if (shipper.address)  doc.text(shipper.address,            62, doc.y + 2, { width: colW - 24 });
-      if (dadorUser?.email) doc.text(dadorUser.email,            62, doc.y + 2, { width: colW - 24 });
+      y += 72;
 
-      // Camionero (derecha)
-      const colRx = 50 + colW + 20;
-      doc.rect(colRx, sectionTop, colW, 110).fill(LIGHT);
-      doc.fillColor(BLUE).fontSize(9).font('Roboto-Bold').text('TRANSPORTISTA', colRx + 12, sectionTop + 10);
-      doc.fillColor(BLACK).fontSize(10).font('Roboto-Bold')
-        .text(driver?.name || '-', colRx + 12, sectionTop + 26, { width: colW - 24 });
-      doc.fontSize(9).font('Roboto').fillColor(GRAY);
-      if (driver?.email) doc.text(driver.email,              colRx + 12, doc.y + 4, { width: colW - 24 });
-      if (driver?.phone) doc.text(`Tel: ${driver.phone}`,   colRx + 12, doc.y + 2, { width: colW - 24 });
+      // ── Línea divisoria ───────────────────────────────────────
+      doc.rect(L, y, W, 0.5).fill('#d1fae5');
+      y += 14;
 
-      // ── Tabla de detalle ──────────────────────────────────────
-      const tableTop = sectionTop + 128;
-      doc.fillColor(BLUE).rect(50, tableTop, pageW, 26).fill();
-      doc.fillColor('#ffffff').fontSize(9).font('Roboto-Bold')
-        .text('CONCEPTO', 62, tableTop + 8)
-        .text('DETALLE', 62 + pageW / 2, tableTop + 8);
+      // ── Datos de las partes (dos columnas) ───────────────────
+      const colW = (W - 16) / 2;
 
-      const rows: [string, string][] = [
-        ['Ruta', `${load?.pickup_city ?? '-'} \u2192 ${load?.dropoff_city ?? '-'}`],
-        ['Tipo de carga', load?.cargo_type ?? '-'],
-        ['Fecha del viaje', load?.ready_at
-          ? new Date(load.ready_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-          : '-'],
-        ['N\u00B0 Comprobante de pago MP', payment.mp_payment_id ?? '-'],
+      // Título columnas
+      doc.font('B').fontSize(7.5).fillColor(GREEN)
+        .text('DADOR DE CARGA', L, y)
+        .text('TRANSPORTISTA', L + colW + 16, y);
+      y += 12;
+
+      // Caja izquierda
+      doc.rect(L, y, colW, 90).fill(GRAY3);
+      const lx = L + 12;
+      let ly = y + 12;
+      doc.font('B').fontSize(10).fillColor(BLACK).text(shipper.razon_social || dadorUser?.name || '-', lx, ly, { width: colW - 24 });
+      ly += 16;
+      doc.font('R').fontSize(8.5).fillColor(GRAY2);
+      if (shipper.cuit)    { doc.text(`CUIT: ${shipper.cuit}`,   lx, ly, { width: colW - 24 }); ly += 13; }
+      if (shipper.cuil)    { doc.text(`CUIL: ${shipper.cuil}`,   lx, ly, { width: colW - 24 }); ly += 13; }
+      if (shipper.address) { doc.text(shipper.address,           lx, ly, { width: colW - 24 }); ly += 13; }
+      if (dadorUser?.email){ doc.text(dadorUser.email,           lx, ly, { width: colW - 24 }); ly += 13; }
+      if (dadorUser?.phone){ doc.text(`Tel: ${dadorUser.phone}`, lx, ly, { width: colW - 24 }); }
+
+      // Caja derecha
+      const rx = L + colW + 16;
+      doc.rect(rx, y, colW, 90).fill(GRAY3);
+      let ry = y + 12;
+      doc.font('B').fontSize(10).fillColor(BLACK).text(driver?.name || '-', rx + 12, ry, { width: colW - 24 });
+      ry += 16;
+      doc.font('R').fontSize(8.5).fillColor(GRAY2);
+      if (driver?.email) { doc.text(driver.email,              rx + 12, ry, { width: colW - 24 }); ry += 13; }
+      if (driver?.phone) { doc.text(`Tel: ${driver.phone}`,   rx + 12, ry, { width: colW - 24 }); ry += 13; }
+      if (driver?.dni)   { doc.text(`DNI: ${driver.dni}`,     rx + 12, ry, { width: colW - 24 }); }
+
+      y += 104;
+
+      // ── Tabla de servicios ────────────────────────────────────
+      // Encabezado tabla
+      doc.rect(L, y, W, 22).fill(GREEN);
+      doc.font('B').fontSize(8).fillColor(WHITE)
+        .text('DESCRIPCIÓN DEL SERVICIO', L + 10, y + 7)
+        .text('CANTIDAD', L + W * 0.6, y + 7)
+        .text('IMPORTE', L + W * 0.78, y + 7)
+        .text('TOTAL', R - 55, y + 7);
+      y += 22;
+
+      const serviceRows: [string, string, string, string][] = [
+        [
+          `Servicio de transporte de carga\n${load?.pickup_city ?? '-'} → ${load?.dropoff_city ?? '-'}` +
+          (load?.cargo_type ? `\nTipo: ${load.cargo_type}` : '') +
+          (load?.weight_kg  ? `  ·  ${Number(load.weight_kg).toLocaleString('es-AR')} kg` : ''),
+          '1',
+          `$${monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
+          `$${monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
+        ],
       ];
 
-      rows.forEach(([label, value], i) => {
-        const rowY = tableTop + 26 + i * 28;
-        doc.rect(50, rowY, pageW, 28).fill(i % 2 === 0 ? '#ffffff' : LIGHT);
-        doc.fillColor(GRAY).fontSize(9).font('Roboto-Bold').text(label, 62, rowY + 9);
-        doc.fillColor(BLACK).fontSize(9).font('Roboto').text(value, 62 + pageW / 2, rowY + 9, { width: pageW / 2 - 12 });
+      serviceRows.forEach(([desc, qty, price, total], i) => {
+        const rowH = 52;
+        doc.rect(L, y, W, rowH).fill(i % 2 === 0 ? WHITE : GRAY3);
+        // border
+        doc.rect(L, y, W, rowH).stroke('#e5e7eb');
+        doc.font('R').fontSize(8.5).fillColor(GRAY1)
+          .text(desc, L + 10, y + 8, { width: W * 0.56, lineGap: 2 });
+        doc.font('R').fontSize(8.5).fillColor(GRAY1)
+          .text(qty,   L + W * 0.6 + 4, y + 16)
+          .text(price, L + W * 0.78 + 4, y + 16)
+          .text(total, R - 50, y + 16);
+        y += rowH;
       });
 
-      // ── Total ─────────────────────────────────────────────────
-      const totalTop = tableTop + 26 + rows.length * 28 + 16;
-      doc.rect(50 + pageW / 2, totalTop, pageW / 2, 36).fill(BLUE);
-      doc.fillColor('#ffffff').fontSize(11).font('Roboto-Bold')
-        .text('TOTAL', 62 + pageW / 2, totalTop + 5, { width: pageW / 2 - 12 });
-      doc.fontSize(13)
-        .text(`$${Number(payment.amount).toLocaleString('es-AR')} ARS`, 62 + pageW / 2, totalTop + 18, { width: pageW / 2 - 12 });
+      // Fila fecha viaje
+      doc.rect(L, y, W, 28).fill(GRAY3).stroke('#e5e7eb');
+      doc.font('B').fontSize(8).fillColor(GRAY2).text('Fecha del servicio:', L + 10, y + 9);
+      doc.font('R').fontSize(8.5).fillColor(GRAY1).text(viajeDate, L + 130, y + 9);
+      y += 28;
 
-      // ── Footer ────────────────────────────────────────────────
-      const footerY = doc.page.height - 60;
-      doc.rect(50, footerY, pageW, 1).fill('#e5e7eb');
-      doc.fillColor(GRAY).fontSize(8).font('Roboto')
-        .text('Este documento es un comprobante generado por CargaBack. No tiene validez fiscal ante AFIP.', 50, footerY + 10, { align: 'center', width: pageW });
+      // ── Subtotal / IVA / Total ────────────────────────────────
+      y += 10;
+      const totX = L + W * 0.55;
+      const totW = R - totX;
+
+      const drawTotRow = (label: string, val: string, bold = false, highlight = false) => {
+        if (highlight) doc.rect(totX, y, totW, 26).fill(GREEN);
+        doc.font(bold ? 'B' : 'R').fontSize(bold ? 9.5 : 8.5)
+          .fillColor(highlight ? WHITE : bold ? BLACK : GRAY2)
+          .text(label, totX + 10, y + 6, { width: totW * 0.55 })
+          .text(val,   totX + totW * 0.55, y + 6, { width: totW * 0.42, align: 'right' });
+        y += 26;
+      };
+
+      drawTotRow('Subtotal (sin IVA)', `$${monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`);
+      drawTotRow('IVA (Responsable Inscripto — exento en fletes)', '$ 0,00');
+      drawTotRow('TOTAL A PAGAR', `$${monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS`, true, true);
+
+      y += 20;
+
+      // ── Condiciones ──────────────────────────────────────────
+      doc.rect(L, y, W, 0.5).fill('#d1fae5');
+      y += 12;
+      doc.font('B').fontSize(8).fillColor(GRAY2).text('CONDICIONES Y OBSERVACIONES', L, y);
+      y += 12;
+      doc.font('R').fontSize(7.5).fillColor(GRAY2).text(
+        'El servicio de transporte de carga está exento de IVA según Ley 23.349 art. 7 inc. e) — ' +
+        'Transporte internacional y de cargas del país.\n' +
+        'El pago fue procesado mediante MercadoPago. Este comprobante no reemplaza la factura fiscal ' +
+        'emitida por el transportista ante AFIP.\n' +
+        'En caso de reclamos, comunicarse a: soporte@cargaback.com',
+        L, y, { width: W, lineGap: 2 },
+      );
+
+      // ── Footer ───────────────────────────────────────────────
+      const footerY = doc.page.height - 36;
+      doc.rect(0, footerY, doc.page.width, 36).fill(GREEN);
+      doc.font('R').fontSize(7.5).fillColor(WHITE)
+        .text(
+          `CargaBack · Plataforma de logística · cargaback.up.railway.app  ·  Comprobante ${invoiceNumber}  ·  Emitido el ${emisionDate}`,
+          L, footerY + 13, { align: 'center', width: W },
+        );
 
       doc.end();
     });
