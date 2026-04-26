@@ -642,6 +642,16 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
   const [enviando, setEnviando] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
+  // ── Confirmación de entrega ───────────────────────────────────────────────
+  const [codigoInput, setCodigoInput] = useState("");
+  const [codigoVerificado, setCodigoVerificado] = useState(false);
+  const [entregaCompletada, setEntregaCompletada] = useState(t.status === "delivered");
+  const [payoutMethod, setPayoutMethod] = useState<"cvu_cbu" | "mercadopago" | null>(null);
+  const [payoutDestination, setPayoutDestination] = useState("");
+  const [confirmando, setConfirmando] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [confirmSuccess, setConfirmSuccess] = useState<{ amount: number } | null>(null);
+
   let km: number | null = null;
   if (t.pickupLat != null && t.pickupLon != null && t.dropoffLat != null && t.dropoffLon != null) {
     km = Math.round(haversineKm(t.pickupLat, t.pickupLon, t.dropoffLat, t.dropoffLon));
@@ -680,6 +690,32 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
     ...(t.pickupExact ? [["Retiro exacto", t.pickupExact] as [string, string]] : []),
     ...(t.dropoffExact ? [["Entrega exacta", t.dropoffExact] as [string, string]] : []),
   ];
+
+  const handleConfirmarEntrega = async () => {
+    if (!codigoInput.trim() || !payoutMethod || !payoutDestination.trim()) return;
+    setConfirmando(true);
+    setConfirmError(null);
+    try {
+      const res = await fetch("/api/payments/confirm-delivery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          loadId: t.loadId,
+          code: codigoInput.trim().toUpperCase(),
+          payoutMethod,
+          payoutDestination,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setConfirmError(data.message ?? data.error ?? "Error al confirmar."); return; }
+      setEntregaCompletada(true);
+      setConfirmSuccess({ amount: data.amount });
+    } catch {
+      setConfirmError("Error de conexión. Intentá de nuevo.");
+    } finally {
+      setConfirmando(false);
+    }
+  };
 
   return (
     <main style={{ padding: "20px 24px", flex: 1, maxWidth: 900 }}>
@@ -735,6 +771,118 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
             height={300}
             isDriver
           />
+        </div>
+      )}
+
+      {/* ── Panel de confirmación de entrega ── */}
+      {(t.status === "in_transit" || t.status === "matched" || entregaCompletada) && (
+        <div style={{ background: "var(--color-background-primary)", border: `1.5px solid ${entregaCompletada ? "#16a34a" : "#3b82f6"}`, borderRadius: "var(--border-radius-lg)", padding: 20, marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: entregaCompletada ? "#16a34a" : "var(--color-text-primary)", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+            {entregaCompletada
+              ? <><i className="fa-solid fa-circle-check" style={{ color: "#16a34a" }} /> Entrega confirmada</>
+              : <><i className="fa-solid fa-key" style={{ color: "#3b82f6" }} /> Código de confirmación</>}
+          </div>
+
+          {/* Éxito final */}
+          {(entregaCompletada || confirmSuccess) && (
+            <div style={{ textAlign: "center", padding: "12px 0" }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#16a34a", marginBottom: 6 }}>
+                ¡Entrega completada!
+              </div>
+              {confirmSuccess && (
+                <div style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>
+                  El cobro de <strong>${confirmSuccess.amount.toLocaleString("es-AR")}</strong> fue solicitado.
+                  La transferencia se va a procesar en las próximas horas.
+                </div>
+              )}
+              {entregaCompletada && !confirmSuccess && (
+                <div style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>
+                  Este viaje ya fue confirmado y el cobro fue procesado.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Paso 1: Ingresar código */}
+          {!entregaCompletada && !codigoVerificado && (
+            <>
+              <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
+                Pedile el código de 6 caracteres a la persona que recibe la carga.
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={codigoInput}
+                  onChange={(e) => setCodigoInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
+                  placeholder="ABC123"
+                  maxLength={6}
+                  style={{ flex: 1, fontSize: 24, fontWeight: 700, letterSpacing: "0.2em", textAlign: "center", padding: "10px 14px", borderRadius: 8, border: "1.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", fontFamily: "monospace", textTransform: "uppercase" }}
+                />
+                <button
+                  onClick={() => { if (codigoInput.length === 6) setCodigoVerificado(true); }}
+                  disabled={codigoInput.length !== 6}
+                  style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: codigoInput.length === 6 ? "#3b82f6" : "#d1d5db", color: "#fff", fontWeight: 700, cursor: codigoInput.length === 6 ? "pointer" : "not-allowed", fontSize: 14 }}>
+                  Verificar
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Paso 2: Elegir método de cobro */}
+          {!entregaCompletada && codigoVerificado && (
+            <>
+              <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 14 }}>
+                Código <strong style={{ fontFamily: "monospace", letterSpacing: "0.1em" }}>{codigoInput}</strong> ingresado. Elegí cómo querés cobrar:
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+                {([
+                  { id: "cvu_cbu" as const, label: "CVU / CBU / Alias", icon: "fa-solid fa-building-columns", desc: "Transferencia bancaria" },
+                  { id: "mercadopago" as const, label: "Mercado Pago", icon: "fa-brands fa-google-pay", desc: "A tu cuenta de MP" },
+                ] as const).map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setPayoutMethod(m.id)}
+                    style={{ padding: "14px 12px", borderRadius: 10, border: `2px solid ${payoutMethod === m.id ? "#3b82f6" : "var(--color-border-secondary)"}`, background: payoutMethod === m.id ? "rgba(59,130,246,0.08)" : "var(--color-background-secondary)", cursor: "pointer", textAlign: "left" as const }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: payoutMethod === m.id ? "#3b82f6" : "var(--color-text-primary)", marginBottom: 2 }}>{m.label}</div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{m.desc}</div>
+                  </button>
+                ))}
+              </div>
+
+              {payoutMethod && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 6 }}>
+                    {payoutMethod === "cvu_cbu" ? "CVU, CBU o Alias" : "Email o usuario de Mercado Pago"}
+                  </label>
+                  <input
+                    value={payoutDestination}
+                    onChange={(e) => setPayoutDestination(e.target.value)}
+                    placeholder={payoutMethod === "cvu_cbu" ? "0000003100012345678901" : "tu@email.com"}
+                    style={{ width: "100%", fontSize: 14, padding: "9px 12px", borderRadius: 8, border: "1.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" as const }}
+                  />
+                </div>
+              )}
+
+              {confirmError && (
+                <div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.08)", border: "0.5px solid rgba(220,38,38,0.3)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
+                  ⚠ {confirmError}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => { setCodigoVerificado(false); setConfirmError(null); }} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                  Cambiar código
+                </button>
+                <button
+                  onClick={handleConfirmarEntrega}
+                  disabled={confirmando || !payoutMethod || !payoutDestination.trim()}
+                  style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: 8, border: "none", background: confirmando || !payoutMethod || !payoutDestination.trim() ? "#d1d5db" : "#16a34a", color: "#fff", fontWeight: 700, cursor: confirmando || !payoutMethod || !payoutDestination.trim() ? "not-allowed" : "pointer" }}>
+                  {confirmando ? "Procesando..." : "Confirmar entrega y cobrar"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { join } from 'path';
@@ -34,6 +34,13 @@ export class PaymentsService {
     return this.paymentsRepo.save(payment);
   }
 
+  private generateDeliveryCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin O, 0, I, 1 para evitar confusión
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+  }
+
   async confirmPayment(offerId: string, mpPaymentId?: string) {
     const payment = await this.paymentsRepo.findOne({ where: { offer_id: offerId } });
     if (!payment) throw new NotFoundException('Pago no encontrado.');
@@ -41,7 +48,87 @@ export class PaymentsService {
     payment.status = 'confirmed';
     if (mpPaymentId) payment.mp_payment_id = mpPaymentId;
 
+    // Generar código de entrega único si todavía no tiene uno
+    if (!payment.delivery_code) {
+      let code: string;
+      let attempts = 0;
+      do {
+        code = this.generateDeliveryCode();
+        const exists = await this.paymentsRepo.findOne({ where: { delivery_code: code } });
+        if (!exists) break;
+        attempts++;
+      } while (attempts < 10);
+      payment.delivery_code = code;
+    }
+
     return this.paymentsRepo.save(payment);
+  }
+
+  /** El dador obtiene el código de entrega de una carga (para mostrarlo en su panel) */
+  async getDeliveryCode(userId: string, loadId: string) {
+    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+    if (!shipper) throw new ForbiddenException();
+
+    const payment = await this.paymentsRepo.findOne({
+      where: { load_id: loadId },
+      relations: ['load'],
+    });
+    if (!payment) throw new NotFoundException('Pago no encontrado para esta carga.');
+    if (payment.load?.shipper_id !== shipper.id) throw new ForbiddenException();
+    if (payment.status !== 'confirmed') throw new BadRequestException('El pago aún no fue confirmado.');
+
+    return {
+      delivery_code: payment.delivery_code,
+      delivery_code_used: payment.delivery_code_used,
+      payout_status: payment.payout_status ?? null,
+    };
+  }
+
+  /** El transportista ingresa el código de entrega y elige cómo cobrar */
+  async confirmDelivery(
+    driverId: string,
+    loadId: string,
+    code: string,
+    payoutMethod: string,
+    payoutDestination: string,
+  ) {
+    // Verificar que el driver tiene una oferta aceptada en esta carga
+    const offer = await this.offersRepo.findOne({
+      where: { load_id: loadId, driver_id: driverId, status: 'accepted' },
+    });
+    if (!offer) throw new ForbiddenException('No tenés una oferta aceptada en esta carga.');
+
+    const payment = await this.paymentsRepo.findOne({ where: { load_id: loadId } });
+    if (!payment) throw new NotFoundException('Pago no encontrado.');
+    if (payment.status !== 'confirmed') throw new BadRequestException('El pago del dador todavía no fue procesado.');
+    if (payment.delivery_code_used) throw new ConflictException('El código de entrega ya fue utilizado.');
+    if (!payment.delivery_code || payment.delivery_code !== code.toUpperCase().trim()) {
+      throw new BadRequestException('Código de entrega incorrecto.');
+    }
+
+    // Validar método de cobro
+    if (!['cvu_cbu', 'mercadopago'].includes(payoutMethod)) {
+      throw new BadRequestException('Método de cobro inválido.');
+    }
+    if (!payoutDestination?.trim()) {
+      throw new BadRequestException('Ingresá el destino del cobro.');
+    }
+
+    // Marcar código como usado y registrar datos de cobro
+    payment.delivery_code_used = true;
+    payment.payout_method = payoutMethod;
+    payment.payout_destination = payoutDestination.trim();
+    payment.payout_status = 'requested';
+    await this.paymentsRepo.save(payment);
+
+    // Marcar la carga como entregada
+    const load = await this.loadsRepo.findOne({ where: { id: loadId } });
+    if (load && load.status !== 'delivered') {
+      load.status = 'delivered';
+      await this.loadsRepo.save(load);
+    }
+
+    return { ok: true, amount: Number(payment.amount), payout_method: payoutMethod };
   }
 
   async getMyPayments(userId: string) {

@@ -39,6 +39,29 @@ export class PaymentsController {
     return this.paymentsService.getMyPayments(req.user.id);
   }
 
+  // El dador ve el código de entrega para compartirlo con quien recibe la carga
+  @Get('delivery-code')
+  @UseGuards(JwtAuthGuard)
+  getDeliveryCode(@Request() req, @Query('loadId') loadId: string) {
+    return this.paymentsService.getDeliveryCode(req.user.id, loadId);
+  }
+
+  // El transportista confirma la entrega con el código y elige cómo cobrar
+  @Post('confirm-delivery')
+  @UseGuards(JwtAuthGuard)
+  confirmDelivery(
+    @Request() req,
+    @Body() body: { loadId: string; code: string; payoutMethod: string; payoutDestination: string },
+  ) {
+    return this.paymentsService.confirmDelivery(
+      req.user.id,
+      body.loadId,
+      body.code,
+      body.payoutMethod,
+      body.payoutDestination,
+    );
+  }
+
   // Descarga de factura en PDF
   @Get(':paymentId/invoice')
   @UseGuards(JwtAuthGuard)
