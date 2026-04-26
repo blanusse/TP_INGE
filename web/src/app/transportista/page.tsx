@@ -650,7 +650,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
   const [payoutDestination, setPayoutDestination] = useState("");
   const [confirmando, setConfirmando] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
-  const [confirmSuccess, setConfirmSuccess] = useState<{ amount: number; transfer_initiated: boolean } | null>(null);
+  const [confirmSuccess, setConfirmSuccess] = useState<{ amount: number; transfer_initiated: boolean; transfer_error?: { httpStatus?: number; message?: string } | null } | null>(null);
 
   let km: number | null = null;
   if (t.pickupLat != null && t.pickupLon != null && t.dropoffLat != null && t.dropoffLon != null) {
@@ -709,7 +709,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
       const data = await res.json();
       if (!res.ok) { setConfirmError(data.message ?? data.error ?? "Error al confirmar."); return; }
       setEntregaCompletada(true);
-      setConfirmSuccess({ amount: data.amount, transfer_initiated: !!data.transfer_initiated });
+      setConfirmSuccess({ amount: data.amount, transfer_initiated: !!data.transfer_initiated, transfer_error: data.transfer_error ?? null });
     } catch {
       setConfirmError("Error de conexión. Intentá de nuevo.");
     } finally {
@@ -800,7 +800,11 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
                   ) : (
                     <>
                       El cobro de <strong>${confirmSuccess.amount.toLocaleString("es-AR")}</strong> fue registrado.
-                      Lo procesaremos manualmente en breve.
+                      {confirmSuccess.transfer_error?.message && (
+                        <div style={{ marginTop: 8, fontSize: 11, background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 6, padding: "6px 10px", color: "#b91c1c", fontFamily: "monospace" }}>
+                          MP error {confirmSuccess.transfer_error.httpStatus}: {confirmSuccess.transfer_error.message}
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
