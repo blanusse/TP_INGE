@@ -1,6 +1,6 @@
 import { Injectable, ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DeepPartial } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { User } from '../entities/user.entity';
@@ -100,7 +100,7 @@ export class AuthService {
       dni: dto.dni ? dto.dni.replace(/\./g, '') : null,
       dni_photo_url: dto.dni_photo_url ?? null,
       verification_status: 'pending',
-    });
+    } as DeepPartial<User>);
     await this.usersRepo.save(user);
 
     if (dto.role === 'dador') {
