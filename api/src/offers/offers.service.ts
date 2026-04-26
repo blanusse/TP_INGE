@@ -120,6 +120,17 @@ export class OffersService {
     }));
   }
 
+  async getOfferById(userId: string, offerId: string) {
+    const offer = await this.offersRepo.findOne({ where: { id: offerId } });
+    if (!offer) throw new NotFoundException('Oferta no encontrada.');
+
+    const load = await this.loadsRepo.findOne({ where: { id: offer.load_id } });
+    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+    if (!shipper || load?.shipper_id !== shipper.id) throw new ForbiddenException();
+
+    return offer;
+  }
+
   async updateOffer(userId: string, offerId: string, action: string, counter_price?: number) {
     const offer = await this.offersRepo.findOne({ where: { id: offerId } });
     if (!offer) throw new NotFoundException('Oferta no encontrada.');

@@ -1,5 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MercadoPagoConfig, Payment } from "mercadopago";
+import crypto from "crypto";
+
+// Verifica la firma HMAC-SHA256 que MP incluye en el header x-signature.
+// Solo se aplica si MP_WEBHOOK_SECRET está configurado.
+function verifyMpSignature(req: NextRequest, dataId: string): boolean {
+  const secret = process.env.MP_WEBHOOK_SECRET;
+  if (!secret) return true; // sin secreto configurado, omitir verificación
+
+  const xSignature = req.headers.get("x-signature");
+  const xRequestId = req.headers.get("x-request-id");
+  if (!xSignature || !xRequestId) return false;
+
+  // Formato: "ts=1234567890,v1=abc123..."
+  const parts: Record<string, string> = {};
+  for (const part of xSignature.split(",")) {
+    const [k, v] = part.split("=");
+    if (k && v) parts[k.trim()] = v.trim();
+  }
+  const { ts, v1 } = parts;
+  if (!ts || !v1) return false;
+
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+  const computed = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
+  return computed === v1;
+}
 
 // POST /api/payments/webhook — Notificaciones IPN de MercadoPago
 export async function POST(req: NextRequest) {
@@ -9,6 +34,11 @@ export async function POST(req: NextRequest) {
 
     const paymentId = body.data?.id;
     if (!paymentId) return NextResponse.json({ ok: true });
+
+    if (!verifyMpSignature(req, String(paymentId))) {
+      console.warn("[payments/webhook] Firma inválida, ignorando notificación.");
+      return NextResponse.json({ ok: true }); // devolver 200 igual para que MP no reintente
+    }
 
     const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
     const paymentApi = new Payment(client);
