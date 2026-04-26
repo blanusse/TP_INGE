@@ -1118,28 +1118,26 @@ function SeccionMisCargas({
 
 // ── Seccion Mis Envios ───────────────────────────────────────────────────────
 
-function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: () => void }) {
-  const [confirmando, setConfirmando] = useState<string | null>(null);
-  const [modalCalificar, setModalCalificar] = useState<{ offerId: string; driverName: string } | null>(null);
+function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }) {
+  const [deliveryCodes, setDeliveryCodes] = useState<Record<string, { code: string; used: boolean }>>({});
   const [mapaAbierto, setMapaAbierto] = useState<string | null>(null);
 
   const enTransito = cargas.filter((c) => c.status === "in_transit" || c.status === "accepted");
   const entregados = cargas.filter((c) => c.status === "delivered");
 
-  const confirmarLlegada = async (c: Carga) => {
-    setConfirmando(c.id);
-    try {
-      const res = await fetch(`/api/loads/${c.id}/confirm`, { method: "POST" });
-      const data = await res.json();
-      if (res.ok && data.offerId) {
-        onRefresh();
-        const driverName = c.acceptedOffer?.driverName ?? "el camionero";
-        setModalCalificar({ offerId: data.offerId, driverName });
-      }
-    } finally {
-      setConfirmando(null);
+  useEffect(() => {
+    const inTransit = cargas.filter((c) => c.status === "in_transit" || c.status === "accepted");
+    for (const c of inTransit) {
+      fetch(`/api/payments/delivery-code?loadId=${c.id}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.delivery_code) {
+            setDeliveryCodes((prev) => ({ ...prev, [c.id]: { code: d.delivery_code, used: !!d.delivery_code_used } }));
+          }
+        })
+        .catch(() => {});
     }
-  };
+  }, [cargas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mock timeline data generator
   const getTimeline = (c: Carga) => {
@@ -1155,13 +1153,6 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
 
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
-      {modalCalificar && (
-        <ModalCalificarCamionero
-          offerId={modalCalificar.offerId}
-          driverName={modalCalificar.driverName}
-          onClose={() => setModalCalificar(null)}
-        />
-      )}
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -1209,13 +1200,6 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
                 <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ fontSize: 14 }}>&#9993;</span> Chat
                 </button>
-                <button
-                  onClick={() => confirmarLlegada(c)}
-                  disabled={confirmando === c.id}
-                  style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "none", background: confirmando === c.id ? "#aaa" : "#3a806b", color: "#fff", cursor: confirmando === c.id ? "not-allowed" : "pointer", fontWeight: 600 }}
-                >
-                  {confirmando === c.id ? "Confirmando..." : "Confirmar llegada"}
-                </button>
               </div>
             </div>
 
@@ -1262,6 +1246,37 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
                   Ubicación en tiempo real
                 </div>
                 <TripMap loadId={c.id} height={280} />
+              </div>
+            )}
+
+            {/* Código de entrega */}
+            {deliveryCodes[c.id] && (
+              <div style={{ marginTop: 16, borderTop: "1px solid var(--color-border-tertiary)", paddingTop: 14 }}>
+                {deliveryCodes[c.id].used ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#16a34a", fontWeight: 600 }}>
+                    <span>✓ Entrega confirmada por el transportista</span>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--color-text-tertiary)", marginBottom: 6 }}>
+                      Código de entrega
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                      <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: "0.2em", fontFamily: "monospace", color: "var(--color-text-primary)" }}>
+                        {deliveryCodes[c.id].code}
+                      </span>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(deliveryCodes[c.id].code)}
+                        style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}
+                      >
+                        Copiar
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
+                      Compartí este código con quien recibe la carga. El transportista lo ingresa al llegar al destino.
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
