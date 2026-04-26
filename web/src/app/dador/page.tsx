@@ -258,7 +258,7 @@ interface PriceEstimate { distanceKm: number; minPrice: number; suggestedPrice: 
 interface UbicacionMeta { zone: string; lat: number; lon: number; }
 
 function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublicar: (c: Carga) => void }) {
-  const [form, setForm] = useState({ origen: "", destino: "", tipoCarga: "General", tipoCamion: "Cualquiera", peso: "", precio: "", retiro: "", descripcion: "" });
+  const [form, setForm] = useState({ origen: "", destino: "", tipoCarga: "General", tipoCamion: "Cualquiera", peso: "", precio: "", retiro: "" });
   const [origenMeta,  setOrigenMeta]  = useState<UbicacionMeta | null>(null);
   const [destinoMeta, setDestinoMeta] = useState<UbicacionMeta | null>(null);
   const [loading, setLoading]       = useState(false);
@@ -425,10 +425,6 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
           </div>
         </div>
 
-        <div style={{ marginBottom: 20 }}>
-          <label style={labelStyle}>Descripción adicional</label>
-          <textarea value={form.descripcion} onChange={(e) => set("descripcion", e.target.value)} rows={3} placeholder="Detalles sobre la carga, acceso, horarios, contacto en destino..." style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" } as React.CSSProperties} />
-        </div>
 
         {error && <div style={{ fontSize: 13, color: "#b91c1c", background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
 

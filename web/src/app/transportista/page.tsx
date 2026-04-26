@@ -1576,8 +1576,6 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
 function ModalOfertar({ info, onClose, onEnviar, trucks }: { info: ModalOfertaState; onClose: () => void; onEnviar: (cargaId: string | number) => void; trucks: TruckData[] }) {
   const [precio, setPrecio] = useState(info.precioBase.toString());
-  const [nota, setNota] = useState("");
-  const [disponible, setDisponible] = useState("");
   const [truckId, setTruckId] = useState(trucks[0]?.id ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1587,7 +1585,7 @@ function ModalOfertar({ info, onClose, onEnviar, trucks }: { info: ModalOfertaSt
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setError(null);
     try {
-      const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loadId: info.cargaId, price: precio, truckId: truckId || undefined, note: [nota, disponible].filter(Boolean).join(" — ") || undefined }) });
+      const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loadId: info.cargaId, price: precio, truckId: truckId || undefined }) });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Error al enviar la oferta."); return; }
       onEnviar(info.cargaId); onClose();
@@ -1616,14 +1614,6 @@ function ModalOfertar({ info, onClose, onEnviar, trucks }: { info: ModalOfertaSt
           <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Tu precio ofertado (ARS)</label>
           <input type="number" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="0" required style={{ width: "100%", fontSize: 20, fontWeight: 600, padding: "10px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" }} />
           {precio && <div style={{ fontSize: 12, marginTop: 6, color: diff > 0 ? "#b91c1c" : diff < 0 ? "var(--color-brand-dark)" : "var(--color-text-tertiary)" }}>{diff === 0 ? "Igual al precio base" : diff > 0 ? `$${diff.toLocaleString("es-AR")} por encima del precio base` : `$${Math.abs(diff).toLocaleString("es-AR")} por debajo del precio base`}</div>}
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Disponibilidad de salida</label>
-          <input type="text" value={disponible} onChange={(e) => setDisponible(e.target.value)} placeholder="ej: Disponible el 28/03 a partir de las 8hs" style={{ width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" }} />
-        </div>
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Nota para el dador (opcional)</label>
-          <textarea value={nota} onChange={(e) => setNota(e.target.value)} rows={3} placeholder="Contale algo sobre tu experiencia con este tipo de carga..." style={{ width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
         </div>
         {error && <div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
