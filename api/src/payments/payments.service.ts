@@ -46,46 +46,44 @@ export class PaymentsService {
   }
 
   /** Intenta hacer la transferencia al transportista vía MercadoPago.
-   *  Devuelve { success, transferId?, error? } — nunca lanza excepción. */
+   *
+   *  MP Argentina usa POST /v1/bank_transfers para enviar a CBU/CVU/alias
+   *  (incluyendo cuentas MP, que también tienen CVU).
+   *  Para cuentas MP por email primero se resuelve el CVU asociado.
+   *
+   *  Requiere que la cuenta de MP de la plataforma tenga saldo suficiente
+   *  y los permisos de "Money Out" habilitados (solo cuentas de empresa).
+   *
+   *  Devuelve { success, transferId?, httpStatus?, mpError?, rawBody? }
+   *  — nunca lanza excepción para no interrumpir la confirmación de entrega. */
   private async initiatePayoutTransfer(
     payment: Payment,
     payoutMethod: string,
     payoutDestination: string,
-  ): Promise<{ success: boolean; transferId?: string; error?: string }> {
+  ): Promise<{ success: boolean; transferId?: string; httpStatus?: number; mpError?: string; rawBody?: string }> {
     const mpToken = process.env.MP_ACCESS_TOKEN;
-    if (!mpToken) return { success: false, error: 'MP_ACCESS_TOKEN not set' };
+    if (!mpToken) return { success: false, mpError: 'MP_ACCESS_TOKEN no configurado' };
 
     const amount = Number(payment.amount);
     const idempotencyKey = `payout-${payment.id}`;
-    const description = `CargaBack — pago por servicio de transporte (referencia ${payment.id.slice(0, 8)})`;
+    const description = `CargaBack — servicio de transporte ref. ${payment.id.slice(0, 8)}`;
+
+    // Determinar si el destino es un alias (letras/puntos/guiones) o CBU/CVU (22 dígitos)
+    const isCBU = /^\d{22}$/.test(payoutDestination.trim());
+
+    // Para ambos métodos (CVU/CBU y MP alias) usamos /v1/bank_transfers.
+    // Las cuentas MP en AR tienen CVU, así que un alias de MP también funciona aquí.
+    const body: Record<string, unknown> = {
+      amount,
+      description,
+      external_reference: idempotencyKey,
+      bank_account: isCBU
+        ? { cbu: payoutDestination.trim() }
+        : { alias: payoutDestination.trim() },
+    };
 
     try {
-      let url: string;
-      let body: Record<string, unknown>;
-
-      if (payoutMethod === 'cvu_cbu') {
-        // Transferencia bancaria: CBU, CVU o alias
-        url = 'https://api.mercadopago.com/v1/bank_transfers';
-        body = {
-          amount,
-          currency_id: 'ARS',
-          description,
-          external_reference: idempotencyKey,
-          receiver: { account_id: payoutDestination },
-        };
-      } else {
-        // Transferencia a cuenta de MercadoPago (por email)
-        url = 'https://api.mercadopago.com/v1/transfers';
-        body = {
-          amount,
-          currency_id: 'ARS',
-          description,
-          external_reference: idempotencyKey,
-          receiver: { email: payoutDestination },
-        };
-      }
-
-      const res = await fetch(url, {
+      const res = await fetch('https://api.mercadopago.com/v1/bank_transfers', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${mpToken}`,
@@ -95,14 +93,23 @@ export class PaymentsService {
         body: JSON.stringify(body),
       });
 
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: Record<string, unknown> = {};
+      try { data = JSON.parse(rawText); } catch { /* no-op */ }
 
-      if ((res.ok || res.status === 201) && data.id) {
-        return { success: true, transferId: String(data.id) };
+      console.log(`[payout] ${res.status} → ${rawText.slice(0, 300)}`);
+
+      if ((res.status === 200 || res.status === 201) && data.id) {
+        return { success: true, transferId: String(data.id), httpStatus: res.status };
       }
-      return { success: false, error: data.message ?? data.error ?? `HTTP ${res.status}` };
+      return {
+        success: false,
+        httpStatus: res.status,
+        mpError: (data.message as string) ?? (data.error as string) ?? `HTTP ${res.status}`,
+        rawBody: rawText.slice(0, 500),
+      };
     } catch (err) {
-      return { success: false, error: String(err) };
+      return { success: false, mpError: String(err) };
     }
   }
 
@@ -198,8 +205,12 @@ export class PaymentsService {
     if (transfer.success && transfer.transferId) {
       payment.payout_status = 'done';
       payment.payout_transfer_id = transfer.transferId;
+    } else if (transfer.mpError === 'MP_ACCESS_TOKEN no configurado') {
+      payment.payout_status = 'requested';
     } else {
-      payment.payout_status = transfer.error?.includes('not set') ? 'requested' : 'transfer_failed';
+      // Guardar el error en payout_transfer_id para debugging (si no hay otro uso)
+      payment.payout_status = 'transfer_failed';
+      payment.payout_transfer_id = `ERR|${transfer.httpStatus ?? 0}|${(transfer.mpError ?? '').slice(0, 100)}`;
     }
     await this.paymentsRepo.save(payment);
 
@@ -209,6 +220,11 @@ export class PaymentsService {
       payout_method: payoutMethod,
       transfer_initiated: transfer.success,
       transfer_id: transfer.transferId ?? null,
+      transfer_error: transfer.success ? null : {
+        httpStatus: transfer.httpStatus,
+        message: transfer.mpError,
+        rawBody: transfer.rawBody,
+      },
     };
   }
 
