@@ -788,18 +788,54 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
   const [vtvVence, setVtvVence] = useState("");
   const [seguroPoliza, setSeguroPoliza] = useState("");
   const [seguroVence, setSeguroVence] = useState("");
+  const [vtvDoc, setVtvDoc] = useState<File | null>(null);
+  const [seguroDoc, setSeguroDoc] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const uploadDoc = async (file: File, folder: string): Promise<string | null> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("folder", folder);
+    const res = await fetch("/api/documents/upload", { method: "POST", body: fd });
+    if (!res.ok) return null;
+    const { url } = await res.json();
+    return url as string;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(null);
     if (!patente.trim()) { setError("La patente es obligatoria."); return; }
-    if (!/^[A-Za-z0-9]{6,7}$/.test(patente.replace(/\s/g, ""))) { setError("Patente inválida (ej: AB123CD)."); return; }
+    const patenteNorm = patente.toUpperCase().replace(/\s/g, "");
+    if (!/^[A-Z]{3}\d{3}$/.test(patenteNorm) && !/^[A-Z]{2}\d{3}[A-Z]{2}$/.test(patenteNorm)) {
+      setError("Patente inválida. Usá el formato argentino: ABC123 (vieja) o AB123CD (nueva)."); return;
+    }
+    const añoNum = año ? parseInt(año) : null;
+    if (añoNum !== null && (añoNum < 1960 || añoNum > new Date().getFullYear() + 1)) {
+      setError(`El año debe estar entre 1960 y ${new Date().getFullYear() + 1}.`); return;
+    }
+    if (vtvVence && new Date(vtvVence) < new Date()) { setError("La VTV ya está vencida."); return; }
+    if (seguroVence && new Date(seguroVence) < new Date()) { setError("El seguro ya está vencido."); return; }
     if (!tipo) { setError("Seleccioná el tipo de camión."); return; }
     if (REQUIERE_REMOLQUE.has(tipo) && !patenteRemolque.trim()) { setError(`Los ${tipo}s necesitan la patente del remolque.`); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/fleet/trucks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patente: patente.toUpperCase(), patente_remolque: patenteRemolque || undefined, marca, modelo, año, truck_type: tipo, capacity_kg: capacidad || undefined, vtv_vence: vtvVence || undefined, seguro_poliza: seguroPoliza || undefined, seguro_vence: seguroVence || undefined }) });
+      const [vtvDocUrl, seguroDocUrl] = await Promise.all([
+        vtvDoc     ? uploadDoc(vtvDoc,    "vtv-docs")    : Promise.resolve(null),
+        seguroDoc  ? uploadDoc(seguroDoc, "seguro-docs") : Promise.resolve(null),
+      ]);
+      const res = await fetch("/api/fleet/trucks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patente: patenteNorm, patente_remolque: patenteRemolque || undefined,
+          marca, modelo, año: añoNum || undefined, truck_type: tipo,
+          capacity_kg: capacidad || undefined,
+          vtv_vence: vtvVence || undefined, vtv_doc_url: vtvDocUrl || undefined,
+          seguro_poliza: seguroPoliza || undefined, seguro_vence: seguroVence || undefined,
+          seguro_doc_url: seguroDocUrl || undefined,
+        }),
+      });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Error al agregar el camión."); return; }
       onAdded(data.truck);
@@ -832,6 +868,8 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
           <FormCampo label="N° póliza de seguro" value={seguroPoliza} onChange={setSeguroPoliza} placeholder="POL-123456" />
         </div>
         <FormCampo label="Seguro — vencimiento" value={seguroVence} onChange={setSeguroVence} type="date" />
+        <DocUpload label="Foto / PDF de la VTV" file={vtvDoc} onFile={setVtvDoc} />
+        <DocUpload label="Foto / PDF del seguro" file={seguroDoc} onFile={setSeguroDoc} />
         {error && <div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Cancelar</button>
@@ -855,9 +893,16 @@ function ModalAgregarConductor({ onClose, onAdded }: { onClose: () => void; onAd
     e.preventDefault(); setError(null);
     if (!name.trim() || !email.trim() || !password.trim()) { setError("Nombre, email y contraseña son obligatorios."); return; }
     if (password.length < 8) { setError("La contraseña debe tener al menos 8 caracteres."); return; }
+    if (phone && !/^\+?\d{8,15}$/.test(phone.replace(/\s/g, ""))) { setError("El teléfono debe tener entre 8 y 15 dígitos."); return; }
+    if (dni) {
+      const dniLimpio = dni.replace(/\./g, "");
+      if (!/^\d{7,8}$/.test(dniLimpio)) { setError("El DNI debe tener 7 u 8 dígitos numéricos."); return; }
+      const num = parseInt(dniLimpio);
+      if (num < 1_000_000 || num > 99_999_999) { setError("El DNI no está en el rango argentino válido."); return; }
+    }
     setLoading(true);
     try {
-      const res = await fetch("/api/fleet/drivers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, phone: phone || undefined, dni: dni || undefined, password }) });
+      const res = await fetch("/api/fleet/drivers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), email: email.trim(), phone: phone || undefined, dni: dni || undefined, password }) });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Error al agregar el conductor."); return; }
       onAdded(data.driver);
@@ -2053,6 +2098,31 @@ function FormCampo({ label, value, onChange, placeholder, type = "text", require
     <div style={{ marginBottom: 14 }}>
       <label style={formLabelStyle}>{label}{required && <span style={{ color: "#ef4444", marginLeft: 2 }}>*</span>}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={formInputStyle} />
+    </div>
+  );
+}
+
+function DocUpload({ label, file, onFile }: { label: string; file: File | null; onFile: (f: File | null) => void }) {
+  const id = `doc-${label.replace(/\s/g, "-")}`;
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={formLabelStyle}>{label}</label>
+      <label htmlFor={id} style={{ display: "block", cursor: "pointer" }}>
+        <div style={{ border: `1.5px dashed ${file ? "var(--green)" : "var(--border2)"}`, borderRadius: 8, padding: "10px 14px", background: file ? "var(--green-muted)" : "var(--bg2)", textAlign: "center" }}>
+          {file ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 13, color: "var(--green)", fontWeight: 500 }}>
+              <i className="fa-solid fa-check" />{file.name}
+              <button type="button" onClick={(e) => { e.preventDefault(); onFile(null); }} style={{ background: "none", border: "none", color: "var(--text3)", cursor: "pointer", fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: "var(--text3)" }}>
+              <i className="fa-solid fa-upload" style={{ marginRight: 6 }} />Subir imagen o PDF · máx. 5 MB
+            </div>
+          )}
+        </div>
+      </label>
+      <input id={id} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" style={{ display: "none" }}
+        onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
     </div>
   );
 }
