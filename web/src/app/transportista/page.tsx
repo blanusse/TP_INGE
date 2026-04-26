@@ -110,7 +110,7 @@ function dbLoadToCard(load: Record<string, unknown>): CargaCard {
   return { id: (load.id ?? load.id) as string, titulo, empresa: shipper?.razon_social ?? "Dador de carga", hace, precio: (load.price_base as number) ?? 0, peso: load.weight_kg ? `${(load.weight_kg as number).toLocaleString("es-AR")} kg` : "—", camion: load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required as string] ?? "Cualquiera") : "Cualquiera", retiro: load.ready_at ? new Date(load.ready_at as string).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—", distancia, rating: 0, viajes: 0, badge: null, destacado: false };
 }
 
-function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: { onOfertar: (c: ModalOfertaState) => void; onAlerta: () => void; excluirIds: Set<string | number>; trucks: TruckData[]; onNoTruck: () => void }) {
+function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoTruck, onNoDriver }: { onOfertar: (c: ModalOfertaState) => void; onAlerta: () => void; excluirIds: Set<string | number>; trucks: TruckData[]; drivers: Driver[]; onNoTruck: () => void; onNoDriver: () => void }) {
   const [tipos, setTipos] = useState<string[]>([]);
   const [tiposCamion, setTiposCamion] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortKey>("Mayor precio");
@@ -283,6 +283,8 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: {
                 <div style={{ fontSize: 12, color: "var(--text2)" }}><Stars value={c.rating} /> {c.rating} · {c.viajes} viajes{c.badge && <span style={{ color: "var(--green)" }}> · {c.badge}</span>}</div>
                 {trucks.length === 0
                   ? <button onClick={(e) => { e.stopPropagation(); onNoTruck(); }} title="Registrá un camión en Mi flota para poder ofertar" style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border2)", background: "transparent", color: "var(--text2)", cursor: "pointer" }}>Sin camión</button>
+                  : drivers.length === 0
+                  ? <button onClick={(e) => { e.stopPropagation(); onNoDriver(); }} title="Registrá un camionero en Mi flota para poder ofertar" style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border2)", background: "transparent", color: "var(--text2)", cursor: "pointer" }}>Sin camionero</button>
                   : <button onClick={(e) => { e.stopPropagation(); onOfertar({ cargaId: c.id, titulo: c.titulo, empresa: c.empresa, precioBase: c.precio }); }} style={{ fontSize: 13, padding: "6px 16px", borderRadius: 6, border: "none", background: "var(--green)", color: "#fff", cursor: "pointer", fontWeight: 500 }}>Ofertar</button>
                 }
               </div>
@@ -1853,12 +1855,14 @@ export default function TransportistaDashboard() {
   const primerNombre = userName.split(" ")[0];
   const [ofertasBadge, setOfertasBadge] = useState(0);
   const [trucks, setTrucks] = useState<TruckData[]>([]);
+  const [rootDrivers, setRootDrivers] = useState<Driver[]>([]);
 
   useEffect(() => {
     fetch("/api/offers/mine").then((r) => r.json()).then((d) => {
       if (d.offers) setOfertasBadge(d.offers.filter((o: { estado: string }) => o.estado === "pending" || o.estado === "countered").length);
     }).catch(() => {});
     fetch("/api/fleet/trucks").then((r) => r.json()).then((d) => { if (d.trucks) setTrucks(d.trucks); }).catch(() => {});
+    fetch("/api/fleet/drivers").then((r) => r.json()).then((d) => { if (d.drivers) setRootDrivers(d.drivers); }).catch(() => {});
   }, []);
 
   const mostrarToast = (msg: string) => setToast(msg);
@@ -1906,7 +1910,7 @@ export default function TransportistaDashboard() {
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--bg1)" }}>
         {navActivo === "Inicio" && <SeccionInicio trucks={trucks} userName={userName} onNavegar={setNavActivo} />}
-        {navActivo === "Buscar cargas" && <SeccionBuscar onOfertar={(c) => setModalOferta(c)} onAlerta={() => mostrarToast("¡Alerta guardada! Te avisamos cuando aparezca una carga que te interese.")} excluirIds={ofertadasIds} trucks={trucks} onNoTruck={() => mostrarToast("Necesitás registrar al menos un camión en Mi flota para poder ofertar.")} />}
+        {navActivo === "Buscar cargas" && <SeccionBuscar onOfertar={(c) => setModalOferta(c)} onAlerta={() => mostrarToast("¡Alerta guardada! Te avisamos cuando aparezca una carga que te interese.")} excluirIds={ofertadasIds} trucks={trucks} drivers={rootDrivers} onNoTruck={() => mostrarToast("Necesitás registrar al menos un camión en Mi flota para poder ofertar.")} onNoDriver={() => mostrarToast("Necesitás registrar al menos un camionero en Mi flota para poder ofertar.")} />}
         {navActivo === "Planificar viaje" && <SeccionPlanificar trucks={trucks} />}
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} />}
