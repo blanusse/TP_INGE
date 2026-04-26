@@ -372,7 +372,114 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
   );
 }
 
-type TabViajes = "En curso" | "Próximos" | "Completados";
+type TabViajes = "En curso" | "Próximos" | "Completados" | "Cobros";
+
+interface Cobro { id: string; fecha: string; dador: string; ruta: string; monto: number; }
+
+function TabCobros() {
+  const now = new Date();
+  const firstOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
+
+  const [from, setFrom] = useState(firstOfYear);
+  const [to, setTo] = useState(today);
+  const [cobros, setCobros] = useState<Cobro[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchCobros = async (f = from, t = to) => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (f) params.set("from", f);
+    if (t) params.set("to", t);
+    const res = await fetch(`/api/cobros?${params}`);
+    const data = await res.json();
+    if (data.cobros) setCobros(data.cobros);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchCobros(); }, []);
+
+  const exportarCSV = () => {
+    const header = "Fecha,Dador,Ruta,Monto";
+    const rows = cobros.map((c) => `${c.fecha},"${c.dador}","${c.ruta}",${c.monto}`);
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cobros-${from}-${to}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+  };
+
+  const total = cobros.reduce((sum, c) => sum + c.monto, 0);
+  const inputStyle: React.CSSProperties = { fontSize: 13, padding: "7px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", marginBottom: 20, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", marginBottom: 4, textTransform: "uppercase" as const }}>Desde</div>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={inputStyle} />
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", marginBottom: 4, textTransform: "uppercase" as const }}>Hasta</div>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={inputStyle} />
+        </div>
+        <button onClick={() => fetchCobros()} style={{ fontSize: 13, padding: "8px 18px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Aplicar</button>
+        {cobros.length > 0 && (
+          <button onClick={exportarCSV} style={{ fontSize: 13, padding: "8px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            <i className="fa-solid fa-download" style={{ fontSize: 12 }} /> Exportar CSV
+          </button>
+        )}
+      </div>
+
+      {loading && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+
+      {!loading && cobros.length === 0 && (
+        <div style={{ textAlign: "center", padding: "48px 20px" }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+            <i className="fa-solid fa-receipt" style={{ fontSize: 22, color: "var(--green)" }} />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6 }}>Sin cobros en el período</div>
+          <div style={{ fontSize: 13, color: "var(--text2)" }}>Ajustá el rango de fechas para ver otros resultados.</div>
+        </div>
+      )}
+
+      {!loading && cobros.length > 0 && (
+        <>
+          <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "14px 20px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{cobros.length} cobro{cobros.length !== 1 ? "s" : ""} en el período</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)" }}>${total.toLocaleString("es-AR")} <span style={{ fontSize: 12, fontWeight: 400, color: "var(--color-text-tertiary)" }}>ARS</span></span>
+          </div>
+          <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "var(--color-background-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
+                  {["Fecha", "Dador", "Ruta", "Monto"].map((h) => (
+                    <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase" as const }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cobros.map((c, i) => (
+                  <tr key={c.id} style={{ borderBottom: i < cobros.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                    <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)", whiteSpace: "nowrap" as const }}>{c.fecha}</td>
+                    <td style={{ padding: "12px 16px", fontWeight: 500, color: "var(--color-text-primary)" }}>{c.dador}</td>
+                    <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{c.ruta}</td>
+                    <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--color-brand-dark)", whiteSpace: "nowrap" as const }}>${c.monto.toLocaleString("es-AR")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 interface TripData { offerId: string; loadId: string; titulo: string; empresa: string; precio: number; fechaRetiro: string; pickupCity: string; dropoffCity: string; pickupExact: string | null; dropoffExact: string | null; pickupLat: number | null; pickupLon: number | null; dropoffLat: number | null; dropoffLon: number | null; status: string; yaCalifiqué: boolean; }
 
@@ -449,8 +556,8 @@ function SeccionMisViajes({ userId }: { userId: string }) {
 
   if (tripSeleccionado) return <VistaTripDetalle t={tripSeleccionado} userId={userId} onVolver={() => setTripSeleccionado(null)} />;
 
-  const tabData = { "En curso": trips.enCurso, "Próximos": trips.proximos, "Completados": trips.completados };
-  const current = tabData[tab];
+  const tabData = { "En curso": trips.enCurso, "Próximos": trips.proximos, "Completados": trips.completados, "Cobros": [] as TripData[] };
+  const current = tabData[tab] ?? [];
 
   const TripCard = ({ t }: { t: TripData }) => {
     const partes = t.titulo.split(" — "); const tipoCarga = partes[0]; const ruta = partes[1] ?? t.titulo; const [or, dest] = ruta.split(" → ");
@@ -480,11 +587,12 @@ function SeccionMisViajes({ userId }: { userId: string }) {
     <main style={{ padding: "20px 24px", flex: 1 }}>
       {modalCalificar && <ModalCalificarDador offerId={modalCalificar.offerId} empresa={modalCalificar.empresa} onClose={() => { setCalificados((prev) => new Set([...prev, modalCalificar.offerId])); setModalCalificar(null); }} />}
       <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis viajes</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
         {([
         { t: "En curso" as TabViajes, faIcon: "fa-truck-moving", count: trips.enCurso.length, desc: "Viaje activo ahora" },
         { t: "Próximos" as TabViajes, faIcon: "fa-calendar-check", count: trips.proximos.length, desc: "Confirmados" },
         { t: "Completados" as TabViajes, faIcon: "fa-flag-checkered", count: trips.completados.length, desc: "Historial" },
+        { t: "Cobros" as TabViajes, faIcon: "fa-receipt", count: trips.completados.length, desc: "Historial de cobros" },
       ]).map(({ t, faIcon, count, desc }) => {
         const active = tab === t;
         return (
@@ -501,8 +609,9 @@ function SeccionMisViajes({ userId }: { userId: string }) {
         );
       })}
       </div>
-      {loading && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
-      {!loading && (
+      {tab === "Cobros" && <TabCobros />}
+      {loading && tab !== "Cobros" && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+      {!loading && tab !== "Cobros" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
           <div>{current.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 20px" }}>

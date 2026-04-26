@@ -89,6 +89,40 @@ export class StatsService {
     };
   }
 
+  async getDriverCobros(userId: string, from?: string, to?: string) {
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user || user.role !== 'transportista') throw new ForbiddenException();
+
+    const fromDate = from ? new Date(from) : null;
+    const toDate   = to   ? new Date(to)   : null;
+    if (fromDate) fromDate.setUTCHours(0, 0, 0, 0);
+    if (toDate)   toDate.setUTCHours(23, 59, 59, 999);
+
+    const offers = await this.offersRepo.find({
+      where: { driver_id: userId, status: 'accepted' },
+      relations: ['load', 'load.shipper', 'load.shipper.user'],
+      order: { created_at: 'DESC' },
+    });
+
+    const cobros = offers
+      .filter((o) => {
+        if (o.load?.status !== 'delivered') return false;
+        const d = new Date(o.created_at);
+        if (fromDate && d < fromDate) return false;
+        if (toDate   && d > toDate)   return false;
+        return true;
+      })
+      .map((o) => ({
+        id:     o.id,
+        fecha:  new Date(o.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        dador:  o.load?.shipper?.razon_social ?? o.load?.shipper?.user?.name ?? 'Dador',
+        ruta:   `${o.load?.pickup_city ?? ''} \u2192 ${o.load?.dropoff_city ?? ''}`,
+        monto:  Number(o.price),
+      }));
+
+    return { cobros };
+  }
+
   async getFleetStats(userId: string, from?: string, to?: string, driverId?: string) {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user || user.role !== 'transportista') throw new ForbiddenException();
@@ -101,7 +135,8 @@ export class StatsService {
 
     const fromDate = from ? new Date(from) : null;
     const toDate   = to   ? new Date(to)   : null;
-    if (toDate) toDate.setHours(23, 59, 59, 999);
+    if (fromDate) fromDate.setUTCHours(0, 0, 0, 0);
+    if (toDate)   toDate.setUTCHours(23, 59, 59, 999);
 
     const offers = await this.offersRepo.find({
       where: { driver_id: In(targetIds), status: 'accepted' },
