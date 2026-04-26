@@ -28,6 +28,9 @@ export class User {
   @Column({ nullable: true })
   dni: string;
 
+  @Column({ default: false })
+  is_verified: boolean;
+
   // For fleet sub-drivers: points to the owner transportista
   @Column({ nullable: true, type: 'uuid' })
   fleet_id: string;

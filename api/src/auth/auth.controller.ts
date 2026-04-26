@@ -21,4 +21,14 @@ export class AuthController {
   check(@Query('email') email: string) {
     return this.authService.checkEmail(email);
   }
+
+  @Post('verify-email')
+  verifyEmail(@Body() body: { email: string; code: string }) {
+    return this.authService.verifyEmail(body.email, body.code);
+  }
+
+  @Post('resend-code')
+  resendCode(@Body() body: { email: string }) {
+    return this.authService.resendCode(body.email);
+  }
 }
