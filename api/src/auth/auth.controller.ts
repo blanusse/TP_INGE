@@ -30,6 +30,7 @@ export class AuthController {
     const f = field ?? 'email';
     const v = value ?? email ?? '';
     return this.authService.checkField(f, v);
+<<<<<<< HEAD
   }
 
   @Post('verify-email')
@@ -40,5 +41,7 @@ export class AuthController {
   @Post('resend-code')
   resendCode(@Body() body: { email: string }) {
     return this.authService.resendCode(body.email);
+=======
+>>>>>>> main
   }
 }
