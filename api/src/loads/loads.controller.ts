@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request, Headers, UnauthorizedException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { LoadsService } from './loads.service';
 
@@ -33,6 +33,12 @@ export class LoadsController {
   ) {
     if (secret !== process.env.INTERNAL_SECRET) throw new UnauthorizedException();
     return this.loadsService.markInTransitByOffer(offerId);
+  }
+
+  @Delete(':loadId')
+  @UseGuards(JwtAuthGuard)
+  deleteLoad(@Request() req, @Param('loadId') loadId: string) {
+    return this.loadsService.deleteLoad(req.user.id, loadId);
   }
 
   @Patch(':loadId/in-transit')
