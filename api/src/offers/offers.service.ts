@@ -83,7 +83,7 @@ export class OffersService {
 
     const driverIds = [...new Set(offers.map((o) => o.driver_id))];
     const [drivers, ratings] = await Promise.all([
-      this.usersRepo.find({ where: { id: In(driverIds) }, select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at'] }),
+      this.usersRepo.find({ where: { id: In(driverIds) }, select: ['id', 'name', 'role', 'created_at'] }),
       this.ratingsRepo.createQueryBuilder('r')
         .select(['r.to_user_id', 'AVG(r.score) as avg_score', 'COUNT(*) as count'])
         .where('r.to_user_id IN (:...ids)', { ids: driverIds.length ? driverIds : ['none'] })

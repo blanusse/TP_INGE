@@ -461,7 +461,6 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
   const [confirmRechazar, setConfirmRechazar] = useState<Oferta | null>(null);
   const [contraofertaId, setContraofertaId]   = useState<string | null>(null);
   const [contraPrice, setContraPrice]         = useState("");
-  const [perfilExpandido, setPerfilExpandido] = useState<string | null>(null);
 
   React.useEffect(() => {
     fetch(`/api/offers?loadId=${carga.id}`)
@@ -555,20 +554,6 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
             {o.nota && (
               <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: "6px 10px", background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-md)", marginBottom: 10 }}>
                 &ldquo;{o.nota}&rdquo;
-              </div>
-            )}
-            <button
-              onClick={() => setPerfilExpandido(perfilExpandido === o.offerId ? null : o.offerId)}
-              style={{ fontSize: 11, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", padding: "0 0 8px 0", textDecoration: "underline" }}
-            >
-              {perfilExpandido === o.offerId ? "Ocultar perfil" : "Ver perfil del camionero"}
-            </button>
-            {perfilExpandido === o.offerId && (
-              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-md)", padding: "10px 12px", marginBottom: 10, display: "flex", flexDirection: "column", gap: 4 }}>
-                {o.telefono && <div><span style={{ fontWeight: 600 }}>Teléfono:</span> {o.telefono}</div>}
-                {o.email    && <div><span style={{ fontWeight: 600 }}>Email:</span> {o.email}</div>}
-                {o.dni      && <div><span style={{ fontWeight: 600 }}>DNI:</span> {o.dni}</div>}
-                <div><span style={{ fontWeight: 600 }}>Calificaciones:</span> {o.viajes} {o.viajes === 1 ? "viaje calificado" : "viajes calificados"}</div>
               </div>
             )}
             {esContraoferta ? (
