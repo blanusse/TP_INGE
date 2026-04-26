@@ -1736,11 +1736,11 @@ function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; 
             {proximoViaje && (() => {
               const partes = proximoViaje.titulo.split(" — "); const ruta = partes[1] ?? proximoViaje.titulo; const [or, dest] = ruta.split(" → ");
               return (
-                <div style={{ background: "linear-gradient(135deg, #162e27, #0f1e18)", border: "1px solid #2a5e4f", borderRadius: 10, padding: 16 }}>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: "var(--color-text-primary)", marginBottom: 4 }}>{or} → {dest}</div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 12 }}>{proximoViaje.empresa} · Retiro: {proximoViaje.fechaRetiro}</div>
+                <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: "var(--text1)", marginBottom: 4 }}>{or} → {dest}</div>
+                  <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 12 }}>{proximoViaje.empresa} · Retiro: {proximoViaje.fechaRetiro}</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {[`$${proximoViaje.precio.toLocaleString("es-AR")}`].map(p => <span key={p} style={{ fontSize: 11, background: "#1a3d2e", color: "#8fa896", padding: "3px 9px", borderRadius: 4 }}>{p}</span>)}
+                    {[`$${proximoViaje.precio.toLocaleString("es-AR")}`].map(p => <span key={p} style={{ fontSize: 11, background: "var(--green-muted)", color: "var(--green)", padding: "3px 9px", borderRadius: 4 }}>{p}</span>)}
                   </div>
                 </div>
               );
@@ -2165,15 +2165,15 @@ export default function TransportistaDashboard() {
   return (
     <>
       <div className={`transportista-${theme}`} style={{ background: "var(--bg1)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 56, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", position: "sticky", top: 0, zIndex: 10, borderBottom: "0.5px solid rgba(255,255,255,0.1)" }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 56, background: "var(--bg0)", backdropFilter: "blur(8px)", position: "sticky", top: 0, zIndex: 10, borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
-          <Link href="/" style={{ fontSize: 16, fontWeight: 700, color: "#fff", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>Carga<span style={{ color: "#3a806b" }}>Back</span></Link>
+          <Link href="/" style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>Carga<span style={{ color: "var(--green)" }}>Back</span></Link>
           <nav style={{ display: "flex", height: "100%" }}>
             {navItems.map((item) => {
               const badge = item === "Mis ofertas" ? ofertasBadge : 0;
               const active = navActivo === item;
               return (
-                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 500 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
+                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
                   <i className={NAV_ICONS[item]} style={{ fontSize: 12 }} />
                   {item}
                   {badge > 0 && <span style={{ position: "absolute", top: 10, right: 6, width: 15, height: 15, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{badge > 9 ? "9+" : badge}</span>}
@@ -2183,10 +2183,10 @@ export default function TransportistaDashboard() {
           </nav>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={toggleTheme} title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"} style={{ width: 30, height: 30, borderRadius: 6, background: "transparent", border: "1px solid var(--border2)", color: "var(--text2)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button onClick={toggleTheme} title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"} style={{ width: 30, height: 30, borderRadius: 6, background: "var(--bg2)", border: "1px solid var(--border2)", color: "var(--text1)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <i className={theme === "dark" ? "fa-solid fa-sun" : "fa-solid fa-moon"} />
           </button>
-          <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text2)" }}>{primerNombre}</span>
+          <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text1)" }}>{primerNombre}</span>
           <button onClick={() => setNavActivo("Mi perfil")} title="Ver mi perfil" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "var(--green)", cursor: "pointer" }}>{initials}</button>
         </div>
       </header>
