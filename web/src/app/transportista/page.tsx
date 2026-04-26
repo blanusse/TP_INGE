@@ -1046,7 +1046,7 @@ function ModalAgregarConductor({ onClose, onAdded }: { onClose: () => void; onAd
     try {
       const res = await fetch("/api/fleet/drivers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), email: email.trim(), phone: phone || undefined, dni: dni || undefined, password }) });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al agregar el conductor."); return; }
+      if (!res.ok) { setError(data.message ?? data.error ?? "Error al agregar el conductor."); return; }
       onAdded(data.driver);
       onClose();
     } finally { setLoading(false); }
@@ -1063,7 +1063,7 @@ function ModalAgregarConductor({ onClose, onAdded }: { onClose: () => void; onAd
         </div>
         <FormCampo label="Contraseña inicial" value={password} onChange={setPassword} placeholder="Mínimo 8 caracteres" type="password" required />
         <div style={{ background: "var(--green-muted)", border: "1px solid var(--green-dim)", borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
-          <p style={{ fontSize: 12, color: "var(--text2)", margin: 0, lineHeight: 1.5 }}>El conductor va a poder iniciar sesión con este email y contraseña. Compartíselos de forma segura.</p>
+          <p style={{ fontSize: 12, color: "var(--text2)", margin: 0, lineHeight: 1.5 }}>Si el conductor ya tiene cuenta en CargaBack, ingresá su email y se va a vincular automáticamente a tu flota. Si no tiene cuenta, completá todos los campos para crearle una.</p>
         </div>
         {error && <div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
@@ -1178,7 +1178,7 @@ function ModalEditarConductor({ driver, onClose, onSaved }: { driver: Driver; on
   );
 }
 
-function MenuAcciones({ onEditar, onEliminar }: { onEditar: () => void; onEliminar: () => void }) {
+function MenuAcciones({ onEditar, onEliminar, labelEliminar = "Eliminar" }: { onEditar: () => void; onEliminar: () => void; labelEliminar?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -1199,7 +1199,7 @@ function MenuAcciones({ onEditar, onEliminar }: { onEditar: () => void; onElimin
             Editar
           </button>
           <button onClick={() => { setOpen(false); onEliminar(); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 13, background: "transparent", border: "none", color: "#dc2626", cursor: "pointer" }}>
-            Eliminar
+            {labelEliminar}
           </button>
         </div>
       )}
@@ -1341,7 +1341,7 @@ function TabEstadisticas({ drivers }: { drivers: Driver[] }) {
   );
 }
 
-function SeccionMiFlota() {
+function SeccionMiFlota({ ownerId }: { ownerId: string }) {
   const [tabFlota, setTabFlota] = useState<"Camiones" | "Conductores" | "Estadísticas">("Camiones");
   const [trucks, setTrucks] = useState<TruckData[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -1353,6 +1353,19 @@ function SeccionMiFlota() {
   const [editandoConductor, setEditandoConductor] = useState<Driver | null>(null);
   const [eliminandoCamion, setEliminandoCamion] = useState<TruckData | null>(null);
   const [eliminandoConductor, setEliminandoConductor] = useState<Driver | null>(null);
+  const [emailInvitar, setEmailInvitar] = useState("");
+  const [invitando, setInvitando] = useState(false);
+  const [invitacionMsg, setInvitacionMsg] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
+
+  const enviarInvitacion = async () => {
+    if (!emailInvitar.trim()) return;
+    setInvitando(true); setInvitacionMsg(null);
+    const res = await fetch("/api/fleet/invitations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: emailInvitar }) });
+    const data = await res.json();
+    if (res.ok) { setInvitacionMsg({ tipo: "ok", texto: "Invitación enviada correctamente." }); setEmailInvitar(""); }
+    else { setInvitacionMsg({ tipo: "error", texto: data.message ?? "Error al enviar la invitación." }); }
+    setInvitando(false);
+  };
 
   useEffect(() => {
     fetch("/api/fleet/trucks").then((r) => r.json()).then((d) => { if (d.trucks) setTrucks(d.trucks); }).catch(() => {}).finally(() => setLoadingTrucks(false));
@@ -1374,7 +1387,7 @@ function SeccionMiFlota() {
       )}
       {eliminandoConductor && (
         <ModalConfirmarEliminar
-          mensaje={`¿Seguro que querés eliminar al conductor ${eliminandoConductor.name}? Esta acción no se puede deshacer.`}
+          mensaje={`¿Seguro que querés desvincular a ${eliminandoConductor.name} de tu flota?`}
           onCancelar={() => setEliminandoConductor(null)}
           onConfirmar={async () => { await fetch(`/api/fleet/drivers/${eliminandoConductor.id}`, { method: "DELETE" }); setDrivers((prev) => prev.filter((x) => x.id !== eliminandoConductor.id)); setEliminandoConductor(null); }}
         />
@@ -1439,6 +1452,29 @@ function SeccionMiFlota() {
       {/* Conductores */}
       {tabFlota === "Conductores" && (
         <>
+          {/* Invitar por email */}
+          <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "16px 20px", marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 10 }}>Invitar conductor por email</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="email"
+                value={emailInvitar}
+                onChange={(e) => setEmailInvitar(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && enviarInvitacion()}
+                placeholder="conductor@email.com"
+                style={{ flex: 1, fontSize: 13, padding: "8px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }}
+              />
+              <button onClick={enviarInvitacion} disabled={invitando} style={{ fontSize: 13, padding: "8px 18px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: invitando ? "not-allowed" : "pointer", fontWeight: 600, opacity: invitando ? 0.7 : 1 }}>
+                {invitando ? "Enviando..." : "Invitar"}
+              </button>
+            </div>
+            {invitacionMsg && (
+              <div style={{ marginTop: 8, fontSize: 12, color: invitacionMsg.tipo === "ok" ? "var(--green)" : "#dc2626" }}>
+                {invitacionMsg.texto}
+              </div>
+            )}
+          </div>
+
           {loadingDrivers && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
           {!loadingDrivers && drivers.length === 0 && (
             <div style={{ textAlign: "center", padding: "56px 20px", background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "1px solid var(--border)" }}>
@@ -1451,7 +1487,7 @@ function SeccionMiFlota() {
             </div>
           )}
           {!loadingDrivers && drivers.length > 0 && (
-            <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden" }}>
+            <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--color-background-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
@@ -1470,7 +1506,7 @@ function SeccionMiFlota() {
                       <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.dni ?? "—"}</td>
                       <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.email}</td>
                       <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.phone ?? "—"}</td>
-                      <td style={{ padding: "12px 16px" }}><MenuAcciones onEditar={() => setEditandoConductor(d)} onEliminar={() => setEliminandoConductor(d)} /></td>
+                      <td style={{ padding: "12px 16px" }}>{d.id !== ownerId && <MenuAcciones onEditar={() => setEditandoConductor(d)} onEliminar={() => setEliminandoConductor(d)} labelEliminar="Desvincular" />}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1499,9 +1535,18 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const [telefono, setTelefono] = useState("");
   const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
   const [stats, setStats] = useState<TransportistaStats | null>(null);
+  const [showAsDriver, setShowAsDriver] = useState(true);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
 
-  useEffect(() => { fetch("/api/stats/camionero").then((r) => r.json()).then((d) => setStats(d)).catch(() => {}); }, []);
+  useEffect(() => {
+    fetch("/api/stats/camionero").then((r) => r.json()).then((d) => setStats(d)).catch(() => {});
+    fetch("/api/fleet/settings").then((r) => r.json()).then((d) => { if (d.show_as_fleet_driver !== undefined) setShowAsDriver(d.show_as_fleet_driver); }).catch(() => {});
+  }, []);
+
+  const toggleShowAsDriver = async (val: boolean) => {
+    setShowAsDriver(val);
+    await fetch("/api/fleet/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show_as_fleet_driver: val }) });
+  };
 
   return (
     <main style={{ flex: 1, background: "var(--bg1)" }}>
@@ -1547,8 +1592,19 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 24, flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mi flota</div>
-              <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Gestioná tus camiones y conductores desde la sección <strong>Mi flota</strong> en el menú.</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 16 }}>Mi flota</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)", marginBottom: 2 }}>Aparecer como conductor</div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Incluirte en la lista de conductores de tu flota.</div>
+                </div>
+                <button
+                  onClick={() => toggleShowAsDriver(!showAsDriver)}
+                  style={{ width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", background: showAsDriver ? "var(--color-brand)" : "var(--color-border-secondary)", position: "relative", flexShrink: 0, transition: "background 0.2s" }}
+                >
+                  <span style={{ position: "absolute", top: 3, left: showAsDriver ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                </button>
+              </div>
             </div>
             <button onClick={() => signOut({ callbackUrl: "/" })} style={{ fontSize: 13, padding: "12px", borderRadius: "var(--border-radius-lg)", border: "0.5px solid rgba(220,38,38,0.4)", background: "rgba(220,38,38,0.1)", color: "#dc2626", cursor: "pointer", fontWeight: 500 }}>Cerrar sesión</button>
           </div>
@@ -1739,11 +1795,11 @@ function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; 
             {proximoViaje && (() => {
               const partes = proximoViaje.titulo.split(" — "); const ruta = partes[1] ?? proximoViaje.titulo; const [or, dest] = ruta.split(" → ");
               return (
-                <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: "var(--text1)", marginBottom: 4 }}>{or} → {dest}</div>
-                  <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 12 }}>{proximoViaje.empresa} · Retiro: {proximoViaje.fechaRetiro}</div>
+                <div style={{ background: "var(--color-background-secondary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 10, padding: 16 }}>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: "var(--color-text-primary)", marginBottom: 4 }}>{or} → {dest}</div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 12 }}>{proximoViaje.empresa} · Retiro: {proximoViaje.fechaRetiro}</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {[`$${proximoViaje.precio.toLocaleString("es-AR")}`].map(p => <span key={p} style={{ fontSize: 11, background: "var(--green-muted)", color: "var(--green)", padding: "3px 9px", borderRadius: 4 }}>{p}</span>)}
+                    {[`$${proximoViaje.precio.toLocaleString("es-AR")}`].map(p => <span key={p} style={{ fontSize: 11, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", padding: "3px 9px", borderRadius: 4, fontWeight: 600 }}>{p}</span>)}
                   </div>
                 </div>
               );
@@ -2176,7 +2232,7 @@ export default function TransportistaDashboard() {
               const badge = item === "Mis ofertas" ? ofertasBadge : 0;
               const active = navActivo === item;
               return (
-                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
+                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "#ffffff" : "rgba(255,255,255,0.5)", fontWeight: active ? 600 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
                   <i className={NAV_ICONS[item]} style={{ fontSize: 12 }} />
                   {item}
                   {badge > 0 && <span style={{ position: "absolute", top: 10, right: 6, width: 15, height: 15, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{badge > 9 ? "9+" : badge}</span>}
@@ -2201,7 +2257,7 @@ export default function TransportistaDashboard() {
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
-        {navActivo === "Mi flota" && <SeccionMiFlota />}
+        {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>
 
