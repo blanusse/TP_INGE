@@ -13,7 +13,10 @@ export async function GET() {
 
   const now = new Date();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const toViaje = (o: any) => ({
+    offerId: o.id,
+    loadId: o.load_id,
     titulo: `${o.load?.cargo_type ?? "Transporte"} \u2014 ${o.load?.pickup_city ?? ""} \u2192 ${o.load?.dropoff_city ?? ""}`,
     empresa: "Dador de carga",
     precio: Number(o.price),
@@ -22,6 +25,14 @@ export async function GET() {
       : "-",
     pickupCity: o.load?.pickup_city ?? "",
     dropoffCity: o.load?.dropoff_city ?? "",
+    pickupExact: o.load?.pickup_exact ?? null,
+    dropoffExact: o.load?.dropoff_exact ?? null,
+    pickupLat: o.load?.pickup_lat ? Number(o.load.pickup_lat) : null,
+    pickupLon: o.load?.pickup_lon ? Number(o.load.pickup_lon) : null,
+    dropoffLat: o.load?.dropoff_lat ? Number(o.load.dropoff_lat) : null,
+    dropoffLon: o.load?.dropoff_lon ? Number(o.load.dropoff_lon) : null,
+    status: o.load?.status ?? "unknown",
+    yaCalifiqué: false,
   });
 
   const enCurso = offers
