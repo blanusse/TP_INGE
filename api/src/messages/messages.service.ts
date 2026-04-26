@@ -44,7 +44,7 @@ export class MessagesService {
 
     const senderIds = [...new Set(messages.map((m) => m.sender_id))];
     const senders = senderIds.length
-      ? await this.usersRepo.find({ where: { id: In(senderIds) } })
+      ? await this.usersRepo.find({ where: { id: In(senderIds) }, select: ['id', 'name'] })
       : [];
     const senderMap = Object.fromEntries(senders.map((s) => [s.id, s.name]));
 
@@ -88,7 +88,7 @@ export class MessagesService {
 
     const [loads, drivers, lastMessages] = await Promise.all([
       this.loadsRepo.find({ where: { id: In(loadIds) } }),
-      this.usersRepo.find({ where: { id: In(driverIds) } }),
+      this.usersRepo.find({ where: { id: In(driverIds) }, select: ['id', 'name'] }),
       this.messagesRepo.createQueryBuilder('m')
         .select(['m.offer_id', 'm.content', 'm.created_at'])
         .where('m.offer_id IN (:...ids)', { ids: offerIds })
