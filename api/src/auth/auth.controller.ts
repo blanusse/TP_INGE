@@ -30,5 +30,18 @@ export class AuthController {
     const f = field ?? 'email';
     const v = value ?? email ?? '';
     return this.authService.checkField(f, v);
+<<<<<<< HEAD
+  }
+
+  @Post('verify-email')
+  verifyEmail(@Body() body: { email: string; code: string }) {
+    return this.authService.verifyEmail(body.email, body.code);
+  }
+
+  @Post('resend-code')
+  resendCode(@Body() body: { email: string }) {
+    return this.authService.resendCode(body.email);
+=======
+>>>>>>> main
   }
 }

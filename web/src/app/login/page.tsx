@@ -173,13 +173,12 @@ function LoginInner() {
         }),
       });
       if (!res.ok) {
-        const { error: msg } = await res.json();
-        setError(msg ?? "Error al crear la cuenta.");
+        const data = await res.json();
+        setError(data.message ?? data.error ?? "Error al crear la cuenta.");
         return;
       }
-      const result = await signIn("credentials", { email, password, redirect: false });
-      if (result?.error) setError("Cuenta creada. Iniciá sesión.");
-      else { router.push("/dashboard"); router.refresh(); }
+      sessionStorage.setItem("pending_auth", JSON.stringify({ email, password }));
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     });
   };
 
@@ -189,8 +188,15 @@ function LoginInner() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("Email inválido."); return; }
     startTransition(async () => {
       const result = await signIn("credentials", { email, password, redirect: false });
-      if (result?.error) setError("Email o contraseña incorrectos.");
-      else { router.push("/dashboard"); router.refresh(); }
+      if (result?.error) {
+        const check = await fetch(`/api/auth/check?field=email&value=${encodeURIComponent(email)}`);
+        const checkData = await check.json();
+        if (!checkData.available && checkData.is_verified === false) {
+          router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+          return;
+        }
+        setError("Email o contraseña incorrectos.");
+      } else { router.push("/dashboard"); router.refresh(); }
     });
   };
 
