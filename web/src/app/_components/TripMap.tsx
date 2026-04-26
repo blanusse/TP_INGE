@@ -28,6 +28,7 @@ export default function TripMap({
   const esRef = useRef<EventSource | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,9 +99,9 @@ export default function TripMap({
 
       const truckIcon = L.divIcon({
         className: "",
-        html: '<div style="font-size:22px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.35))">🚛</div>',
-        iconSize: [26, 22],
-        iconAnchor: [13, 11],
+        html: '<div style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));display:flex;align-items:center;justify-content:center"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3a806b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
       });
 
       const moveTruck = (lat: number, lng: number) => {
@@ -118,8 +119,10 @@ export default function TripMap({
       fetch(`/api/location/${loadId}/last`)
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
-          if (data?.lat && data?.lng)
+          if (data?.lat && data?.lng) {
             moveTruck(Number(data.lat), Number(data.lng));
+            if (data.updated_at) setLastUpdate(new Date(data.updated_at));
+          }
         })
         .catch(() => {});
 
@@ -130,6 +133,7 @@ export default function TripMap({
         try {
           const { lat, lng } = JSON.parse(event.data);
           moveTruck(Number(lat), Number(lng));
+          setLastUpdate(new Date());
         } catch {}
       };
     });
@@ -178,12 +182,25 @@ export default function TripMap({
     setSharing(false);
   };
 
+  const formatLastUpdate = (date: Date) => {
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diffSec < 60) return `hace ${diffSec} seg`;
+    if (diffSec < 3600) return `hace ${Math.floor(diffSec / 60)} min`;
+    return date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  };
+
   return (
     <div>
       <div
         ref={containerRef}
         style={{ height, borderRadius: 8, overflow: "hidden", zIndex: 0 }}
       />
+      <div style={{ marginTop: 6, fontSize: 11, color: "var(--color-text-tertiary, #9ca3af)" }}>
+        {lastUpdate
+          ? `Última actualización: ${formatLastUpdate(lastUpdate)}`
+          : "Sin ubicación registrada aún"}
+      </div>
       {isDriver && (
         <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
           <button
@@ -202,7 +219,17 @@ export default function TripMap({
               gap: 6,
             }}
           >
-            {sharing ? "⏹ Detener ubicación" : "📍 Compartir ubicación"}
+            {sharing ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                Detener ubicación
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                Compartir ubicación
+              </>
+            )}
           </button>
         </div>
       )}
