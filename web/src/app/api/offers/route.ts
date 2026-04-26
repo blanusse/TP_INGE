@@ -35,15 +35,18 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ offers }, { status: res.status });
 }
 
+const COMMISSION_RATE = 0.10;
+const netToGross = (net: number) => Math.round((net / (1 - COMMISSION_RATE)) * 100) / 100;
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
   const body = await req.json();
-  // Mapear campos del frontend al esquema del backend
+  // El transportista ingresa el precio neto que quiere recibir; se almacena como bruto (lo que paga el dador)
   const payload = {
     load_id: body.loadId ?? body.load_id,
-    price: body.price,
+    price: netToGross(Number(body.price)),
     truck_id: body.truckId ?? body.truck_id,
     note: body.note,
   };
