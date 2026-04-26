@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+
+const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
 import { signOut, useSession } from "next-auth/react";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
@@ -107,7 +110,7 @@ function dbLoadToCard(load: Record<string, unknown>): CargaCard {
   return { id: (load.id ?? load.id) as string, titulo, empresa: shipper?.razon_social ?? "Dador de carga", hace, precio: (load.price_base as number) ?? 0, peso: load.weight_kg ? `${(load.weight_kg as number).toLocaleString("es-AR")} kg` : "—", camion: load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required as string] ?? "Cualquiera") : "Cualquiera", retiro: load.ready_at ? new Date(load.ready_at as string).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—", distancia, rating: 0, viajes: 0, badge: null, destacado: false };
 }
 
-function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: { onOfertar: (c: ModalOfertaState) => void; onAlerta: () => void; excluirIds: Set<string | number>; trucks: TruckData[]; onNoTruck: () => void }) {
+function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoTruck, onNoDriver }: { onOfertar: (c: ModalOfertaState) => void; onAlerta: () => void; excluirIds: Set<string | number>; trucks: TruckData[]; drivers: Driver[]; onNoTruck: () => void; onNoDriver: () => void }) {
   const [tipos, setTipos] = useState<string[]>([]);
   const [tiposCamion, setTiposCamion] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortKey>("Mayor precio");
@@ -280,6 +283,8 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: {
                 <div style={{ fontSize: 12, color: "var(--text2)" }}><Stars value={c.rating} /> {c.rating} · {c.viajes} viajes{c.badge && <span style={{ color: "var(--green)" }}> · {c.badge}</span>}</div>
                 {trucks.length === 0
                   ? <button onClick={(e) => { e.stopPropagation(); onNoTruck(); }} title="Registrá un camión en Mi flota para poder ofertar" style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border2)", background: "transparent", color: "var(--text2)", cursor: "pointer" }}>Sin camión</button>
+                  : drivers.length === 0
+                  ? <button onClick={(e) => { e.stopPropagation(); onNoDriver(); }} title="Registrá un camionero en Mi flota para poder ofertar" style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border2)", background: "transparent", color: "var(--text2)", cursor: "pointer" }}>Sin camionero</button>
                   : <button onClick={(e) => { e.stopPropagation(); onOfertar({ cargaId: c.id, titulo: c.titulo, empresa: c.empresa, precioBase: c.precio }); }} style={{ fontSize: 13, padding: "6px 16px", borderRadius: 6, border: "none", background: "var(--green)", color: "#fff", cursor: "pointer", fontWeight: 500 }}>Ofertar</button>
                 }
               </div>
@@ -367,7 +372,114 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
   );
 }
 
-type TabViajes = "En curso" | "Próximos" | "Completados";
+type TabViajes = "En curso" | "Próximos" | "Completados" | "Cobros";
+
+interface Cobro { id: string; fecha: string; dador: string; ruta: string; monto: number; }
+
+function TabCobros() {
+  const now = new Date();
+  const firstOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
+
+  const [from, setFrom] = useState(firstOfYear);
+  const [to, setTo] = useState(today);
+  const [cobros, setCobros] = useState<Cobro[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchCobros = async (f = from, t = to) => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (f) params.set("from", f);
+    if (t) params.set("to", t);
+    const res = await fetch(`/api/cobros?${params}`);
+    const data = await res.json();
+    if (data.cobros) setCobros(data.cobros);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchCobros(); }, []);
+
+  const exportarCSV = () => {
+    const header = "Fecha,Dador,Ruta,Monto";
+    const rows = cobros.map((c) => `${c.fecha},"${c.dador}","${c.ruta}",${c.monto}`);
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cobros-${from}-${to}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+  };
+
+  const total = cobros.reduce((sum, c) => sum + c.monto, 0);
+  const inputStyle: React.CSSProperties = { fontSize: 13, padding: "7px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", marginBottom: 20, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", marginBottom: 4, textTransform: "uppercase" as const }}>Desde</div>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={inputStyle} />
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", marginBottom: 4, textTransform: "uppercase" as const }}>Hasta</div>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={inputStyle} />
+        </div>
+        <button onClick={() => fetchCobros()} style={{ fontSize: 13, padding: "8px 18px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Aplicar</button>
+        {cobros.length > 0 && (
+          <button onClick={exportarCSV} style={{ fontSize: 13, padding: "8px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            <i className="fa-solid fa-download" style={{ fontSize: 12 }} /> Exportar CSV
+          </button>
+        )}
+      </div>
+
+      {loading && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+
+      {!loading && cobros.length === 0 && (
+        <div style={{ textAlign: "center", padding: "48px 20px" }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+            <i className="fa-solid fa-receipt" style={{ fontSize: 22, color: "var(--green)" }} />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6 }}>Sin cobros en el período</div>
+          <div style={{ fontSize: 13, color: "var(--text2)" }}>Ajustá el rango de fechas para ver otros resultados.</div>
+        </div>
+      )}
+
+      {!loading && cobros.length > 0 && (
+        <>
+          <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "14px 20px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{cobros.length} cobro{cobros.length !== 1 ? "s" : ""} en el período</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)" }}>${total.toLocaleString("es-AR")} <span style={{ fontSize: 12, fontWeight: 400, color: "var(--color-text-tertiary)" }}>ARS</span></span>
+          </div>
+          <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "var(--color-background-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
+                  {["Fecha", "Dador", "Ruta", "Monto"].map((h) => (
+                    <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase" as const }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cobros.map((c, i) => (
+                  <tr key={c.id} style={{ borderBottom: i < cobros.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                    <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)", whiteSpace: "nowrap" as const }}>{c.fecha}</td>
+                    <td style={{ padding: "12px 16px", fontWeight: 500, color: "var(--color-text-primary)" }}>{c.dador}</td>
+                    <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{c.ruta}</td>
+                    <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--color-brand-dark)", whiteSpace: "nowrap" as const }}>${c.monto.toLocaleString("es-AR")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 interface TripData { offerId: string; loadId: string; titulo: string; empresa: string; precio: number; fechaRetiro: string; pickupCity: string; dropoffCity: string; pickupExact: string | null; dropoffExact: string | null; pickupLat: number | null; pickupLon: number | null; dropoffLat: number | null; dropoffLon: number | null; status: string; yaCalifiqué: boolean; }
 
@@ -444,8 +556,8 @@ function SeccionMisViajes({ userId }: { userId: string }) {
 
   if (tripSeleccionado) return <VistaTripDetalle t={tripSeleccionado} userId={userId} onVolver={() => setTripSeleccionado(null)} />;
 
-  const tabData = { "En curso": trips.enCurso, "Próximos": trips.proximos, "Completados": trips.completados };
-  const current = tabData[tab];
+  const tabData = { "En curso": trips.enCurso, "Próximos": trips.proximos, "Completados": trips.completados, "Cobros": [] as TripData[] };
+  const current = tabData[tab] ?? [];
 
   const TripCard = ({ t }: { t: TripData }) => {
     const partes = t.titulo.split(" — "); const tipoCarga = partes[0]; const ruta = partes[1] ?? t.titulo; const [or, dest] = ruta.split(" → ");
@@ -475,11 +587,12 @@ function SeccionMisViajes({ userId }: { userId: string }) {
     <main style={{ padding: "20px 24px", flex: 1 }}>
       {modalCalificar && <ModalCalificarDador offerId={modalCalificar.offerId} empresa={modalCalificar.empresa} onClose={() => { setCalificados((prev) => new Set([...prev, modalCalificar.offerId])); setModalCalificar(null); }} />}
       <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis viajes</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
         {([
         { t: "En curso" as TabViajes, faIcon: "fa-truck-moving", count: trips.enCurso.length, desc: "Viaje activo ahora" },
         { t: "Próximos" as TabViajes, faIcon: "fa-calendar-check", count: trips.proximos.length, desc: "Confirmados" },
         { t: "Completados" as TabViajes, faIcon: "fa-flag-checkered", count: trips.completados.length, desc: "Historial" },
+        { t: "Cobros" as TabViajes, faIcon: "fa-receipt", count: trips.completados.length, desc: "Historial de cobros" },
       ]).map(({ t, faIcon, count, desc }) => {
         const active = tab === t;
         return (
@@ -496,8 +609,9 @@ function SeccionMisViajes({ userId }: { userId: string }) {
         );
       })}
       </div>
-      {loading && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
-      {!loading && (
+      {tab === "Cobros" && <TabCobros />}
+      {loading && tab !== "Cobros" && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+      {!loading && tab !== "Cobros" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
           <div>{current.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 20px" }}>
@@ -605,6 +719,25 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
         </div>
       </div>
 
+      {/* Mapa en tiempo real (solo viajes en tránsito) */}
+      {t.status === "in_transit" && (
+        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20, marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />
+            Ubicación en tiempo real
+          </div>
+          <TripMap
+            loadId={t.loadId}
+            originLat={t.pickupLat}
+            originLng={t.pickupLon}
+            destLat={t.dropoffLat}
+            destLng={t.dropoffLon}
+            height={300}
+            isDriver
+          />
+        </div>
+      )}
+
       {/* Chat inline */}
       <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 14 }}>Chat con {t.empresa}</div>
@@ -661,12 +794,31 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(null);
     if (!patente.trim()) { setError("La patente es obligatoria."); return; }
-    if (!/^[A-Za-z0-9]{6,7}$/.test(patente.replace(/\s/g, ""))) { setError("Patente inválida (ej: AB123CD)."); return; }
+    const patenteNorm = patente.toUpperCase().replace(/\s/g, "");
+    if (!/^[A-Z]{3}\d{3}$/.test(patenteNorm) && !/^[A-Z]{2}\d{3}[A-Z]{2}$/.test(patenteNorm)) {
+      setError("Patente inválida. Usá el formato argentino: ABC123 (vieja) o AB123CD (nueva)."); return;
+    }
+    const añoNum = año ? parseInt(año) : null;
+    if (añoNum !== null && (añoNum < 1960 || añoNum > new Date().getFullYear() + 1)) {
+      setError(`El año debe estar entre 1960 y ${new Date().getFullYear() + 1}.`); return;
+    }
+    if (vtvVence && new Date(vtvVence) < new Date()) { setError("La VTV ya está vencida."); return; }
+    if (seguroVence && new Date(seguroVence) < new Date()) { setError("El seguro ya está vencido."); return; }
     if (!tipo) { setError("Seleccioná el tipo de camión."); return; }
     if (REQUIERE_REMOLQUE.has(tipo) && !patenteRemolque.trim()) { setError(`Los ${tipo}s necesitan la patente del remolque.`); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/fleet/trucks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patente: patente.toUpperCase(), patente_remolque: patenteRemolque || undefined, marca, modelo, año, truck_type: tipo, capacity_kg: capacidad || undefined, vtv_vence: vtvVence || undefined, seguro_poliza: seguroPoliza || undefined, seguro_vence: seguroVence || undefined }) });
+      const res = await fetch("/api/fleet/trucks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patente: patenteNorm, patente_remolque: patenteRemolque || undefined,
+          marca, modelo, año: añoNum || undefined, truck_type: tipo,
+          capacity_kg: capacidad || undefined,
+          vtv_vence: vtvVence || undefined,
+          seguro_poliza: seguroPoliza || undefined, seguro_vence: seguroVence || undefined,
+        }),
+      });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Error al agregar el camión."); return; }
       onAdded(data.truck);
@@ -699,7 +851,7 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
           <FormCampo label="N° póliza de seguro" value={seguroPoliza} onChange={setSeguroPoliza} placeholder="POL-123456" />
         </div>
         <FormCampo label="Seguro — vencimiento" value={seguroVence} onChange={setSeguroVence} type="date" />
-        {error && <div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
+        {error &&<div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Cancelar</button>
           <button type="submit" disabled={loading} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: 8, border: "none", background: loading ? "#aaa" : "var(--color-brand)", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>{loading ? "Guardando..." : "Agregar camión"}</button>
@@ -722,9 +874,16 @@ function ModalAgregarConductor({ onClose, onAdded }: { onClose: () => void; onAd
     e.preventDefault(); setError(null);
     if (!name.trim() || !email.trim() || !password.trim()) { setError("Nombre, email y contraseña son obligatorios."); return; }
     if (password.length < 8) { setError("La contraseña debe tener al menos 8 caracteres."); return; }
+    if (phone && !/^\+?\d{8,15}$/.test(phone.replace(/\s/g, ""))) { setError("El teléfono debe tener entre 8 y 15 dígitos."); return; }
+    if (dni) {
+      const dniLimpio = dni.replace(/\./g, "");
+      if (!/^\d{7,8}$/.test(dniLimpio)) { setError("El DNI debe tener 7 u 8 dígitos numéricos."); return; }
+      const num = parseInt(dniLimpio);
+      if (num < 1_000_000 || num > 99_999_999) { setError("El DNI no está en el rango argentino válido."); return; }
+    }
     setLoading(true);
     try {
-      const res = await fetch("/api/fleet/drivers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, phone: phone || undefined, dni: dni || undefined, password }) });
+      const res = await fetch("/api/fleet/drivers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), email: email.trim(), phone: phone || undefined, dni: dni || undefined, password }) });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Error al agregar el conductor."); return; }
       onAdded(data.driver);
@@ -1831,12 +1990,14 @@ export default function TransportistaDashboard() {
   const primerNombre = userName.split(" ")[0];
   const [ofertasBadge, setOfertasBadge] = useState(0);
   const [trucks, setTrucks] = useState<TruckData[]>([]);
+  const [rootDrivers, setRootDrivers] = useState<Driver[]>([]);
 
   useEffect(() => {
     fetch("/api/offers/mine").then((r) => r.json()).then((d) => {
       if (d.offers) setOfertasBadge(d.offers.filter((o: { estado: string }) => o.estado === "pending" || o.estado === "countered").length);
     }).catch(() => {});
     fetch("/api/fleet/trucks").then((r) => r.json()).then((d) => { if (d.trucks) setTrucks(d.trucks); }).catch(() => {});
+    fetch("/api/fleet/drivers").then((r) => r.json()).then((d) => { if (d.drivers) setRootDrivers(d.drivers); }).catch(() => {});
   }, []);
 
   const mostrarToast = (msg: string) => setToast(msg);
@@ -1884,7 +2045,7 @@ export default function TransportistaDashboard() {
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--bg1)" }}>
         {navActivo === "Inicio" && <SeccionInicio trucks={trucks} userName={userName} onNavegar={setNavActivo} />}
-        {navActivo === "Buscar cargas" && <SeccionBuscar onOfertar={(c) => setModalOferta(c)} onAlerta={() => mostrarToast("¡Alerta guardada! Te avisamos cuando aparezca una carga que te interese.")} excluirIds={ofertadasIds} trucks={trucks} onNoTruck={() => mostrarToast("Necesitás registrar al menos un camión en Mi flota para poder ofertar.")} />}
+        {navActivo === "Buscar cargas" && <SeccionBuscar onOfertar={(c) => setModalOferta(c)} onAlerta={() => mostrarToast("¡Alerta guardada! Te avisamos cuando aparezca una carga que te interese.")} excluirIds={ofertadasIds} trucks={trucks} drivers={rootDrivers} onNoTruck={() => mostrarToast("Necesitás registrar al menos un camión en Mi flota para poder ofertar.")} onNoDriver={() => mostrarToast("Necesitás registrar al menos un camionero en Mi flota para poder ofertar.")} />}
         {navActivo === "Planificar viaje" && <SeccionPlanificar trucks={trucks} />}
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} />}
@@ -1921,3 +2082,4 @@ function FormCampo({ label, value, onChange, placeholder, type = "text", require
     </div>
   );
 }
+

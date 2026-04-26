@@ -17,6 +17,15 @@ export class StatsController {
     return this.statsService.getShipperStats(req.user.id);
   }
 
+  @Get('cobros')
+  getDriverCobros(
+    @Request() req,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.statsService.getDriverCobros(req.user.id, from, to);
+  }
+
   @Get('flota')
   getFleetStats(
     @Request() req,

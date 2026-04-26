@@ -43,6 +43,40 @@ function LoginInner() {
   const [isPending, startTransition]  = useTransition();
   const [emailDisponible, setEmailDisponible]         = useState<boolean | null>(null);
   const [telefonoDisponible, setTelefonoDisponible]   = useState<boolean | null>(null);
+  const [dniDisponible, setDniDisponible]             = useState<boolean | null>(null);
+  const [cuitDisponible, setCuitDisponible]           = useState<boolean | null>(null);
+
+  // Verificación en tiempo real: DNI
+  useEffect(() => {
+    if (paso !== "registro") return;
+    const necesitaDni = perfil === "transportista" || (perfil === "dador" && tipoDador === "personal");
+    if (!necesitaDni || !/^\d{7,8}$/.test(dni)) { setDniDisponible(null); return; }
+    setDniDisponible(null);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check?field=dni&value=${encodeURIComponent(dni)}`);
+        const { available } = await res.json();
+        setDniDisponible(available);
+      } catch { /* ignorar */ }
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [dni, paso, perfil, tipoDador]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Verificación en tiempo real: CUIT
+  useEffect(() => {
+    if (paso !== "registro" || perfil !== "dador" || tipoDador !== "empresa") return;
+    const digitos = cuit.replace(/\D/g, "");
+    if (digitos.length < 11) { setCuitDisponible(null); return; }
+    setCuitDisponible(null);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check?field=cuit&value=${encodeURIComponent(cuit)}`);
+        const { available } = await res.json();
+        setCuitDisponible(available);
+      } catch { /* ignorar */ }
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [cuit, paso, perfil, tipoDador]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Verificación en tiempo real: email
   useEffect(() => {
@@ -96,18 +130,28 @@ function LoginInner() {
 
   const validarPersonal = (): string | null => {
     if (!nombre.trim())  return "Ingresá tu nombre completo.";
-    if (perfil === "transportista") {
-      if (!/^\d{7,8}$/.test(dni.replace(/\./g, ""))) return "El DNI debe tener 7 u 8 dígitos numéricos.";
+
+    const necesitaDni = perfil === "transportista" || (perfil === "dador" && tipoDador === "personal");
+    if (necesitaDni) {
+      const dniLimpio = dni.replace(/\./g, "");
+      if (!/^\d{7,8}$/.test(dniLimpio)) return "El DNI debe tener 7 u 8 dígitos numéricos.";
+      const num = parseInt(dniLimpio);
+      if (num < 1_000_000 || num > 99_999_999) return "El DNI ingresado no está en el rango argentino válido.";
+      if (dniDisponible === false) return "Ya existe una cuenta registrada con ese DNI.";
     }
-    if (perfil === "dador" && tipoDador === "personal") {
-      if (!/^\d{7,8}$/.test(dni.replace(/\./g, ""))) return "El DNI debe tener 7 u 8 dígitos numéricos.";
-    }
+
     if (!telefono.trim()) return "El teléfono es obligatorio.";
     if (!/^\+?\d{8,15}$/.test(telefono.replace(/\s/g, ""))) return "El teléfono debe tener entre 8 y 15 dígitos.";
+    if (telefonoDisponible === false) return "Ya existe una cuenta registrada con ese teléfono.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Email inválido.";
+    if (emailDisponible === false) return "Ya existe una cuenta registrada con ese email.";
     if (password.length < 8) return "La contraseña debe tener al menos 8 caracteres.";
-    if (perfil === "dador" && tipoDador === "empresa" && !razonSocial.trim()) return "Ingresá la razón social.";
-    if (perfil === "dador" && tipoDador === "empresa" && !/^\d{2}-\d{8}-\d$/.test(cuit)) return "El CUIT debe tener el formato XX-XXXXXXXX-X.";
+    if (perfil === "dador" && tipoDador === "empresa") {
+      if (!razonSocial.trim()) return "Ingresá la razón social.";
+      if (!/^\d{2}-\d{8}-\d$/.test(cuit)) return "El CUIT debe tener el formato XX-XXXXXXXX-X.";
+      if (!validarCuitChecksum(cuit)) return "El CUIT ingresado no es válido. Verificá el dígito verificador.";
+      if (cuitDisponible === false) return "Ya existe una empresa registrada con ese CUIT.";
+    }
     if (!aceptaTerminos) return "Aceptá los términos para continuar.";
     return null;
   };
@@ -379,7 +423,8 @@ function LoginInner() {
                   placeholder="Juan Rodríguez"
                   style={{ gridColumn: "1 / -1" }} required />
                 {(perfil === "transportista" || (perfil === "dador" && tipoDador === "personal")) && (
-                  <Campo label="DNI" id="dni" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" required />
+                  <Campo label="DNI" id="dni" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" required
+                    hint={dniDisponible === false ? { text: "⚠ Ya existe una cuenta con ese DNI.", color: "#ef4444" } : dniDisponible === true ? { text: "✓ DNI disponible.", color: "#16a34a" } : undefined} />
                 )}
                 <Campo label="Celular" id="tel" type="tel" value={telefono} onChange={(v) => setTelefono(v.replace(/[^\d+\s]/g, ""))} placeholder="+54 9 11 1234-5678" maxLength={15} inputMode="tel" required
                   hint={telefonoDisponible === false ? { text: "⚠ Este celular ya está registrado.", color: "#ef4444" } : telefonoDisponible === true ? { text: "✓ Celular disponible.", color: "#16a34a" } : undefined} />
@@ -391,7 +436,8 @@ function LoginInner() {
                 <Separador label="Empresa" />
                 <Campo label="Razón social" id="rs" type="text" value={razonSocial} onChange={setRazonSocial} placeholder="Mi Empresa S.R.L." required />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                  <Campo label="CUIT" id="cuit" type="text" value={cuit} onChange={(v) => setCuit(formatCuit(v))} placeholder="20-12345678-9" maxLength={13} inputMode="numeric" required />
+                  <Campo label="CUIT" id="cuit" type="text" value={cuit} onChange={(v) => setCuit(formatCuit(v))} placeholder="20-12345678-9" maxLength={13} inputMode="numeric" required
+                    hint={cuitDisponible === false ? { text: "⚠ Ya existe una empresa con ese CUIT.", color: "#ef4444" } : cuitDisponible === true ? { text: "✓ CUIT disponible.", color: "#16a34a" } : undefined} />
                   <Campo label="Dirección" id="dir" type="text" value={direccion} onChange={setDireccion} placeholder="Av. Corrientes 1234" />
                 </div>
               </>}
@@ -581,6 +627,19 @@ function formatCuit(v: string): string {
   if (digits.length <= 10) return `${digits.slice(0,2)}-${digits.slice(2)}`;
   return `${digits.slice(0,2)}-${digits.slice(2,10)}-${digits.slice(10)}`;
 }
+
+/** Dígito verificador CUIT argentino — misma lógica que el backend */
+function validarCuitChecksum(cuit: string): boolean {
+  const limpio = cuit.replace(/[-\s]/g, "");
+  if (!/^\d{11}$/.test(limpio)) return false;
+  const factores = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+  const suma = factores.reduce((acc, f, i) => acc + f * parseInt(limpio[i]), 0);
+  const resto = 11 - (suma % 11);
+  if (resto === 11) return parseInt(limpio[10]) === 0;
+  if (resto === 10) return false;
+  return parseInt(limpio[10]) === resto;
+}
+
 
 function passwordStrength(pwd: string): number {
   let s = 0;

@@ -5,6 +5,7 @@ export class RegisterDto {
   role: 'transportista' | 'dador';
   phone?: string;
   dni?: string;
+  dni_photo_url?: string;
   // Shipper-specific
   tipo_dador?: 'empresa' | 'personal';
   razon_social?: string;

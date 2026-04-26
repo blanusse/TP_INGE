@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+
+const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
 import { signOut, useSession } from "next-auth/react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBoxOpen, faClockRotateLeft, faFileInvoiceDollar, faHouse, faTruckFast, faSun, faMoon } from "@fortawesome/free-solid-svg-icons";
@@ -675,7 +678,7 @@ function ModalPago({ sel, onClose }: {
       <div style={{ background: "#f0f4ff", border: "0.5px solid #c7d7fd", borderRadius: "var(--border-radius-lg)", padding: 14, marginBottom: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#1e3a8a", marginBottom: 6 }}>Pago seguro con MercadoPago</div>
         <div style={{ fontSize: 12, color: "#1e40af", lineHeight: 1.6 }}>
-          Serás redirigido al checkout oficial de MercadoPago. El dinero queda retenido en escrow y se libera al camionero cuando confirmes la entrega.
+          Serás redirigido al checkout oficial de MercadoPago. El pago se acredita al instante una vez confirmado.
         </div>
       </div>
 
@@ -1092,6 +1095,7 @@ function SeccionMisCargas({
 function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: () => void }) {
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [modalCalificar, setModalCalificar] = useState<{ offerId: string; driverName: string } | null>(null);
+  const [mapaAbierto, setMapaAbierto] = useState<string | null>(null);
 
   const enTransito = cargas.filter((c) => c.status === "in_transit" || c.status === "accepted");
   const entregados = cargas.filter((c) => c.status === "delivered");
@@ -1170,6 +1174,12 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
                 EN TRANSITO
               </span>
               <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => setMapaAbierto(mapaAbierto === c.id ? null : c.id)}
+                  style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: mapaAbierto === c.id ? "rgba(58,128,107,0.08)" : "transparent", color: mapaAbierto === c.id ? "#3a806b" : "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+                >
+                  <span style={{ fontSize: 13 }}>🗺</span> {mapaAbierto === c.id ? "Ocultar mapa" : "Ver en mapa"}
+                </button>
                 <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ fontSize: 14 }}>&#9993;</span> Chat
                 </button>
@@ -1217,6 +1227,17 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
                 );
               })}
             </div>
+
+            {/* Mapa en tiempo real */}
+            {mapaAbierto === c.id && (
+              <div style={{ marginTop: 16, borderTop: "1px solid var(--color-border-tertiary)", paddingTop: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#16a34a", display: "inline-block", animation: "pulse 1.5s infinite" }} />
+                  Ubicación en tiempo real
+                </div>
+                <TripMap loadId={c.id} height={280} />
+              </div>
+            )}
           </div>
         );
       })}

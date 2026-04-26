@@ -31,6 +31,10 @@ export class User {
   @Column({ default: false })
   is_verified: boolean;
 
+  // URL de la foto del DNI subida a Supabase Storage
+  @Column({ nullable: true })
+  dni_photo_url: string;
+
   // For fleet sub-drivers: points to the owner transportista
   @Column({ nullable: true, type: 'uuid' })
   fleet_id: string;
