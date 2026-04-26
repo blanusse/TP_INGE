@@ -38,6 +38,25 @@ export class Payment {
   @Column({ type: 'varchar', default: 'pending' })
   status: PaymentStatus;
 
+  // Código de entrega: se genera cuando el pago es confirmado.
+  // El dador lo ve en su panel y lo comparte con quien recibe la carga.
+  // El transportista lo ingresa para confirmar la entrega y cobrar.
+  @Column({ type: 'varchar', nullable: true, unique: true })
+  delivery_code: string;
+
+  @Column({ type: 'boolean', default: false })
+  delivery_code_used: boolean;
+
+  // Método de cobro elegido por el transportista
+  @Column({ type: 'varchar', nullable: true })
+  payout_method: string; // 'cvu_cbu' | 'mercadopago'
+
+  @Column({ type: 'varchar', nullable: true })
+  payout_destination: string; // CVU/CBU/alias o email/usuario de MP
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  payout_status: string; // null | 'requested' | 'done'
+
   @CreateDateColumn()
   created_at: Date;
 }

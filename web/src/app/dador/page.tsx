@@ -875,6 +875,8 @@ function SeccionMisCargas({
   const [tab, setTab] = useState<MisCargasTab>("Publicadas");
   const [detalleCarga, setDetalleCarga] = useState<Carga | null>(null);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [deliveryCode, setDeliveryCode] = useState<{ code: string; used: boolean } | null>(null);
+  const [loadingCode, setLoadingCode] = useState(false);
 
   const publicadas = cargas.filter((c) => c.status === "available");
   const asignadas = cargas.filter((c) => c.status === "matched" || c.status === "in_transit" || c.status === "accepted");
@@ -890,6 +892,19 @@ function SeccionMisCargas({
       setEliminando(null);
     }
   };
+
+  // Cargar código de entrega cuando se abre el detalle de una carga pagada
+  useEffect(() => {
+    if (!detalleCarga) { setDeliveryCode(null); return; }
+    const esAsignada = detalleCarga.status === "matched" || detalleCarga.status === "in_transit" || detalleCarga.status === "delivered";
+    if (!esAsignada) { setDeliveryCode(null); return; }
+    setLoadingCode(true);
+    fetch(`/api/payments/delivery-code?loadId=${detalleCarga.id}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.delivery_code) setDeliveryCode({ code: d.delivery_code, used: d.delivery_code_used }); })
+      .catch(() => {})
+      .finally(() => setLoadingCode(false));
+  }, [detalleCarga?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Detail panel modal
   if (detalleCarga) {
@@ -929,10 +944,43 @@ function SeccionMisCargas({
               Ver ofertas ({dc.ofertas})
             </button>
           )}
-          {ao && (
+          {ao && !deliveryCode && !loadingCode && (
             <button onClick={() => { setDetalleCarga(null); onIniciarPago({ offerId: ao.offerId, cargaTitulo: dc.titulo, cargaId: dc.id, oferta: { nombre: ao.driverName, precio: ao.precio, offerId: ao.offerId, id: 0, iniciales: ao.driverName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2), rating: 0, viajes: 0, nota: "" } }); }} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
               Pagar &rarr;
             </button>
+          )}
+
+          {/* Código de entrega — visible una vez que el pago fue confirmado */}
+          {loadingCode && (
+            <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", marginTop: 16 }}>Cargando código de entrega...</div>
+          )}
+          {deliveryCode && (
+            <div style={{ marginTop: 20, background: deliveryCode.used ? "rgba(22,163,74,0.08)" : "rgba(59,130,246,0.08)", border: `1.5px solid ${deliveryCode.used ? "#16a34a" : "#3b82f6"}`, borderRadius: 12, padding: "18px 20px" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: deliveryCode.used ? "#16a34a" : "#3b82f6", marginBottom: 8 }}>
+                {deliveryCode.used ? "✓ Entrega confirmada" : "Código de entrega"}
+              </div>
+              {!deliveryCode.used && (
+                <>
+                  <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: "0.2em", color: "#111", fontFamily: "monospace", marginBottom: 8 }}>
+                    {deliveryCode.code}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+                    Compartí este código con la persona que va a recibir la carga.<br />
+                    El transportista lo necesita para confirmar la entrega y cobrar.
+                  </div>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(deliveryCode.code)}
+                    style={{ marginTop: 10, fontSize: 12, padding: "6px 14px", borderRadius: 6, border: "1px solid #3b82f6", background: "transparent", color: "#3b82f6", cursor: "pointer", fontWeight: 600 }}>
+                    Copiar código
+                  </button>
+                </>
+              )}
+              {deliveryCode.used && (
+                <div style={{ fontSize: 14, color: "#16a34a", fontWeight: 600 }}>
+                  El transportista confirmó la entrega y el pago fue solicitado.
+                </div>
+              )}
+            </div>
           )}
         </div>
       </main>
