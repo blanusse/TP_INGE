@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+
+const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
 import { signOut, useSession } from "next-auth/react";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
@@ -604,6 +607,25 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
           ))}
         </div>
       </div>
+
+      {/* Mapa en tiempo real (solo viajes en tránsito) */}
+      {t.status === "in_transit" && (
+        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20, marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />
+            Ubicación en tiempo real
+          </div>
+          <TripMap
+            loadId={t.loadId}
+            originLat={t.pickupLat}
+            originLng={t.pickupLon}
+            destLat={t.dropoffLat}
+            destLng={t.dropoffLon}
+            height={300}
+            isDriver
+          />
+        </div>
+      )}
 
       {/* Chat inline */}
       <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
