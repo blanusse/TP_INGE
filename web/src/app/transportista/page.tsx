@@ -2232,7 +2232,7 @@ export default function TransportistaDashboard() {
               const badge = item === "Mis ofertas" ? ofertasBadge : 0;
               const active = navActivo === item;
               return (
-                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "#ffffff" : "rgba(255,255,255,0.5)", fontWeight: active ? 600 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
+                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
                   <i className={NAV_ICONS[item]} style={{ fontSize: 12 }} />
                   {item}
                   {badge > 0 && <span style={{ position: "absolute", top: 10, right: 6, width: 15, height: 15, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{badge > 9 ? "9+" : badge}</span>}

@@ -1981,9 +1981,9 @@ export default function DadorDashboard() {
     <div style={{ background: "var(--page-bg)", minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
 
       {/* Topbar */}
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", borderBottom: "0.5px solid rgba(255,255,255,0.1)", position: "sticky", top: 0, zIndex: 10 }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: darkMode === false ? "#ffffff" : "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", borderBottom: darkMode === false ? "1px solid #e5e7eb" : "0.5px solid rgba(255,255,255,0.1)", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: "#fff", textDecoration: "none", fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}>
+          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: darkMode === false ? "#0f1f19" : "#fff", textDecoration: "none", fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}>
             Carga<span style={{ color: "#3a806b" }}>Back</span>
           </Link>
           <nav style={{ display: "flex", height: 64 }}>
@@ -1998,8 +1998,8 @@ export default function DadorDashboard() {
                   background: "transparent", cursor: "pointer", position: "relative",
                   fontFamily: "var(--font-ibm-plex), sans-serif",
                 }}>
-                  <FontAwesomeIcon icon={icon} style={{ width: 14, height: 14, color: activo ? "#3a806b" : "rgba(255,255,255,0.45)" }} />
-                  <span style={{ fontSize: 15, fontWeight: activo ? 600 : 400, color: activo ? "#fff" : "rgba(255,255,255,0.55)" }}>{item}</span>
+                  <FontAwesomeIcon icon={icon} style={{ width: 14, height: 14, color: activo ? "#3a806b" : darkMode === false ? "#6b7280" : "rgba(255,255,255,0.45)" }} />
+                  <span style={{ fontSize: 15, fontWeight: activo ? 600 : 400, color: activo ? (darkMode === false ? "#0f1f19" : "#fff") : darkMode === false ? "#6b7280" : "rgba(255,255,255,0.55)" }}>{item}</span>
                   {badge > 0 && (
                     <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>
                       {badge > 9 ? "9+" : badge}
@@ -2015,9 +2015,9 @@ export default function DadorDashboard() {
             suppressHydrationWarning
             onClick={toggleDark}
             title={darkMode ? "Modo claro" : "Modo oscuro"}
-            style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
+            style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: darkMode === false ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
           >
-            <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: "rgba(255,255,255,0.7)" }} />
+            <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: darkMode === false ? "#374151" : "rgba(255,255,255,0.7)" }} />
           </button>
           <button onClick={() => setModalPublicar(true)} style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: "#3a806b", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
             + Publicar carga

@@ -144,6 +144,10 @@ export class OffersService {
 
     if (!isShipper && !isDriver) throw new ForbiddenException();
 
+    const loadShipper = isDriver
+      ? await this.shippersRepo.findOne({ where: { id: load.shipper_id } })
+      : shipper;
+
     let bulkRejectedDriverIds: string[] = [];
 
     if (isShipper) {
@@ -223,9 +227,9 @@ export class OffersService {
       }
     }
 
-    if (isDriver && ['withdraw', 'accept_counter', 'reject_counter'].includes(action) && shipper) {
+    if (isDriver && ['withdraw', 'accept_counter', 'reject_counter'].includes(action) && loadShipper) {
       const [dadorUser, driverUser] = await Promise.all([
-        this.usersRepo.findOne({ where: { id: shipper.user_id } }),
+        this.usersRepo.findOne({ where: { id: loadShipper.user_id } }),
         this.usersRepo.findOne({ where: { id: userId } }),
       ]);
       if (dadorUser) {
