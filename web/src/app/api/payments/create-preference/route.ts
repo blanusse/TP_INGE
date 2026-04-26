@@ -13,18 +13,30 @@ export async function POST(req: NextRequest) {
   if (!offerId || !loadId) return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
 
   // 1. Aceptar la oferta en NestJS (verifica permisos, rechaza otras, pone carga en matched)
+  //    Si falla, puede ser que la oferta ya fue aceptada (retry tras pago fallido) → intentar GET
+  let price: number;
   const acceptRes = await apiFetch(`/offers/${offerId}`, session.backendToken, {
     method: "PATCH",
     body: JSON.stringify({ action: "accept" }),
   });
 
-  if (!acceptRes.ok) {
-    const err = await acceptRes.json();
-    return NextResponse.json(err, { status: acceptRes.status });
+  if (acceptRes.ok) {
+    const offer = await acceptRes.json();
+    price = Number(offer.price);
+  } else {
+    // Puede ser un reintento: la oferta ya está aceptada
+    const getRes = await apiFetch(`/offers/${offerId}`, session.backendToken);
+    if (!getRes.ok) {
+      const err = await acceptRes.json();
+      return NextResponse.json(err, { status: acceptRes.status });
+    }
+    const existingOffer = await getRes.json();
+    if (existingOffer.status !== "accepted") {
+      const err = await acceptRes.json().catch(() => ({ error: "No se puede procesar el pago." }));
+      return NextResponse.json(err, { status: acceptRes.status });
+    }
+    price = Number(existingOffer.price);
   }
-
-  const offer = await acceptRes.json();
-  const price = Number(offer.price);
 
   // 2. Crear preferencia en MercadoPago
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -46,15 +58,16 @@ export async function POST(req: NextRequest) {
         external_reference: offerId,
         back_urls: {
           success: `${appUrl}/pago/exito?offerId=${offerId}&loadId=${loadId}`,
-          failure: `${appUrl}/pago/fallo`,
-          pending: `${appUrl}/pago/fallo`,
+          failure: `${appUrl}/pago/fallo?offerId=${offerId}&loadId=${loadId}`,
+          pending: `${appUrl}/pago/fallo?offerId=${offerId}&loadId=${loadId}`,
         },
         auto_return: "approved",
         statement_descriptor: "CARGABACK",
+        notification_url: `${appUrl}/api/payments/webhook`,
       },
     });
 
-    // Registrar el pago como pending en NestJS
+    // Registrar el pago como pending en NestJS. En un reintento puede ya existir — no es fatal.
     await apiFetch("/payments", session.backendToken, {
       method: "POST",
       body: JSON.stringify({
@@ -62,7 +75,7 @@ export async function POST(req: NextRequest) {
         amount: price,
         mpPreferenceId: response.id,
       }),
-    });
+    }).catch(() => {});
 
     return NextResponse.json({
       init_point: response.init_point,

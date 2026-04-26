@@ -612,77 +612,49 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
 
 // ── Modal: Pago con MercadoPago ───────────────────────────────────────────────
 
-function ModalPago({ sel, onClose, onPagado }: {
+function ModalPago({ sel, onClose }: {
   sel: OfertaSeleccionada;
   onClose: () => void;
-  onPagado: (sel: OfertaSeleccionada) => void;
 }) {
-  const [estado, setEstado] = useState<"idle" | "processing" | "done" | "error">("idle");
+  const [estado, setEstado] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError]   = useState<string | null>(null);
 
-  const handleSimular = async () => {
-    setEstado("processing");
+  const handlePagar = async () => {
+    setEstado("loading");
     setError(null);
-    // Simular delay de procesamiento
-    await new Promise((r) => setTimeout(r, 2000));
     try {
-      const res = await fetch("/api/payments/simulate", {
+      const res = await fetch("/api/payments/create-preference", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ offerId: sel.offerId }),
+        body:    JSON.stringify({ offerId: sel.offerId, loadId: sel.cargaId, titulo: sel.cargaTitulo }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al procesar el pago."); setEstado("error"); return; }
-      setEstado("done");
+      if (!res.ok) { setError(data.error ?? "Error al crear el pago."); setEstado("error"); return; }
+      // Redirigir al checkout de MercadoPago
+      window.location.href = data.init_point;
     } catch {
       setError("Error de conexión. Intentá de nuevo.");
       setEstado("error");
     }
   };
 
-  if (estado === "processing") {
+  if (estado === "loading") {
     return (
-      <Modal title="Procesando pago" onClose={onClose}>
+      <Modal title="Redirigiendo a MercadoPago" onClose={onClose}>
         <div style={{ textAlign: "center", padding: "40px 20px" }}>
           <div style={{ fontSize: 40, marginBottom: 20 }}>
             <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⟳</span>
           </div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 8 }}>Procesando pago...</div>
-          <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Por favor esperá un momento.</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 8 }}>Preparando el pago...</div>
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Vas a ser redirigido a MercadoPago.</div>
         </div>
         <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </Modal>
     );
   }
 
-  if (estado === "done") {
-    return (
-      <Modal title="Pago confirmado" onClose={() => onPagado(sel)}>
-        <div style={{ textAlign: "center", padding: "32px 20px" }}>
-          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#f0fdf4", border: "2px solid #16a34a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 20px" }}>✓</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#16a34a", marginBottom: 8 }}>¡Pago confirmado!</div>
-          <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 6 }}>
-            El viaje fue confirmado con <strong>{sel.oferta.nombre}</strong>.
-          </div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 24 }}>
-            ${sel.oferta.precio.toLocaleString("es-AR")} ARS
-          </div>
-          <div style={{ background: "#f0fdf4", border: "0.5px solid #bbf7d0", borderRadius: "var(--border-radius-md)", padding: "12px 16px", marginBottom: 24, fontSize: 12, color: "#15803d", lineHeight: 1.6, textAlign: "left" }}>
-            El dinero queda retenido hasta confirmar la entrega. El camionero recibe el pago cuando se complete el viaje.
-          </div>
-          <button
-            onClick={() => onPagado(sel)}
-            style={{ width: "100%", fontSize: 14, padding: "12px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 700, cursor: "pointer" }}
-          >
-            Abrir chat con el camionero →
-          </button>
-        </div>
-      </Modal>
-    );
-  }
-
   return (
-    <Modal title="Confirmar pago" onClose={onClose}>
+    <Modal title="Pagar con MercadoPago" onClose={onClose}>
       {/* Resumen */}
       <div style={{ background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 20 }}>
         <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 4 }}>Carga</div>
@@ -699,12 +671,11 @@ function ModalPago({ sel, onClose, onPagado }: {
         </div>
       </div>
 
-      {/* Info pago simulado */}
-      <div style={{ background: "#fffbeb", border: "0.5px solid #fde68a", borderRadius: "var(--border-radius-lg)", padding: 14, marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#92400e", marginBottom: 6 }}>Pago simulado</div>
-        <div style={{ fontSize: 12, color: "#78350f", lineHeight: 1.6 }}>
-          Al confirmar, el viaje quedará en estado <strong>En tránsito</strong> y se habilitará el chat con el camionero.
-          En producción, este paso se realiza con Mercado Pago.
+      {/* Info MercadoPago */}
+      <div style={{ background: "#f0f4ff", border: "0.5px solid #c7d7fd", borderRadius: "var(--border-radius-lg)", padding: 14, marginBottom: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#1e3a8a", marginBottom: 6 }}>Pago seguro con MercadoPago</div>
+        <div style={{ fontSize: 12, color: "#1e40af", lineHeight: 1.6 }}>
+          Serás redirigido al checkout oficial de MercadoPago. El dinero queda retenido en escrow y se libera al camionero cuando confirmes la entrega.
         </div>
       </div>
 
@@ -719,10 +690,10 @@ function ModalPago({ sel, onClose, onPagado }: {
           Cancelar
         </button>
         <button
-          onClick={handleSimular}
-          style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 700 }}
+          onClick={handlePagar}
+          style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: "#009ee3", color: "#fff", cursor: "pointer", fontWeight: 700 }}
         >
-          Confirmar y pagar
+          Pagar con MercadoPago
         </button>
       </div>
     </Modal>
@@ -2042,7 +2013,6 @@ export default function DadorDashboard() {
         <ModalPago
           sel={modalPago}
           onClose={() => setModalPago(null)}
-          onPagado={(sel) => { setModalPago(null); fetchCargas(); setModalChat(sel); }}
         />
       )}
       {modalChat && (

@@ -121,6 +121,8 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: {
   const [soloDestacadas, setSoloDestacadas] = useState(false);
   const [cargasDB, setCargasDB] = useState<CargaCard[]>([]);
   const [loadingDB, setLoadingDB] = useState(true);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 21;
 
   useEffect(() => {
     fetch("/api/loads/available").then((r) => r.json()).then((d) => { if (d.loads) setCargasDB(d.loads.map(dbLoadToCard)); }).catch(() => {}).finally(() => setLoadingDB(false));
@@ -129,7 +131,8 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: {
   const toggleChip = (list: string[], setList: (v: string[]) => void, t: string) => setList(list.includes(t) ? list.filter((x) => x !== t) : [...list, t]);
   const parseKm = (d: string) => parseInt(d.replace(/\./g, "").replace(/[^0-9]/g, "")) || 0;
   const DIST_RANGOS: Record<string, [number, number]> = { todos: [0, Infinity], corta: [0, 500], media: [500, 1200], larga: [1200, 2000], muy_larga: [2000, Infinity] };
-  const limpiarFiltros = () => { setTipos([]); setTiposCamion([]); setOrigen(""); setDestino(""); setDistanciaRango("todos"); setPrecioMin(""); setPrecioMax(""); setFechaDesde(""); setRatingMin("0"); setSoloDestacadas(false); };
+  const limpiarFiltros = () => { setTipos([]); setTiposCamion([]); setOrigen(""); setDestino(""); setDistanciaRango("todos"); setPrecioMin(""); setPrecioMax(""); setFechaDesde(""); setRatingMin("0"); setSoloDestacadas(false); setPage(1); };
+  useEffect(() => { setPage(1); }, [tipos, tiposCamion, origen, destino, distanciaRango, precioMin, precioMax, fechaDesde, ratingMin, soloDestacadas, sortBy]);
   const hayFiltros = tipos.length > 0 || tiposCamion.length > 0 || origen || destino || distanciaRango !== "todos" || precioMin || precioMax || fechaDesde || ratingMin !== "0" || soloDestacadas;
   const [minKm, maxKm] = DIST_RANGOS[distanciaRango];
   const todasCargas: CargaCard[] = cargasDB.filter((c) => !excluirIds.has(c.id));
@@ -151,6 +154,8 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: {
     if (sortBy === "Más cercano") return parseKm(a.distancia) - parseKm(b.distancia);
     return 0;
   });
+  const totalPages = Math.ceil(cargas.length / PAGE_SIZE);
+  const cargasPagina = cargas.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", flex: 1 }}>
@@ -236,7 +241,7 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: {
             <option>Mayor precio</option><option>Menor precio</option><option>Más cercano</option><option>Fecha de retiro</option>
           </select>
           <span style={{ fontSize: 12, color: "var(--text3)", marginLeft: "auto", display: "flex", alignItems: "center", gap: 5 }}>
-            <i className="fa-solid fa-truck-fast" />{loadingDB ? "Cargando..." : `${cargas.length} cargas disponibles`}
+            <i className="fa-solid fa-truck-fast" />{loadingDB ? "Cargando..." : `${cargasPagina.length} de ${cargas.length} cargas disponibles`}
           </span>
         </div>
         {!loadingDB && cargas.length === 0 && (
@@ -249,7 +254,7 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: {
             <button onClick={limpiarFiltros} style={{ fontSize: 13, padding: "7px 18px", borderRadius: 6, border: "1px solid var(--border2)", background: "transparent", color: "var(--text2)", cursor: "pointer" }}>Limpiar filtros</button>
           </div>
         )}
-        {cargas.map((c) => {
+        {cargasPagina.map((c) => {
           const partes = c.titulo.split(" — ");
           const tipoCarga = partes[0];
           const ruta = partes[1] ?? c.titulo;
@@ -281,6 +286,17 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, onNoTruck }: {
             </div>
           );
         })}
+        {totalPages > 1 && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, padding: "16px 0 8px" }}>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ fontSize: 13, padding: "7px 16px", borderRadius: 6, border: "1px solid var(--border2)", background: "var(--bg2)", color: page === 1 ? "var(--text3)" : "var(--text1)", cursor: page === 1 ? "default" : "pointer" }}>
+              <i className="fa-solid fa-chevron-left" style={{ marginRight: 6 }} />Anterior
+            </button>
+            <span style={{ fontSize: 13, color: "var(--text2)" }}>Página {page} de {totalPages}</span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ fontSize: 13, padding: "7px 16px", borderRadius: 6, border: "1px solid var(--border2)", background: "var(--bg2)", color: page === totalPages ? "var(--text3)" : "var(--text1)", cursor: page === totalPages ? "default" : "pointer" }}>
+              Siguiente<i className="fa-solid fa-chevron-right" style={{ marginLeft: 6 }} />
+            </button>
+          </div>
+        )}
       </main>
     </div>
   );

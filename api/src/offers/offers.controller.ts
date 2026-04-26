@@ -22,6 +22,11 @@ export class OffersController {
     return this.offersService.getMyOffers(req.user.id);
   }
 
+  @Get(':offerId')
+  getOfferById(@Request() req, @Param('offerId') offerId: string) {
+    return this.offersService.getOfferById(req.user.id, offerId);
+  }
+
   @Patch(':offerId')
   updateOffer(
     @Request() req,

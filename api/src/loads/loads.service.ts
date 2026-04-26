@@ -13,7 +13,6 @@ const TRUCK_TYPE_MAP: Record<string, string> = {
   'Cisterna': 'cisterna',
 };
 
-const MIN_PRICE = 30000;
 
 @Injectable()
 export class LoadsService {
@@ -62,10 +61,6 @@ export class LoadsService {
   async createLoad(userId: string, body: Partial<Load> & { truck_type_required?: string }) {
     const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
     if (!shipper) throw new ForbiddenException('Solo los dadores de carga pueden publicar cargas.');
-
-    if (body.price_base && body.price_base < MIN_PRICE) {
-      throw new BadRequestException(`El precio mínimo es ARS ${MIN_PRICE.toLocaleString()}.`);
-    }
 
     const mappedTruckType = body.truck_type_required
       ? (TRUCK_TYPE_MAP[body.truck_type_required] ?? body.truck_type_required)
