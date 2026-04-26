@@ -99,7 +99,7 @@ export default function TripMap({
 
       const truckIcon = L.divIcon({
         className: "",
-        html: '<div style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));display:flex;align-items:center;justify-content:center"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3a806b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>',
+        html: '<div style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));display:flex;align-items:center;justify-content:center"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3a806b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1" fill="white"/><path d="M16 8h4l3 5v3h-7V8z" fill="white"/><circle cx="5.5" cy="18.5" r="2.5" fill="#1a1a1a" stroke="#1a1a1a"/><circle cx="18.5" cy="18.5" r="2.5" fill="#1a1a1a" stroke="#1a1a1a"/></svg></div>',
         iconSize: [32, 32],
         iconAnchor: [16, 16],
       });
