@@ -1148,28 +1148,26 @@ function SeccionMisCargas({
 
 // ── Seccion Mis Envios ───────────────────────────────────────────────────────
 
-function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: () => void }) {
-  const [confirmando, setConfirmando] = useState<string | null>(null);
-  const [modalCalificar, setModalCalificar] = useState<{ offerId: string; driverName: string } | null>(null);
+function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }) {
+  const [deliveryCodes, setDeliveryCodes] = useState<Record<string, { code: string; used: boolean }>>({});
   const [mapaAbierto, setMapaAbierto] = useState<string | null>(null);
 
   const enTransito = cargas.filter((c) => c.status === "in_transit" || c.status === "accepted");
   const entregados = cargas.filter((c) => c.status === "delivered");
 
-  const confirmarLlegada = async (c: Carga) => {
-    setConfirmando(c.id);
-    try {
-      const res = await fetch(`/api/loads/${c.id}/confirm`, { method: "POST" });
-      const data = await res.json();
-      if (res.ok && data.offerId) {
-        onRefresh();
-        const driverName = c.acceptedOffer?.driverName ?? "el camionero";
-        setModalCalificar({ offerId: data.offerId, driverName });
-      }
-    } finally {
-      setConfirmando(null);
+  useEffect(() => {
+    const inTransit = cargas.filter((c) => c.status === "in_transit" || c.status === "accepted");
+    for (const c of inTransit) {
+      fetch(`/api/payments/delivery-code?loadId=${c.id}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.delivery_code) {
+            setDeliveryCodes((prev) => ({ ...prev, [c.id]: { code: d.delivery_code, used: !!d.delivery_code_used } }));
+          }
+        })
+        .catch(() => {});
     }
-  };
+  }, [cargas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mock timeline data generator
   const getTimeline = (c: Carga) => {
@@ -1185,13 +1183,6 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
 
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
-      {modalCalificar && (
-        <ModalCalificarCamionero
-          offerId={modalCalificar.offerId}
-          driverName={modalCalificar.driverName}
-          onClose={() => setModalCalificar(null)}
-        />
-      )}
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -1239,13 +1230,6 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
                 <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ fontSize: 14 }}>&#9993;</span> Chat
                 </button>
-                <button
-                  onClick={() => confirmarLlegada(c)}
-                  disabled={confirmando === c.id}
-                  style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "none", background: confirmando === c.id ? "#aaa" : "#3a806b", color: "#fff", cursor: confirmando === c.id ? "not-allowed" : "pointer", fontWeight: 600 }}
-                >
-                  {confirmando === c.id ? "Confirmando..." : "Confirmar llegada"}
-                </button>
               </div>
             </div>
 
@@ -1292,6 +1276,37 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
                   Ubicación en tiempo real
                 </div>
                 <TripMap loadId={c.id} height={280} />
+              </div>
+            )}
+
+            {/* Código de entrega */}
+            {deliveryCodes[c.id] && (
+              <div style={{ marginTop: 16, borderTop: "1px solid var(--color-border-tertiary)", paddingTop: 14 }}>
+                {deliveryCodes[c.id].used ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#16a34a", fontWeight: 600 }}>
+                    <span>✓ Entrega confirmada por el transportista</span>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--color-text-tertiary)", marginBottom: 6 }}>
+                      Código de entrega
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                      <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: "0.2em", fontFamily: "monospace", color: "var(--color-text-primary)" }}>
+                        {deliveryCodes[c.id].code}
+                      </span>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(deliveryCodes[c.id].code)}
+                        style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}
+                      >
+                        Copiar
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
+                      Compartí este código con quien recibe la carga. El transportista lo ingresa al llegar al destino.
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -2000,9 +2015,9 @@ export default function DadorDashboard() {
     <div style={{ background: "var(--page-bg)", minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
 
       {/* Topbar */}
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", borderBottom: "0.5px solid rgba(255,255,255,0.1)", position: "sticky", top: 0, zIndex: 10 }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: darkMode === false ? "#ffffff" : "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", borderBottom: darkMode === false ? "1px solid #e5e7eb" : "0.5px solid rgba(255,255,255,0.1)", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: "#fff", textDecoration: "none", fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}>
+          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: darkMode === false ? "#0f1f19" : "#fff", textDecoration: "none", fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}>
             Carga<span style={{ color: "#3a806b" }}>Back</span>
           </Link>
           <nav style={{ display: "flex", height: 64 }}>
@@ -2017,8 +2032,8 @@ export default function DadorDashboard() {
                   background: "transparent", cursor: "pointer", position: "relative",
                   fontFamily: "var(--font-ibm-plex), sans-serif",
                 }}>
-                  <FontAwesomeIcon icon={icon} style={{ width: 14, height: 14, color: activo ? "#3a806b" : "rgba(255,255,255,0.45)" }} />
-                  <span style={{ fontSize: 15, fontWeight: activo ? 600 : 400, color: activo ? "#fff" : "rgba(255,255,255,0.55)" }}>{item}</span>
+                  <FontAwesomeIcon icon={icon} style={{ width: 14, height: 14, color: activo ? "#3a806b" : darkMode === false ? "#6b7280" : "rgba(255,255,255,0.45)" }} />
+                  <span style={{ fontSize: 15, fontWeight: activo ? 600 : 400, color: activo ? (darkMode === false ? "#0f1f19" : "#fff") : darkMode === false ? "#6b7280" : "rgba(255,255,255,0.55)" }}>{item}</span>
                   {badge > 0 && (
                     <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>
                       {badge > 9 ? "9+" : badge}
@@ -2034,9 +2049,9 @@ export default function DadorDashboard() {
             suppressHydrationWarning
             onClick={toggleDark}
             title={darkMode ? "Modo claro" : "Modo oscuro"}
-            style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
+            style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: darkMode === false ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
           >
-            <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: "rgba(255,255,255,0.7)" }} />
+            <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: darkMode === false ? "#374151" : "rgba(255,255,255,0.7)" }} />
           </button>
           <button onClick={() => setModalPublicar(true)} style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: "#3a806b", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
             + Publicar carga

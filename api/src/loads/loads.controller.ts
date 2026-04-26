@@ -47,9 +47,4 @@ export class LoadsController {
     return this.loadsService.markInTransit(req.user.id, loadId);
   }
 
-  @Patch(':loadId/confirm')
-  @UseGuards(JwtAuthGuard)
-  confirmDelivery(@Request() req, @Param('loadId') loadId: string) {
-    return this.loadsService.confirmDelivery(req.user.id, loadId);
-  }
 }
