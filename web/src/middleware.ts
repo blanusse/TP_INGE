@@ -14,11 +14,17 @@ export default auth((req) => {
     pathname.startsWith("/transportista") ||
     pathname.startsWith("/camionero") ||
     pathname.startsWith("/dador") ||
-    pathname.startsWith("/dashboard");
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/admin");
   if (requiresAuth && !loggedIn) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // ── Admin-only protection ─────────────────────────────────────────────────
+  if (pathname.startsWith("/admin") && loggedIn && role !== "admin") {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   // ── 2. Redirect /camionero → /transportista (legacy route) ────────────────
@@ -38,7 +44,7 @@ export default auth((req) => {
 
   // ── 4. Si ya está logueado y va al login → mandarlo a su dashboard ─────────
   if (pathname === "/login" && loggedIn && role) {
-    const dest = role === "dador" ? "/dador" : "/transportista";
+    const dest = role === "dador" ? "/dador" : role === "admin" ? "/admin" : "/transportista";
     return NextResponse.redirect(new URL(dest, req.url));
   }
 
@@ -46,5 +52,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/transportista/:path*", "/camionero/:path*", "/dador/:path*", "/dashboard/:path*", "/dashboard", "/login"],
+  matcher: ["/transportista/:path*", "/camionero/:path*", "/dador/:path*", "/dashboard/:path*", "/dashboard", "/admin/:path*", "/admin", "/login"],
 };

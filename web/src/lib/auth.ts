@@ -34,7 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id:           data.user.id,
           email:        data.user.email,
           name:         data.user.name,
-          role:         data.user.role === "shipper" ? "dador" : "transportista",
+          role:         data.user.role === "shipper" ? "dador" : data.user.role === "admin" ? "admin" : "transportista",
           backendToken: data.access_token,
         };
       },

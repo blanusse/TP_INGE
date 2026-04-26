@@ -1523,7 +1523,7 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
 
 // ── Perfil ────────────────────────────────────────────────────────────────────
 
-type TabPerfil = "Perfil" | "Estadísticas";
+type TabPerfil = "Perfil" | "Documentos" | "Estadísticas";
 interface EarningsMes { mes: string; monto: number; }
 interface TipoCargaStat { tipo: string; pct: number; count: number; color: string; cantidad?: number; }
 interface RutaStat { ruta: string; viajes: number; }
@@ -1536,12 +1536,39 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
   const [stats, setStats] = useState<TransportistaStats | null>(null);
   const [showAsDriver, setShowAsDriver] = useState(true);
+  const [docs, setDocs] = useState<{ id: string; tipo: string; status: string; url: string; admin_note: string | null }[]>([]);
+  const [uploadingTipo, setUploadingTipo] = useState<string | null>(null);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
+
+  const TIPOS_DOC = [
+    { key: "dni",    label: "DNI" },
+    { key: "vtv",    label: "VTV" },
+    { key: "seguro", label: "Seguro" },
+    { key: "carnet", label: "Carnet de conducir" },
+  ] as const;
+
+  const todosAprobados = TIPOS_DOC.every((t) => docs.some((d) => d.tipo === t.key && d.status === "approved"));
+
+  const fetchDocs = () => {
+    fetch("/api/documents").then((r) => r.json()).then((d) => setDocs(Array.isArray(d) ? d : [])).catch(() => {});
+  };
 
   useEffect(() => {
     fetch("/api/stats/camionero").then((r) => r.json()).then((d) => setStats(d)).catch(() => {});
     fetch("/api/fleet/settings").then((r) => r.json()).then((d) => { if (d.show_as_fleet_driver !== undefined) setShowAsDriver(d.show_as_fleet_driver); }).catch(() => {});
+    fetchDocs();
   }, []);
+
+  const handleUpload = async (tipo: string, file: File) => {
+    setUploadingTipo(tipo);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("tipo", tipo);
+    const res = await fetch("/api/documents/upload", { method: "POST", body: fd });
+    if (res.ok) { onToast("Documento enviado a revisión."); fetchDocs(); }
+    else { onToast("Error al subir el documento."); }
+    setUploadingTipo(null);
+  };
 
   const toggleShowAsDriver = async (val: boolean) => {
     setShowAsDriver(val);
@@ -1557,7 +1584,10 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             {editando ? <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ fontSize: 24, fontWeight: 700, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "var(--border-radius-md)", padding: "4px 10px", color: "#fff", outline: "none", width: "100%", maxWidth: 300 }} /> : <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.2 }}>{nombre}</div>}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
               <span style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>Transportista</span>
-              <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4 }}><i className="fa-solid fa-circle-check" />Verificado</span>
+              {todosAprobados
+                ? <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4 }}><i className="fa-solid fa-circle-check" />Documentación verificada</span>
+                : <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "rgba(255,200,100,0.25)", color: "#fef3c7", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }} onClick={() => setTabPerfil("Documentos")}><i className="fa-solid fa-triangle-exclamation" />Verificación pendiente</span>
+              }
             </div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{userEmail}</div>
           </div>
@@ -1577,7 +1607,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
       <div style={{ padding: "22px 40px 0", maxWidth: 840, margin: "0 auto" }}>
         <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 3, gap: 2 }}>
-          {(["Perfil", "Estadísticas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
+          {(["Perfil", "Documentos", "Estadísticas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
         </div>
       </div>
 
@@ -1608,6 +1638,65 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             </div>
             <button onClick={() => signOut({ callbackUrl: "/" })} style={{ fontSize: 13, padding: "12px", borderRadius: "var(--border-radius-lg)", border: "0.5px solid rgba(220,38,38,0.4)", background: "rgba(220,38,38,0.1)", color: "#dc2626", cursor: "pointer", fontWeight: 500 }}>Cerrar sesión</button>
           </div>
+        </div>
+      )}
+
+      {tabPerfil === "Documentos" && (
+        <div style={{ padding: "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
+          <div style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
+            Subí fotos claras de cada documento. Serán revisadas por el equipo de CargaBack y verás el resultado aquí.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 16 }}>
+            {TIPOS_DOC.map(({ key, label }) => {
+              const doc = docs.find((d) => d.tipo === key);
+              const isUploading = uploadingTipo === key;
+              const statusMap: Record<string, { label: string; color: string; bg: string }> = {
+                pending:  { label: "En revisión", color: "#b45309", bg: "#fef3c7" },
+                approved: { label: "Aprobado",    color: "#065f46", bg: "#d1fae5" },
+                rejected: { label: "Rechazado",   color: "#991b1b", bg: "#fee2e2" },
+              };
+              const st = doc ? statusMap[doc.status] : null;
+              return (
+                <div key={key} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{label}</div>
+                    {st && (
+                      <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{st.label}</span>
+                    )}
+                  </div>
+                  {doc?.status === "rejected" && doc.admin_note && (
+                    <div style={{ fontSize: 12, color: "#991b1b", marginBottom: 10, padding: "8px 10px", background: "#fee2e2", borderRadius: 6 }}>
+                      Motivo: {doc.admin_note}
+                    </div>
+                  )}
+                  {doc?.url && (
+                    <a href={doc.url} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 12, color: "var(--color-brand)", marginBottom: 10 }}>Ver documento actual</a>
+                  )}
+                  <label style={{ display: "block", cursor: isUploading ? "not-allowed" : "pointer" }}>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      style={{ display: "none" }}
+                      disabled={isUploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(key, f); e.target.value = ""; }}
+                    />
+                    <div style={{ fontSize: 13, padding: "9px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUploading ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-secondary)" }}>
+                      {isUploading ? "Subiendo..." : doc ? "Reemplazar documento" : "+ Subir documento"}
+                    </div>
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+          {todosAprobados && (
+            <div style={{ marginTop: 20, padding: "14px 20px", borderRadius: "var(--border-radius-lg)", background: "#d1fae5", border: "0.5px solid #6ee7b7", display: "flex", alignItems: "center", gap: 10 }}>
+              <i className="fa-solid fa-circle-check" style={{ color: "#065f46", fontSize: 18 }} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#065f46" }}>Documentación verificada</div>
+                <div style={{ fontSize: 12, color: "#065f46", opacity: 0.8 }}>Todos tus documentos están aprobados. Los dadores de carga pueden ver tu badge de verificación.</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
