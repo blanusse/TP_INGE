@@ -8,5 +8,6 @@ export default async function DashboardPage() {
   const role = session?.user?.role;
 
   if (role === "dador") redirect("/dador");
+  if (role === "admin") redirect("/admin");
   redirect("/transportista"); // transportistas (camioneros independientes y empresas de flota)
 }

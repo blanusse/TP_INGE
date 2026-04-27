@@ -3,7 +3,7 @@ import {
   OneToOne, OneToMany, ManyToOne, JoinColumn,
 } from 'typeorm';
 
-export type UserRole = 'transportista' | 'shipper';
+export type UserRole = 'transportista' | 'shipper' | 'admin';
 
 @Entity('users')
 export class User {
@@ -35,13 +35,12 @@ export class User {
   @Column({ nullable: true })
   dni_photo_url: string;
 
-  // Estado de verificación de identidad
-  @Column({ default: 'pending' })
-  verification_status: string;
-
   // For fleet sub-drivers: points to the owner transportista
   @Column({ nullable: true, type: 'uuid' })
   fleet_id: string;
+
+  @Column({ default: true })
+  show_as_fleet_driver: boolean;
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'fleet_id' })

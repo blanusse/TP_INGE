@@ -1,9 +1,12 @@
-import { Injectable, ForbiddenException, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, NotFoundException, ConflictException, GoneException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DeepPartial } from 'typeorm';
 import { Truck } from '../entities/truck.entity';
 import { User } from '../entities/user.entity';
+import { FleetInvitation } from '../entities/fleet-invitation.entity';
+import { MailService } from '../mail/mail.service';
 import * as bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
 
 // ── Helpers de validación ────────────────────────────────────────────────────
 
@@ -42,6 +45,8 @@ export class FleetService {
   constructor(
     @InjectRepository(Truck) private trucksRepo: Repository<Truck>,
     @InjectRepository(User) private usersRepo: Repository<User>,
+    @InjectRepository(FleetInvitation) private invitationsRepo: Repository<FleetInvitation>,
+    private mailService: MailService,
   ) {}
 
   async getMyTrucks(userId: string) {
@@ -106,6 +111,71 @@ export class FleetService {
     return this.trucksRepo.save(truck);
   }
 
+  async inviteDriver(userId: string, email: string) {
+    const owner = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!owner || owner.role !== 'transportista') throw new ForbiddenException();
+
+    const pending = await this.invitationsRepo.findOne({ where: { fleet_owner_id: userId, email: email.toLowerCase(), status: 'pending' } });
+    if (pending && pending.expires_at > new Date()) throw new BadRequestException('Ya existe una invitación pendiente para ese email.');
+
+    const token = randomUUID();
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    const invitation = this.invitationsRepo.create({ token, fleet_owner_id: userId, email: email.toLowerCase(), status: 'pending', expires_at: expiresAt });
+    await this.invitationsRepo.save(invitation);
+    await this.mailService.sendInvitacionFlota({ email: email.toLowerCase(), ownerName: owner.name, token });
+    return { ok: true };
+  }
+
+  async getInvitation(token: string) {
+    const inv = await this.invitationsRepo.findOne({ where: { token }, relations: ['fleet_owner'] });
+    if (!inv) throw new NotFoundException('Invitación no encontrada.');
+    if (inv.status === 'accepted') throw new GoneException('Esta invitación ya fue utilizada.');
+    if (inv.status === 'expired' || inv.expires_at < new Date()) {
+      inv.status = 'expired';
+      await this.invitationsRepo.save(inv);
+      throw new GoneException('Esta invitación ha vencido.');
+    }
+    return {
+      token: inv.token,
+      email: inv.email,
+      ownerName: inv.fleet_owner.name,
+      expiresAt: inv.expires_at,
+    };
+  }
+
+  async acceptInvitation(token: string, userId: string) {
+    const inv = await this.invitationsRepo.findOne({ where: { token } });
+    if (!inv) throw new NotFoundException('Invitación no encontrada.');
+    if (inv.status === 'accepted') throw new GoneException('Esta invitación ya fue utilizada.');
+    if (inv.status === 'expired' || inv.expires_at < new Date()) {
+      inv.status = 'expired';
+      await this.invitationsRepo.save(inv);
+      throw new GoneException('Esta invitación ha vencido.');
+    }
+
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user || user.role !== 'transportista') throw new ForbiddenException('Solo transportistas pueden aceptar invitaciones.');
+    if (user.email !== inv.email) throw new ForbiddenException('Esta invitación fue enviada a otro email.');
+
+    user.fleet_id = inv.fleet_owner_id;
+    inv.status = 'accepted';
+    await Promise.all([this.usersRepo.save(user), this.invitationsRepo.save(inv)]);
+    return { ok: true };
+  }
+
+  async getOwnerSettings(userId: string) {
+    const user = await this.usersRepo.findOne({ where: { id: userId }, select: ['id', 'show_as_fleet_driver'] });
+    return { show_as_fleet_driver: user?.show_as_fleet_driver ?? true };
+  }
+
+  async updateOwnerSettings(userId: string, body: { show_as_fleet_driver?: boolean }) {
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user || user.role !== 'transportista') throw new ForbiddenException();
+    if (body.show_as_fleet_driver !== undefined) user.show_as_fleet_driver = body.show_as_fleet_driver;
+    await this.usersRepo.save(user);
+    return { show_as_fleet_driver: user.show_as_fleet_driver };
+  }
+
   async deleteTruck(userId: string, truckId: string) {
     const truck = await this.trucksRepo.findOne({ where: { id: truckId } });
     if (!truck) throw new NotFoundException('Camión no encontrado.');
@@ -161,7 +231,6 @@ export class FleetService {
       phone: body.phone?.trim() || null,
       dni: body.dni ? body.dni.replace(/\./g, '') : null,
       fleet_id: userId,
-      verification_status: 'pending',
     } as DeepPartial<User>);
     const saved = await this.usersRepo.save(driver);
     const { password_hash: _, ...result } = saved as any;

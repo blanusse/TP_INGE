@@ -115,20 +115,23 @@ function InputUbicacion({
   onSelect,
   placeholder,
   id,
+  confirmed,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSelect?: (r: GeoResult) => void;
   placeholder: string;
   id: string;
+  confirmed?: boolean;
 }) {
   const [sugerencias, setSugerencias] = useState<GeoResult[]>([]);
   const [abierto, setAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [focusIndex, setFocusIndex] = useState(-1);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wrapRef   = React.useRef<HTMLDivElement>(null);
+  const abortRef   = React.useRef<AbortController | null>(null);
+  const wrapRef    = React.useRef<HTMLDivElement>(null);
 
-  // Cerrar al hacer click fuera
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setAbierto(false);
@@ -139,14 +142,19 @@ function InputUbicacion({
 
   const buscar = (q: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (q.length < 3) { setSugerencias([]); setAbierto(false); return; }
+    if (q.length < 3) { setSugerencias([]); setAbierto(false); setFocusIndex(-1); return; }
     timeoutRef.current = setTimeout(async () => {
+      if (abortRef.current) abortRef.current.abort();
+      abortRef.current = new AbortController();
       setCargando(true);
       try {
-        const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`, { signal: abortRef.current.signal });
         const data = await res.json();
         setSugerencias(data.results ?? []);
+        setFocusIndex(-1);
         setAbierto(true);
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") setSugerencias([]);
       } finally {
         setCargando(false);
       }
@@ -158,6 +166,24 @@ function InputUbicacion({
     onSelect?.(r);
     setSugerencias([]);
     setAbierto(false);
+    setFocusIndex(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!abierto || sugerencias.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setFocusIndex((i) => Math.min(i + 1, sugerencias.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setFocusIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter" && focusIndex >= 0) {
+      e.preventDefault();
+      seleccionar(sugerencias[focusIndex]);
+    } else if (e.key === "Escape") {
+      setAbierto(false);
+      setFocusIndex(-1);
+    }
   };
 
   return (
@@ -169,16 +195,20 @@ function InputUbicacion({
           autoComplete="off"
           value={value}
           onChange={(e) => { onChange(e.target.value); buscar(e.target.value); }}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          style={{ ...inputStyle, paddingRight: 32 }}
+          style={{ ...inputStyle, paddingRight: 52, border: confirmed ? "0.5px solid #16a34a" : inputStyle.border }}
         />
         {cargando && (
           <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--color-text-tertiary)" }}><i className="fa-solid fa-spinner fa-spin" /></div>
         )}
+        {!cargando && confirmed && (
+          <i className="fa-solid fa-circle-check" style={{ position: "absolute", right: 30, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#16a34a", pointerEvents: "none" }} />
+        )}
         {!cargando && value && (
           <button
             type="button"
-            onClick={() => { onChange(""); setSugerencias([]); }}
+            onClick={() => { onChange(""); setSugerencias([]); setAbierto(false); setFocusIndex(-1); }}
             style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "var(--color-text-tertiary)", padding: 0, lineHeight: 1 }}
           >×</button>
         )}
@@ -198,14 +228,14 @@ function InputUbicacion({
               key={i}
               type="button"
               onClick={() => seleccionar(s)}
+              onMouseEnter={() => setFocusIndex(i)}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
-                width: "100%", padding: "10px 12px", border: "none", background: "transparent",
+                width: "100%", padding: "10px 12px", border: "none",
+                background: focusIndex === i ? "var(--color-background-secondary)" : "transparent",
                 cursor: "pointer", textAlign: "left",
                 borderBottom: i < sugerencias.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-background-secondary)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <i className="fa-solid fa-location-dot" style={{ fontSize: 14, flexShrink: 0, color: "var(--color-text-tertiary)" }} />
               <span style={{ fontSize: 13, color: "var(--color-text-primary)", lineHeight: 1.4 }}>{s.label}</span>
@@ -272,7 +302,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
   // Recalcular estimado cuando cambian origen, destino o tipo de carga
   React.useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (form.origen.length < 3 || form.destino.length < 3) { setEstimate(null); return; }
+    if (!origenMeta || !destinoMeta) { setEstimate(null); return; }
     timerRef.current = setTimeout(async () => {
       setLoadingEst(true);
       try {
@@ -288,7 +318,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
       }
     }, 700);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [form.origen, form.destino, form.tipoCarga]);
+  }, [origenMeta, destinoMeta, form.tipoCarga]);
 
   const precioNum  = parseInt(form.precio) || 0;
   const bajoMinimo = estimate && precioNum > 0 && precioNum < estimate.minPrice;
@@ -296,6 +326,8 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!origenMeta) { setError("El origen debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
+    if (!destinoMeta) { setError("El destino debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
     setLoading(true);
     setError(null);
     try {
@@ -335,6 +367,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
               onChange={(v) => { set("origen", v); setOrigenMeta(null); }}
               onSelect={(r) => { set("origen", r.label); setOrigenMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
               placeholder="Dirección exacta de retiro"
+              confirmed={origenMeta !== null}
             />
             {origenMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{origenMeta.zone}</strong></div>}
           </div>
@@ -346,6 +379,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
               onChange={(v) => { set("destino", v); setDestinoMeta(null); }}
               onSelect={(r) => { set("destino", r.label); setDestinoMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
               placeholder="Dirección exacta de entrega"
+              confirmed={destinoMeta !== null}
             />
             {destinoMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{destinoMeta.zone}</strong></div>}
           </div>
@@ -1981,9 +2015,9 @@ export default function DadorDashboard() {
     <div style={{ background: "var(--page-bg)", minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
 
       {/* Topbar */}
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", borderBottom: "0.5px solid rgba(255,255,255,0.1)", position: "sticky", top: 0, zIndex: 10 }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: darkMode === false ? "#ffffff" : "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", borderBottom: darkMode === false ? "1px solid #e5e7eb" : "0.5px solid rgba(255,255,255,0.1)", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: "#fff", textDecoration: "none", fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}>
+          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: darkMode === false ? "#0f1f19" : "#fff", textDecoration: "none", fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}>
             Carga<span style={{ color: "#3a806b" }}>Back</span>
           </Link>
           <nav style={{ display: "flex", height: 64 }}>
@@ -1998,8 +2032,8 @@ export default function DadorDashboard() {
                   background: "transparent", cursor: "pointer", position: "relative",
                   fontFamily: "var(--font-ibm-plex), sans-serif",
                 }}>
-                  <FontAwesomeIcon icon={icon} style={{ width: 14, height: 14, color: activo ? "#3a806b" : "rgba(255,255,255,0.45)" }} />
-                  <span style={{ fontSize: 15, fontWeight: activo ? 600 : 400, color: activo ? "#fff" : "rgba(255,255,255,0.55)" }}>{item}</span>
+                  <FontAwesomeIcon icon={icon} style={{ width: 14, height: 14, color: activo ? "#3a806b" : darkMode === false ? "#6b7280" : "rgba(255,255,255,0.45)" }} />
+                  <span style={{ fontSize: 15, fontWeight: activo ? 600 : 400, color: activo ? (darkMode === false ? "#0f1f19" : "#fff") : darkMode === false ? "#6b7280" : "rgba(255,255,255,0.55)" }}>{item}</span>
                   {badge > 0 && (
                     <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>
                       {badge > 9 ? "9+" : badge}
@@ -2015,9 +2049,9 @@ export default function DadorDashboard() {
             suppressHydrationWarning
             onClick={toggleDark}
             title={darkMode ? "Modo claro" : "Modo oscuro"}
-            style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
+            style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: darkMode === false ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
           >
-            <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: "rgba(255,255,255,0.7)" }} />
+            <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: darkMode === false ? "#374151" : "rgba(255,255,255,0.7)" }} />
           </button>
           <button onClick={() => setModalPublicar(true)} style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: "#3a806b", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
             + Publicar carga
