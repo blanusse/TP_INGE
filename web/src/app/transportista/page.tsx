@@ -1353,7 +1353,9 @@ function TabEstadisticas({ drivers }: { drivers: Driver[] }) {
   );
 }
 
-function SeccionMiFlota({ ownerId }: { ownerId: string }) {
+function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: DashboardMode }) {
+  const tabsDisponibles: ("Camiones" | "Conductores" | "Estadísticas")[] =
+    mode === "individual" ? ["Camiones"] : ["Camiones", "Conductores", "Estadísticas"];
   const [tabFlota, setTabFlota] = useState<"Camiones" | "Conductores" | "Estadísticas">("Camiones");
   const [trucks, setTrucks] = useState<TruckData[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -1407,7 +1409,7 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>Mi flota</div>
-        {tabFlota !== "Estadísticas" && (
+        {tabFlota !== "Estadísticas" && (tabFlota === "Camiones" || mode !== "individual") && (
           <button
             onClick={() => tabFlota === "Camiones" ? setModalCamion(true) : setModalConductor(true)}
             style={{ fontSize: 13, padding: "8px 18px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
@@ -1417,11 +1419,13 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 2, marginBottom: 20 }}>
-        {(["Camiones", "Conductores", "Estadísticas"] as const).map((t) => (
-          <button key={t} onClick={() => setTabFlota(t)} style={{ fontSize: 14, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", background: tabFlota === t ? "var(--color-background-primary)" : "transparent", color: tabFlota === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabFlota === t ? 600 : 400, boxShadow: tabFlota === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>{t}</button>
-        ))}
-      </div>
+      {tabsDisponibles.length > 1 && (
+        <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 2, marginBottom: 20 }}>
+          {tabsDisponibles.map((t) => (
+            <button key={t} onClick={() => setTabFlota(t)} style={{ fontSize: 14, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", background: tabFlota === t ? "var(--color-background-primary)" : "transparent", color: tabFlota === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabFlota === t ? 600 : 400, boxShadow: tabFlota === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>{t}</button>
+          ))}
+        </div>
+      )}
 
       {/* Camiones */}
       {tabFlota === "Camiones" && (
@@ -2358,7 +2362,7 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
-        {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} />}
+        {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} mode={mode} />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>
 
