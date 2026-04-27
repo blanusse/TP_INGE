@@ -13,7 +13,6 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { id } = await params;
   const body = await req.json();
   const res = await fetch(`${BACKEND_URL}/documents/${id}`, {
     method: "PATCH",
