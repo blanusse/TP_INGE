@@ -185,10 +185,23 @@ export class FleetService {
   }
 
   async getFleetDrivers(userId: string) {
-    return this.usersRepo.find({
-      where: { fleet_id: userId },
-      select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at'],
-    });
+    const [fleetDrivers, owner] = await Promise.all([
+      this.usersRepo.find({
+        where: { fleet_id: userId },
+        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at'],
+      }),
+      this.usersRepo.findOne({
+        where: { id: userId },
+        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at', 'show_as_fleet_driver'],
+      }),
+    ]);
+
+    if (owner?.show_as_fleet_driver) {
+      const { show_as_fleet_driver: _, ...ownerData } = owner as any;
+      return [ownerData, ...fleetDrivers];
+    }
+
+    return fleetDrivers;
   }
 
   async addFleetDriver(userId: string, body: { email: string; password: string; name: string; phone?: string; dni?: string }) {
