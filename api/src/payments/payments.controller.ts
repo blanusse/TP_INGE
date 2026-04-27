@@ -39,6 +39,46 @@ export class PaymentsController {
     return this.paymentsService.getMyPayments(req.user.id);
   }
 
+  // El dador ve el código de entrega para compartirlo con quien recibe la carga
+  @Get('delivery-code')
+  @UseGuards(JwtAuthGuard)
+  getDeliveryCode(@Request() req, @Query('loadId') loadId: string) {
+    return this.paymentsService.getDeliveryCode(req.user.id, loadId);
+  }
+
+  // El transportista confirma la entrega con el código y elige cómo cobrar
+  @Post('confirm-delivery')
+  @UseGuards(JwtAuthGuard)
+  confirmDelivery(
+    @Request() req,
+    @Body() body: { loadId: string; code: string; payoutMethod: string; payoutDestination: string },
+  ) {
+    return this.paymentsService.confirmDelivery(
+      req.user.id,
+      body.loadId,
+      body.code,
+      body.payoutMethod,
+      body.payoutDestination,
+    );
+  }
+
+  // El admin lista todos los retiros pendientes/completados
+  @Get('admin/payouts')
+  getAdminPayouts(@Headers('x-internal-secret') secret: string) {
+    if (secret !== process.env.INTERNAL_SECRET) throw new UnauthorizedException();
+    return this.paymentsService.getAdminPayouts();
+  }
+
+  // El admin marca un pago como transferido manualmente (protegido por secreto interno)
+  @Post('internal/:paymentId/mark-paid')
+  markPaid(
+    @Param('paymentId') paymentId: string,
+    @Headers('x-internal-secret') secret: string,
+  ) {
+    if (secret !== process.env.INTERNAL_SECRET) throw new UnauthorizedException();
+    return this.paymentsService.markPayoutDone(paymentId);
+  }
+
   // Descarga de factura en PDF
   @Get(':paymentId/invoice')
   @UseGuards(JwtAuthGuard)

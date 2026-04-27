@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   BadRequestException,
   NotFoundException,
+  GoneException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -14,6 +15,7 @@ import * as bcrypt from 'bcryptjs';
 import { User } from '../entities/user.entity';
 import { Shipper } from '../entities/shipper.entity';
 import { EmailVerification } from '../entities/email-verification.entity';
+import { FleetInvitation } from '../entities/fleet-invitation.entity';
 import { EmailService } from '../email/email.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -50,6 +52,7 @@ export class AuthService {
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Shipper) private shippersRepo: Repository<Shipper>,
     @InjectRepository(EmailVerification) private verificationsRepo: Repository<EmailVerification>,
+    @InjectRepository(FleetInvitation) private invitationsRepo: Repository<FleetInvitation>,
     private jwtService: JwtService,
     private emailService: EmailService,
   ) {}
@@ -86,6 +89,26 @@ export class AuthService {
       }
     }
 
+    // 3b. Empleado: validar invitation_token antes de continuar
+    let fleetInvitation: FleetInvitation | null = null;
+    if (dto.role === 'empleado') {
+      if (!dto.invitation_token) {
+        throw new BadRequestException('Se requiere un código de invitación para registrarse como empleado.');
+      }
+      fleetInvitation = await this.invitationsRepo.findOne({ where: { token: dto.invitation_token } });
+      if (!fleetInvitation) throw new NotFoundException('Código de invitación no válido.');
+      if (fleetInvitation.status === 'accepted') throw new GoneException('Este código de invitación ya fue utilizado.');
+      if (fleetInvitation.status === 'expired' || fleetInvitation.expires_at < new Date()) {
+        fleetInvitation.status = 'expired';
+        await this.invitationsRepo.save(fleetInvitation);
+        throw new GoneException('Este código de invitación ha vencido.');
+      }
+      // Validar que el email coincida con el de la invitación
+      if (fleetInvitation.email !== email) {
+        throw new ForbiddenException('Este código de invitación fue enviado a otro email.');
+      }
+    }
+
     // 4. CUIT argentino (dadores empresa)
     if (dto.tipo_dador === 'empresa' && dto.cuit) {
       if (!validarCuit(dto.cuit)) {
@@ -103,7 +126,7 @@ export class AuthService {
     const password_hash = await bcrypt.hash(dto.password, 12);
     const dbRole = dto.role === 'dador' ? 'shipper' : 'transportista';
 
-    const user = this.usersRepo.create({
+    const userPayload: DeepPartial<User> = {
       email,
       name: dto.name.trim(),
       password_hash,
@@ -112,8 +135,30 @@ export class AuthService {
       dni: dto.dni ? dto.dni.replace(/\./g, '') : null,
       dni_photo_url: dto.dni_photo_url ?? null,
       is_verified: false,
-    } as DeepPartial<User>);
+    };
+
+    if (dto.role === 'flota') {
+      userPayload.is_fleet_owner = true;
+    }
+
+    if (dto.role === 'empleado' && fleetInvitation) {
+      userPayload.fleet_id = fleetInvitation.fleet_owner_id;
+    }
+
+    const user = this.usersRepo.create(userPayload);
     await this.usersRepo.save(user);
+
+    // Si es empleado, marcar la invitación como aceptada y al owner como fleet owner
+    if (dto.role === 'empleado' && fleetInvitation) {
+      fleetInvitation.status = 'accepted';
+      await this.invitationsRepo.save(fleetInvitation);
+
+      const fleetOwner = await this.usersRepo.findOne({ where: { id: fleetInvitation.fleet_owner_id } });
+      if (fleetOwner && !fleetOwner.is_fleet_owner) {
+        fleetOwner.is_fleet_owner = true;
+        await this.usersRepo.save(fleetOwner);
+      }
+    }
 
     if (dto.role === 'dador') {
       const shipper = this.shippersRepo.create({
@@ -151,7 +196,14 @@ export class AuthService {
     const payload = { sub: user.id, role: user.role };
     return {
       access_token: this.jwtService.sign(payload),
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        fleet_id: user.fleet_id ?? null,
+        is_fleet_owner: user.is_fleet_owner ?? false,
+      },
     };
   }
 

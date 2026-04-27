@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { apiFetch } from "@/lib/apiFetch";
 
+const COMMISSION_RATE = 0.10;
+const grossToNet = (gross: number) => Math.round(gross * (1 - COMMISSION_RATE) * 100) / 100;
+
 export async function GET() {
   const session = await auth();
   if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
@@ -19,7 +22,7 @@ export async function GET() {
     loadId: o.load_id,
     titulo: `${o.load?.cargo_type ?? "Transporte"} \u2014 ${o.load?.pickup_city ?? ""} \u2192 ${o.load?.dropoff_city ?? ""}`,
     empresa: "Dador de carga",
-    precio: Number(o.price),
+    precio: grossToNet(Number(o.price)),
     fechaRetiro: o.load?.ready_at
       ? new Date(o.load.ready_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
       : "-",

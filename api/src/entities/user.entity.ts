@@ -3,7 +3,7 @@ import {
   OneToOne, OneToMany, ManyToOne, JoinColumn,
 } from 'typeorm';
 
-export type UserRole = 'transportista' | 'shipper';
+export type UserRole = 'transportista' | 'shipper' | 'admin';
 
 @Entity('users')
 export class User {
@@ -23,29 +23,35 @@ export class User {
   role: UserRole;
 
   @Column({ nullable: true })
-  phone: string;
+  phone: string | null;
 
   @Column({ nullable: true })
-  dni: string;
+  dni: string | null;
 
   @Column({ default: false })
   is_verified: boolean;
 
   // URL de la foto del DNI subida a Supabase Storage
   @Column({ nullable: true })
-  dni_photo_url: string;
-
-  // Estado de verificación de identidad
-  @Column({ default: 'pending' })
-  verification_status: string;
+  dni_photo_url: string | null;
 
   // For fleet sub-drivers: points to the owner transportista
   @Column({ nullable: true, type: 'uuid' })
-  fleet_id: string;
+  fleet_id: string | null;
+
+  @Column({ default: true })
+  show_as_fleet_driver: boolean;
+
+  @Column({ default: false })
+  is_fleet_owner: boolean;
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'fleet_id' })
   fleet_owner: User;
+
+  // MercadoPago OAuth — se completa cuando el transportista conecta su cuenta MP
+  @Column({ nullable: true, type: 'varchar' })
+  mp_user_id: string | null;
 
   @CreateDateColumn()
   created_at: Date;

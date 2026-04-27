@@ -115,20 +115,23 @@ function InputUbicacion({
   onSelect,
   placeholder,
   id,
+  confirmed,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSelect?: (r: GeoResult) => void;
   placeholder: string;
   id: string;
+  confirmed?: boolean;
 }) {
   const [sugerencias, setSugerencias] = useState<GeoResult[]>([]);
   const [abierto, setAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [focusIndex, setFocusIndex] = useState(-1);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wrapRef   = React.useRef<HTMLDivElement>(null);
+  const abortRef   = React.useRef<AbortController | null>(null);
+  const wrapRef    = React.useRef<HTMLDivElement>(null);
 
-  // Cerrar al hacer click fuera
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setAbierto(false);
@@ -139,14 +142,19 @@ function InputUbicacion({
 
   const buscar = (q: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (q.length < 3) { setSugerencias([]); setAbierto(false); return; }
+    if (q.length < 3) { setSugerencias([]); setAbierto(false); setFocusIndex(-1); return; }
     timeoutRef.current = setTimeout(async () => {
+      if (abortRef.current) abortRef.current.abort();
+      abortRef.current = new AbortController();
       setCargando(true);
       try {
-        const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`, { signal: abortRef.current.signal });
         const data = await res.json();
         setSugerencias(data.results ?? []);
+        setFocusIndex(-1);
         setAbierto(true);
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") setSugerencias([]);
       } finally {
         setCargando(false);
       }
@@ -158,6 +166,24 @@ function InputUbicacion({
     onSelect?.(r);
     setSugerencias([]);
     setAbierto(false);
+    setFocusIndex(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!abierto || sugerencias.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setFocusIndex((i) => Math.min(i + 1, sugerencias.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setFocusIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter" && focusIndex >= 0) {
+      e.preventDefault();
+      seleccionar(sugerencias[focusIndex]);
+    } else if (e.key === "Escape") {
+      setAbierto(false);
+      setFocusIndex(-1);
+    }
   };
 
   return (
@@ -169,16 +195,20 @@ function InputUbicacion({
           autoComplete="off"
           value={value}
           onChange={(e) => { onChange(e.target.value); buscar(e.target.value); }}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          style={{ ...inputStyle, paddingRight: 32 }}
+          style={{ ...inputStyle, paddingRight: 52, border: confirmed ? "0.5px solid #16a34a" : inputStyle.border }}
         />
         {cargando && (
           <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--color-text-tertiary)" }}><i className="fa-solid fa-spinner fa-spin" /></div>
         )}
+        {!cargando && confirmed && (
+          <i className="fa-solid fa-circle-check" style={{ position: "absolute", right: 30, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#16a34a", pointerEvents: "none" }} />
+        )}
         {!cargando && value && (
           <button
             type="button"
-            onClick={() => { onChange(""); setSugerencias([]); }}
+            onClick={() => { onChange(""); setSugerencias([]); setAbierto(false); setFocusIndex(-1); }}
             style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "var(--color-text-tertiary)", padding: 0, lineHeight: 1 }}
           >×</button>
         )}
@@ -198,14 +228,14 @@ function InputUbicacion({
               key={i}
               type="button"
               onClick={() => seleccionar(s)}
+              onMouseEnter={() => setFocusIndex(i)}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
-                width: "100%", padding: "10px 12px", border: "none", background: "transparent",
+                width: "100%", padding: "10px 12px", border: "none",
+                background: focusIndex === i ? "var(--color-background-secondary)" : "transparent",
                 cursor: "pointer", textAlign: "left",
                 borderBottom: i < sugerencias.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-background-secondary)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <i className="fa-solid fa-location-dot" style={{ fontSize: 14, flexShrink: 0, color: "var(--color-text-tertiary)" }} />
               <span style={{ fontSize: 13, color: "var(--color-text-primary)", lineHeight: 1.4 }}>{s.label}</span>
@@ -258,7 +288,7 @@ interface PriceEstimate { distanceKm: number; minPrice: number; suggestedPrice: 
 interface UbicacionMeta { zone: string; lat: number; lon: number; }
 
 function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublicar: (c: Carga) => void }) {
-  const [form, setForm] = useState({ origen: "", destino: "", tipoCarga: "General", tipoCamion: "Cualquiera", peso: "", precio: "", retiro: "", descripcion: "" });
+  const [form, setForm] = useState({ origen: "", destino: "", tipoCarga: "General", tipoCamion: "Cualquiera", peso: "", precio: "", retiro: "" });
   const [origenMeta,  setOrigenMeta]  = useState<UbicacionMeta | null>(null);
   const [destinoMeta, setDestinoMeta] = useState<UbicacionMeta | null>(null);
   const [loading, setLoading]       = useState(false);
@@ -272,7 +302,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
   // Recalcular estimado cuando cambian origen, destino o tipo de carga
   React.useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (form.origen.length < 3 || form.destino.length < 3) { setEstimate(null); return; }
+    if (!origenMeta || !destinoMeta) { setEstimate(null); return; }
     timerRef.current = setTimeout(async () => {
       setLoadingEst(true);
       try {
@@ -288,7 +318,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
       }
     }, 700);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [form.origen, form.destino, form.tipoCarga]);
+  }, [origenMeta, destinoMeta, form.tipoCarga]);
 
   const precioNum  = parseInt(form.precio) || 0;
   const bajoMinimo = estimate && precioNum > 0 && precioNum < estimate.minPrice;
@@ -296,6 +326,8 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!origenMeta) { setError("El origen debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
+    if (!destinoMeta) { setError("El destino debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
     setLoading(true);
     setError(null);
     try {
@@ -335,6 +367,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
               onChange={(v) => { set("origen", v); setOrigenMeta(null); }}
               onSelect={(r) => { set("origen", r.label); setOrigenMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
               placeholder="Dirección exacta de retiro"
+              confirmed={origenMeta !== null}
             />
             {origenMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{origenMeta.zone}</strong></div>}
           </div>
@@ -346,6 +379,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
               onChange={(v) => { set("destino", v); setDestinoMeta(null); }}
               onSelect={(r) => { set("destino", r.label); setDestinoMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
               placeholder="Dirección exacta de entrega"
+              confirmed={destinoMeta !== null}
             />
             {destinoMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{destinoMeta.zone}</strong></div>}
           </div>
@@ -425,10 +459,6 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
           </div>
         </div>
 
-        <div style={{ marginBottom: 20 }}>
-          <label style={labelStyle}>Descripción adicional</label>
-          <textarea value={form.descripcion} onChange={(e) => set("descripcion", e.target.value)} rows={3} placeholder="Detalles sobre la carga, acceso, horarios, contacto en destino..." style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" } as React.CSSProperties} />
-        </div>
 
         {error && <div style={{ fontSize: 13, color: "#b91c1c", background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
 
@@ -461,7 +491,6 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
   const [confirmRechazar, setConfirmRechazar] = useState<Oferta | null>(null);
   const [contraofertaId, setContraofertaId]   = useState<string | null>(null);
   const [contraPrice, setContraPrice]         = useState("");
-  const [perfilExpandido, setPerfilExpandido] = useState<string | null>(null);
 
   React.useEffect(() => {
     fetch(`/api/offers?loadId=${carga.id}`)
@@ -555,20 +584,6 @@ function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
             {o.nota && (
               <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: "6px 10px", background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-md)", marginBottom: 10 }}>
                 &ldquo;{o.nota}&rdquo;
-              </div>
-            )}
-            <button
-              onClick={() => setPerfilExpandido(perfilExpandido === o.offerId ? null : o.offerId)}
-              style={{ fontSize: 11, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", padding: "0 0 8px 0", textDecoration: "underline" }}
-            >
-              {perfilExpandido === o.offerId ? "Ocultar perfil" : "Ver perfil del camionero"}
-            </button>
-            {perfilExpandido === o.offerId && (
-              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-md)", padding: "10px 12px", marginBottom: 10, display: "flex", flexDirection: "column", gap: 4 }}>
-                {o.telefono && <div><span style={{ fontWeight: 600 }}>Teléfono:</span> {o.telefono}</div>}
-                {o.email    && <div><span style={{ fontWeight: 600 }}>Email:</span> {o.email}</div>}
-                {o.dni      && <div><span style={{ fontWeight: 600 }}>DNI:</span> {o.dni}</div>}
-                <div><span style={{ fontWeight: 600 }}>Calificaciones:</span> {o.viajes} {o.viajes === 1 ? "viaje calificado" : "viajes calificados"}</div>
               </div>
             )}
             {esContraoferta ? (
@@ -890,6 +905,7 @@ function SeccionMisCargas({
   const [tab, setTab] = useState<MisCargasTab>("Publicadas");
   const [detalleCarga, setDetalleCarga] = useState<Carga | null>(null);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [deliveryCode, setDeliveryCode] = useState<{ code: string; used: boolean } | null>(null);
 
   const publicadas = cargas.filter((c) => c.status === "available");
   const asignadas = cargas.filter((c) => c.status === "matched" || c.status === "in_transit" || c.status === "accepted");
@@ -905,6 +921,17 @@ function SeccionMisCargas({
       setEliminando(null);
     }
   };
+
+  // Cargar código de entrega cuando se abre el detalle de una carga pagada
+  useEffect(() => {
+    if (!detalleCarga) { setDeliveryCode(null); return; }
+    const esAsignada = detalleCarga.status === "matched" || detalleCarga.status === "in_transit" || detalleCarga.status === "delivered";
+    if (!esAsignada) { setDeliveryCode(null); return; }
+    fetch(`/api/payments/delivery-code?loadId=${detalleCarga.id}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.delivery_code) setDeliveryCode({ code: d.delivery_code, used: d.delivery_code_used }); })
+      .catch(() => {});
+  }, [detalleCarga?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Detail panel modal
   if (detalleCarga) {
@@ -944,10 +971,39 @@ function SeccionMisCargas({
               Ver ofertas ({dc.ofertas})
             </button>
           )}
-          {ao && (
+          {ao && !deliveryCode && (
             <button onClick={() => { setDetalleCarga(null); onIniciarPago({ offerId: ao.offerId, cargaTitulo: dc.titulo, cargaId: dc.id, oferta: { nombre: ao.driverName, precio: ao.precio, offerId: ao.offerId, id: 0, iniciales: ao.driverName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2), rating: 0, viajes: 0, nota: "" } }); }} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
               Pagar &rarr;
             </button>
+          )}
+
+          {/* Código de entrega — visible una vez que el pago fue confirmado */}
+          {deliveryCode && (
+            <div style={{ marginTop: 20, background: deliveryCode.used ? "rgba(22,163,74,0.08)" : "rgba(59,130,246,0.08)", border: `1.5px solid ${deliveryCode.used ? "#16a34a" : "#3b82f6"}`, borderRadius: 12, padding: "18px 20px" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: deliveryCode.used ? "#16a34a" : "#3b82f6", marginBottom: 8 }}>
+                {deliveryCode.used ? "✓ Entrega confirmada" : "Código de entrega"}
+              </div>
+              {!deliveryCode.used ? (
+                <>
+                  <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: "0.25em", color: "#111", fontFamily: "monospace", marginBottom: 8 }}>
+                    {deliveryCode.code}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5, marginBottom: 10 }}>
+                    Compartí este código con quien recibe la carga.<br />
+                    El transportista lo ingresa al llegar al destino para confirmar la entrega y cobrar.
+                  </div>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(deliveryCode.code)}
+                    style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: "1px solid #3b82f6", background: "transparent", color: "#3b82f6", cursor: "pointer", fontWeight: 600 }}>
+                    Copiar código
+                  </button>
+                </>
+              ) : (
+                <div style={{ fontSize: 14, color: "#16a34a", fontWeight: 600 }}>
+                  El transportista confirmó la entrega exitosamente.
+                </div>
+              )}
+            </div>
           )}
         </div>
       </main>
@@ -1092,28 +1148,26 @@ function SeccionMisCargas({
 
 // ── Seccion Mis Envios ───────────────────────────────────────────────────────
 
-function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: () => void }) {
-  const [confirmando, setConfirmando] = useState<string | null>(null);
-  const [modalCalificar, setModalCalificar] = useState<{ offerId: string; driverName: string } | null>(null);
+function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }) {
+  const [deliveryCodes, setDeliveryCodes] = useState<Record<string, { code: string; used: boolean }>>({});
   const [mapaAbierto, setMapaAbierto] = useState<string | null>(null);
 
   const enTransito = cargas.filter((c) => c.status === "in_transit" || c.status === "accepted");
   const entregados = cargas.filter((c) => c.status === "delivered");
 
-  const confirmarLlegada = async (c: Carga) => {
-    setConfirmando(c.id);
-    try {
-      const res = await fetch(`/api/loads/${c.id}/confirm`, { method: "POST" });
-      const data = await res.json();
-      if (res.ok && data.offerId) {
-        onRefresh();
-        const driverName = c.acceptedOffer?.driverName ?? "el camionero";
-        setModalCalificar({ offerId: data.offerId, driverName });
-      }
-    } finally {
-      setConfirmando(null);
+  useEffect(() => {
+    const inTransit = cargas.filter((c) => c.status === "in_transit" || c.status === "accepted");
+    for (const c of inTransit) {
+      fetch(`/api/payments/delivery-code?loadId=${c.id}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.delivery_code) {
+            setDeliveryCodes((prev) => ({ ...prev, [c.id]: { code: d.delivery_code, used: !!d.delivery_code_used } }));
+          }
+        })
+        .catch(() => {});
     }
-  };
+  }, [cargas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mock timeline data generator
   const getTimeline = (c: Carga) => {
@@ -1129,13 +1183,6 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
 
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
-      {modalCalificar && (
-        <ModalCalificarCamionero
-          offerId={modalCalificar.offerId}
-          driverName={modalCalificar.driverName}
-          onClose={() => setModalCalificar(null)}
-        />
-      )}
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -1183,13 +1230,6 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
                 <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ fontSize: 14 }}>&#9993;</span> Chat
                 </button>
-                <button
-                  onClick={() => confirmarLlegada(c)}
-                  disabled={confirmando === c.id}
-                  style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "none", background: confirmando === c.id ? "#aaa" : "#3a806b", color: "#fff", cursor: confirmando === c.id ? "not-allowed" : "pointer", fontWeight: 600 }}
-                >
-                  {confirmando === c.id ? "Confirmando..." : "Confirmar llegada"}
-                </button>
               </div>
             </div>
 
@@ -1236,6 +1276,37 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
                   Ubicación en tiempo real
                 </div>
                 <TripMap loadId={c.id} height={280} />
+              </div>
+            )}
+
+            {/* Código de entrega */}
+            {deliveryCodes[c.id] && (
+              <div style={{ marginTop: 16, borderTop: "1px solid var(--color-border-tertiary)", paddingTop: 14 }}>
+                {deliveryCodes[c.id].used ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#16a34a", fontWeight: 600 }}>
+                    <span>✓ Entrega confirmada por el transportista</span>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--color-text-tertiary)", marginBottom: 6 }}>
+                      Código de entrega
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                      <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: "0.2em", fontFamily: "monospace", color: "var(--color-text-primary)" }}>
+                        {deliveryCodes[c.id].code}
+                      </span>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(deliveryCodes[c.id].code)}
+                        style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}
+                      >
+                        Copiar
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
+                      Compartí este código con quien recibe la carga. El transportista lo ingresa al llegar al destino.
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1944,9 +2015,9 @@ export default function DadorDashboard() {
     <div style={{ background: "var(--page-bg)", minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
 
       {/* Topbar */}
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", borderBottom: "0.5px solid rgba(255,255,255,0.1)", position: "sticky", top: 0, zIndex: 10 }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: darkMode === false ? "#ffffff" : "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", borderBottom: darkMode === false ? "1px solid #e5e7eb" : "0.5px solid rgba(255,255,255,0.1)", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: "#fff", textDecoration: "none", fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}>
+          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: darkMode === false ? "#0f1f19" : "#fff", textDecoration: "none", fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}>
             Carga<span style={{ color: "#3a806b" }}>Back</span>
           </Link>
           <nav style={{ display: "flex", height: 64 }}>
@@ -1961,8 +2032,8 @@ export default function DadorDashboard() {
                   background: "transparent", cursor: "pointer", position: "relative",
                   fontFamily: "var(--font-ibm-plex), sans-serif",
                 }}>
-                  <FontAwesomeIcon icon={icon} style={{ width: 14, height: 14, color: activo ? "#3a806b" : "rgba(255,255,255,0.45)" }} />
-                  <span style={{ fontSize: 15, fontWeight: activo ? 600 : 400, color: activo ? "#fff" : "rgba(255,255,255,0.55)" }}>{item}</span>
+                  <FontAwesomeIcon icon={icon} style={{ width: 14, height: 14, color: activo ? "#3a806b" : darkMode === false ? "#6b7280" : "rgba(255,255,255,0.45)" }} />
+                  <span style={{ fontSize: 15, fontWeight: activo ? 600 : 400, color: activo ? (darkMode === false ? "#0f1f19" : "#fff") : darkMode === false ? "#6b7280" : "rgba(255,255,255,0.55)" }}>{item}</span>
                   {badge > 0 && (
                     <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>
                       {badge > 9 ? "9+" : badge}
@@ -1978,9 +2049,9 @@ export default function DadorDashboard() {
             suppressHydrationWarning
             onClick={toggleDark}
             title={darkMode ? "Modo claro" : "Modo oscuro"}
-            style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
+            style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: darkMode === false ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
           >
-            <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: "rgba(255,255,255,0.7)" }} />
+            <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: darkMode === false ? "#374151" : "rgba(255,255,255,0.7)" }} />
           </button>
           <button onClick={() => setModalPublicar(true)} style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: "#3a806b", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
             + Publicar carga

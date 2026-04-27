@@ -13,6 +13,21 @@ export async function GET() {
   return NextResponse.json(wrapped, { status: res.status });
 }
 
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+
+  const { loadId } = await req.json();
+  if (!loadId) return NextResponse.json({ error: "loadId requerido." }, { status: 400 });
+
+  const res = await apiFetch(`/loads/${loadId}`, session.backendToken, { method: "DELETE" });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    return NextResponse.json(data, { status: res.status });
+  }
+  return NextResponse.json({ deleted: true });
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
