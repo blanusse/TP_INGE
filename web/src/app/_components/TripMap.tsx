@@ -105,9 +105,9 @@ export default function TripMap({
 
       const truckIcon = L.divIcon({
         className: "",
-        html: '<div style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))"><img src="/trucks/batea.svg" width="40" height="40" style="display:block" /></div>',
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
+        html: '<div style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))"><img src="/trucks/batea.svg" width="32" height="32" style="display:block" /></div>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
       });
 
       const moveTruck = (lat: number, lng: number) => {
