@@ -118,68 +118,55 @@ function sampleOffscreen(
   for (let i = idx; i < pool.length; i++) pool[i].kill(canvas.width, canvas.height)
 }
 
-// ─── Argentina outline (normalized 0–1, clockwise from NW) ───────────────────
-// Bounding box: lon [-73.6, -53.6], lat [-55.1, -21.8]
-// nx = (lon + 73.6) / 20,  ny = (lat + 21.8) / -33.3
-
-const ARGENTINA: [number, number][] = [
-  // Flat north border (Pilcomayo / Bolivia)
-  [0.28, 0.03], [0.40, 0.01], [0.49, 0.00], [0.57, 0.00], [0.66, 0.00],
-  [0.80, 0.01],   // NE corner
-  // S-curve right side (Formosa inward, Corrientes outward)
-  [0.78, 0.06], [0.75, 0.11], [0.78, 0.14], [0.84, 0.16],
-  // Misiones ear
-  [0.88, 0.17], [0.91, 0.15], [0.94, 0.13], [0.95, 0.12],
-  [0.98, 0.13], [1.00, 0.14], [0.99, 0.16], [0.97, 0.18],
-  [0.94, 0.19], [0.89, 0.20],
-  // East coast
-  [0.78, 0.25], [0.77, 0.31], [0.76, 0.34], [0.75, 0.37],
-  // BA coast
-  [0.77, 0.39], [0.83, 0.44], [0.81, 0.49], [0.75, 0.51], [0.58, 0.52],
-  // Patagonia
-  [0.54, 0.56], [0.47, 0.62], [0.50, 0.63], [0.44, 0.66],
-  [0.39, 0.70], [0.37, 0.76], [0.41, 0.80], [0.37, 0.85],
-  [0.29, 0.88], [0.22, 0.91], [0.26, 0.92],
-  // Andes west border
-  [0.20, 0.92], [0.03, 0.85], [0.03, 0.76], [0.07, 0.65],
-  [0.10, 0.52], [0.15, 0.40], [0.19, 0.31], [0.25, 0.20],
-  [0.23, 0.10], [0.28, 0.03],
-]
-
-// Tierra del Fuego (Argentine portion of the main island)
-const TIERRA_DEL_FUEGO: [number, number][] = [
-  [0.26, 0.92], [0.37, 0.92], [0.50, 0.93],
-  [0.48, 0.97], [0.43, 0.99], [0.27, 0.99],
-]
-
 const GREEN_BRIGHT: RGB = { r: 58, g: 128, b: 107 }
 
 // ─── Phase functions ──────────────────────────────────────────────────────────
 
-function drawPolygon(ctx: CanvasRenderingContext2D, poly: [number, number][], ox: number, oy: number, sw: number, sh: number) {
-  ctx.beginPath()
-  poly.forEach(([nx, ny], i) => {
-    const px = ox + nx * sw, py = oy + ny * sh
-    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
-  })
-  ctx.closePath()
-  ctx.fill()
-}
+async function showMap(canvas: HTMLCanvasElement, pool: Particle[]) {
+  const W = canvas.width, H = canvas.height
 
-function showMap(canvas: HTMLCanvasElement, pool: Particle[]) {
-  const W = canvas.width, H = canvas.height, PAD = 25
-  // Argentina is ~2× taller than wide — scale width to preserve real proportions
-  const argH = H - PAD * 2
-  const argW = argH * 0.49          // true width/height ratio ≈ 0.49
-  const argX = (W - argW) / 2, argY = PAD
+  const img = new Image()
+  img.crossOrigin = "anonymous"
+  const loaded = await new Promise<boolean>((resolve) => {
+    img.onload  = () => resolve(true)
+    img.onerror = (e) => { console.error("[ParticleHero] imagen no cargó:", e); resolve(false) }
+    img.src = "/argentina-mask.png"
+  })
+
+  if (!loaded || img.naturalWidth === 0) return
+
+  // Escalar manteniendo proporciones, centrado
+  const PAD = 40
+  const scale = Math.min((W - PAD * 2) / img.naturalWidth, (H - PAD * 2) / img.naturalHeight)
+  const dw = img.naturalWidth * scale
+  const dh = img.naturalHeight * scale
+  const dx = (W - dw) / 2
+  const dy = (H - dh) / 2
 
   const off = document.createElement("canvas")
   off.width = W; off.height = H
   const ctx = off.getContext("2d")!
-  ctx.fillStyle = "white"
 
-  drawPolygon(ctx, ARGENTINA, argX, argY, argW, argH)
-  drawPolygon(ctx, TIERRA_DEL_FUEGO, argX, argY, argW, argH)
+  try {
+    // Fondo blanco primero: todos los píxeles tienen alpha pleno, sin artefactos de borde
+    ctx.fillStyle = "#ffffff"
+    ctx.fillRect(0, 0, W, H)
+    ctx.drawImage(img, dx, dy, dw, dh)
+
+    // Píxeles oscuros (silueta) → alpha 255; fondo blanco → alpha 0
+    const imgData = ctx.getImageData(0, 0, W, H)
+    const d = imgData.data
+    for (let i = 0; i < d.length; i += 4) {
+      const brightness = (d[i] + d[i + 1] + d[i + 2]) / 3
+      d[i + 3] = brightness < 128 ? 255 : 0
+    }
+    ctx.putImageData(imgData, 0, 0)
+    // Borrar artefactos de borde que aparecen en los extremos del drawImage escalado
+    ctx.clearRect(Math.round(dx + dw) - 2, 0, 5, H)
+    ctx.clearRect(0, Math.round(dy + dh) - 2, W, 5)
+  } catch (err) {
+    console.error("[ParticleHero] getImageData falló:", err)
+  }
 
   sampleOffscreen(off, canvas, pool, () => GREEN_BRIGHT)
 }
@@ -193,7 +180,7 @@ function showText(canvas: HTMLCanvasElement, pool: Particle[]) {
   ctx.font = `bold 130px "IBM Plex Sans", sans-serif`
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
-  ctx.fillText("CargaBack", W / 2, H / 2)
+  ctx.fillText("CargaBack", W / 2, H * 0.38)
 
   sampleOffscreen(off, canvas, pool, () => GREEN_BRIGHT)
 }
@@ -214,9 +201,10 @@ export function ParticleHero() {
 
     let cancelled = false
 
-    document.fonts.ready.then(() => {
+    document.fonts.ready.then(async () => {
       if (cancelled) return
-      showMap(canvas, pool.current)
+      await showMap(canvas, pool.current)
+      if (cancelled) return
 
       const loop = () => {
         const ctx = canvas.getContext("2d")!
