@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Req, Res, UseGuards } from '@nestjs/common';
-import { Response, Request } from 'express';
+import type { Response, Request } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { MpOauthService } from './mp-oauth.service';
 
