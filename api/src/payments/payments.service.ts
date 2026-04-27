@@ -181,6 +181,32 @@ export class PaymentsService {
     return { ok: true };
   }
 
+  async getAdminPayouts() {
+    const payments = await this.paymentsRepo.find({
+      where: [{ payout_status: 'requested' }, { payout_status: 'done' }, { payout_status: 'transfer_failed' }],
+      relations: ['load', 'offer', 'offer.driver'],
+      order: { created_at: 'DESC' },
+    });
+
+    return payments.map((p) => ({
+      id: p.id,
+      amount: Number(p.amount),
+      payout_status: p.payout_status,
+      payout_method: p.payout_method,
+      payout_destination: p.payout_destination,
+      payout_transfer_id: p.payout_transfer_id ?? null,
+      created_at: p.created_at,
+      load_id: p.load_id,
+      pickup_city: p.load?.pickup_city ?? null,
+      dropoff_city: p.load?.dropoff_city ?? null,
+      driver_name: p.offer?.driver?.name ?? null,
+      driver_email: p.offer?.driver?.email ?? null,
+      mp_transfer_url: p.payout_status === 'requested' && p.payout_method && p.payout_destination
+        ? this.buildMpTransferUrl(p.payout_method, p.payout_destination, Number(p.amount))
+        : null,
+    }));
+  }
+
   async getMyPayments(userId: string) {
     const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
     if (!shipper) throw new ForbiddenException();
