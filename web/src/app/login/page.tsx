@@ -495,7 +495,7 @@ function LoginInner() {
                   id="nombre" type="text" autoComplete="name" value={nombre} onChange={setNombre}
                   placeholder="Juan Rodríguez"
                   style={{ gridColumn: "1 / -1" }} required />
-                {(perfil === "transportista" || (perfil === "dador" && tipoDador === "personal")) && (
+                {(perfil === "transportista" || perfil === "flota" || perfil === "empleado" || (perfil === "dador" && tipoDador === "personal")) && (
                   <Campo label="DNI" id="dni" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" required
                     hint={dniDisponible === false ? { text: "⚠ Ya existe una cuenta con ese DNI.", color: "#ef4444" } : dniDisponible === true ? { text: "✓ DNI disponible.", color: "#16a34a" } : undefined} />
                 )}
