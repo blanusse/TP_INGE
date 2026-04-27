@@ -1234,7 +1234,8 @@ function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }
                   onClick={() => setMapaAbierto(mapaAbierto === c.id ? null : c.id)}
                   style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: mapaAbierto === c.id ? "rgba(58,128,107,0.08)" : "transparent", color: mapaAbierto === c.id ? "#3a806b" : "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
                 >
-                  <span style={{ fontSize: 13 }}>🗺</span> {mapaAbierto === c.id ? "Ocultar mapa" : "Ver en mapa"}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                  {mapaAbierto === c.id ? "Ocultar mapa" : "Ver en mapa"}
                 </button>
                 <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ fontSize: 14 }}>&#9993;</span> Chat
