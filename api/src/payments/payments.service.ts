@@ -266,7 +266,7 @@ export class PaymentsService {
     const load = payment.load;
     const driver = payment.offer?.driver;
 
-    const assetsDir = join(process.cwd(), 'src', 'assets');
+    const assetsDir = join(__dirname, '..', 'assets');
     const fontR = join(assetsDir, 'Arial-Regular.ttf');
     const fontB = join(assetsDir, 'Arial-Bold.ttf');
 
