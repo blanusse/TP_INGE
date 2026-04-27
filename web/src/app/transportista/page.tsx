@@ -10,6 +10,18 @@ import { signOut, useSession } from "next-auth/react";
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
 type NavItem = "Inicio" | "Buscar cargas" | "Planificar viaje" | "Mis ofertas" | "Mis viajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
+type DashboardMode = "individual" | "flota" | "empleado";
+
+const NAV_ITEMS_BY_MODE: Record<DashboardMode, NavItem[]> = {
+  individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Notificaciones"],
+  flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Notificaciones", "Mi perfil"],
+  empleado:   ["Mis viajes", "Mi perfil", "Notificaciones"],
+};
+const DEFAULT_NAV: Record<DashboardMode, NavItem> = {
+  individual: "Inicio",
+  flota:      "Mi flota",
+  empleado:   "Mis viajes",
+};
 type SortKey = "Mayor precio" | "Menor precio" | "Más cercano" | "Fecha de retiro";
 
 interface ModalOfertaState {
@@ -2257,9 +2269,9 @@ function OnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void; onNa
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function TransportistaDashboard() {
+export default function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode }) {
   const { data: session } = useSession();
-  const [navActivo, setNavActivo] = useState<NavItem>("Inicio");
+  const [navActivo, setNavActivo] = useState<NavItem>(DEFAULT_NAV[mode]);
   const [modalOferta, setModalOferta] = useState<ModalOfertaState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
@@ -2298,7 +2310,7 @@ export default function TransportistaDashboard() {
 
   const mostrarToast = (msg: string) => setToast(msg);
 
-  const navItems: NavItem[] = ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Notificaciones", "Mi flota"];
+  const navItems = NAV_ITEMS_BY_MODE[mode];
   const NAV_ICONS: Record<NavItem, string> = {
     "Inicio": "fa-solid fa-house",
     "Buscar cargas": "fa-solid fa-magnifying-glass",

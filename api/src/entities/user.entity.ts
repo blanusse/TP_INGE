@@ -46,6 +46,9 @@ export class User {
   @Column({ default: true })
   show_as_fleet_driver: boolean;
 
+  @Column({ default: false })
+  is_fleet_owner: boolean;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'fleet_id' })
   fleet_owner: User;
