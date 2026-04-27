@@ -47,6 +47,10 @@ export class User {
   @JoinColumn({ name: 'fleet_id' })
   fleet_owner: User;
 
+  // MercadoPago OAuth — se completa cuando el transportista conecta su cuenta MP
+  @Column({ nullable: true, type: 'varchar' })
+  mp_user_id: string;
+
   @CreateDateColumn()
   created_at: Date;
 }

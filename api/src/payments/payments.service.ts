@@ -121,7 +121,7 @@ export class PaymentsService {
     }
 
     // Validar método de cobro
-    if (!['cvu_cbu', 'mercadopago'].includes(payoutMethod)) {
+    if (!['cvu_cbu', 'mercadopago', 'alias'].includes(payoutMethod)) {
       throw new BadRequestException('Método de cobro inválido.');
     }
     if (!payoutDestination?.trim()) {
@@ -142,8 +142,11 @@ export class PaymentsService {
       await this.loadsRepo.save(load);
     }
 
+    // Buscar el mp_user_id del transportista (si vinculó su cuenta MP via OAuth)
+    const driver = await this.usersRepo.findOne({ where: { id: driverId } });
+
     // Intentar la transferencia a MercadoPago
-    const transfer = await this.initiatePayoutTransfer(payment, payoutMethod, payoutDestination.trim());
+    const transfer = await this.initiatePayoutTransfer(payment, payoutMethod, payoutDestination.trim(), driver?.mp_user_id ?? undefined);
     if (transfer.success && transfer.transferId) {
       payment.payout_status = 'done';
       payment.payout_transfer_id = transfer.transferId;
@@ -174,24 +177,30 @@ export class PaymentsService {
     payment: Payment,
     payoutMethod: string,
     payoutDestination: string,
+    driverMpUserId?: string,
   ): Promise<{ success: boolean; transferId?: string; mpError?: string; httpStatus?: number; rawBody?: string }> {
     const accessToken = process.env.MP_ACCESS_TOKEN;
     if (!accessToken) {
       return { success: false, mpError: 'MP_ACCESS_TOKEN no configurado' };
     }
 
+    // Para transferir a una cuenta MP necesitamos el mp_user_id del transportista (OAuth)
+    if (payoutMethod === 'mercadopago' && !driverMpUserId) {
+      return { success: false, mpError: 'El transportista no vinculó su cuenta MercadoPago' };
+    }
+
     try {
       const body: Record<string, unknown> = {
         amount: Number(payment.amount),
         currency_id: 'ARS',
-        description: `Pago por carga #${payment.load_id}`,
+        description: `Pago CargaBack por carga #${payment.load_id}`,
       };
 
       if (payoutMethod === 'mercadopago') {
-        body.receiver = { email: payoutDestination };
+        body.receiver = { id: Number(driverMpUserId) };
       } else {
-        // cvu_cbu
-        body.receiver = { identification: { type: 'CVU', number: payoutDestination } };
+        // cvu_cbu o alias — payoutDestination es el CBU/CVU/alias
+        body.receiver = { identification: { number: payoutDestination } };
       }
 
       const res = await fetch('https://api.mercadopago.com/v1/transfers', {
@@ -208,14 +217,12 @@ export class PaymentsService {
       if (res.ok) {
         let parsed: Record<string, unknown> = {};
         try { parsed = JSON.parse(rawBody); } catch { /* noop */ }
-        const transferId = String(parsed['id'] ?? '');
-        return { success: true, transferId: transferId || undefined, httpStatus: res.status };
+        return { success: true, transferId: parsed['id'] ? String(parsed['id']) : undefined, httpStatus: res.status };
       }
 
-      return { success: false, httpStatus: res.status, mpError: rawBody.slice(0, 200), rawBody };
+      return { success: false, httpStatus: res.status, mpError: rawBody.slice(0, 300), rawBody };
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return { success: false, mpError: message };
+      return { success: false, mpError: err instanceof Error ? err.message : String(err) };
     }
   }
 
