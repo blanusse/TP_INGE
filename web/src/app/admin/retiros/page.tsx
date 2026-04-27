@@ -127,17 +127,15 @@ export default function AdminRetirosPage() {
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-                {p.mp_transfer_url && (
-                  <a
-                    href={p.mp_transfer_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ background: "#009ee3", color: "#fff", borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
-                  >
-                    <i className="fa-solid fa-arrow-up-right-from-square" style={{ marginRight: 6 }} />
-                    Transferir en MP
-                  </a>
-                )}
+                <a
+                  href="https://www.mercadopago.com.ar/activities"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ background: "#009ee3", color: "#fff", borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
+                >
+                  <i className="fa-solid fa-arrow-up-right-from-square" style={{ marginRight: 6 }} />
+                  Abrir MercadoPago
+                </a>
                 <button
                   onClick={() => markPaid(p.id)}
                   disabled={marking === p.id}
