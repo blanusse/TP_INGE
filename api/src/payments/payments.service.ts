@@ -144,12 +144,15 @@ export class PaymentsService {
 
     await this.paymentsRepo.save(payment);
 
-    const mpTransferUrl = this.buildMpTransferUrl(payoutMethod, payoutDestination.trim(), Number(payment.amount));
+    const COMMISSION_RATE = 0.10;
+    const netAmount = Math.round(Number(payment.amount) * (1 - COMMISSION_RATE) * 100) / 100;
+
+    const mpTransferUrl = this.buildMpTransferUrl(payoutMethod, payoutDestination.trim(), netAmount);
 
     return {
       ok: true,
       payment_id: payment.id,
-      amount: Number(payment.amount),
+      amount: netAmount,
       payout_method: payoutMethod,
       payout_destination: payoutDestination.trim(),
       payout_status: 'requested',
@@ -190,7 +193,7 @@ export class PaymentsService {
 
     return payments.map((p) => ({
       id: p.id,
-      amount: Number(p.amount),
+      amount: Math.round(Number(p.amount) * 0.90 * 100) / 100,
       payout_status: p.payout_status,
       payout_method: p.payout_method,
       payout_destination: p.payout_destination,
@@ -202,7 +205,7 @@ export class PaymentsService {
       driver_name: p.offer?.driver?.name ?? null,
       driver_email: p.offer?.driver?.email ?? null,
       mp_transfer_url: p.payout_status === 'requested' && p.payout_method && p.payout_destination
-        ? this.buildMpTransferUrl(p.payout_method, p.payout_destination, Number(p.amount))
+        ? this.buildMpTransferUrl(p.payout_method, p.payout_destination, Math.round(Number(p.amount) * 0.90 * 100) / 100)
         : null,
     }));
   }
