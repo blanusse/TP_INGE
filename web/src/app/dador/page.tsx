@@ -20,7 +20,7 @@ type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En trÃ
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
 interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
-interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; }
+interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null; }
 
 interface LoadDB {
   id: string;
@@ -79,6 +79,7 @@ function loadToCard(load: LoadDB): Carga {
     originLng: load.pickup_lon ? Number(load.pickup_lon) : null,
     destLat:   load.dropoff_lat ? Number(load.dropoff_lat) : null,
     destLng:   load.dropoff_lon ? Number(load.dropoff_lon) : null,
+    truckType: load.truck_type_required ?? null,
   };
 }
 
@@ -1289,6 +1290,7 @@ function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }
                   originLng={c.originLng}
                   destLat={c.destLat}
                   destLng={c.destLng}
+                  truckType={c.truckType}
                   height={280}
                 />
               </div>

@@ -3,6 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 
+const TRUCK_ICON: Record<string, string> = {
+  camion:      "/trucks/Camion.svg",
+  semi:        "/trucks/Semi.svg",
+  frigorifico: "/trucks/Frigorifico.svg",
+  cisterna:    "/trucks/Cisterna.svg",
+  acoplado:    "/trucks/Trailer.svg",
+  batea:       "/trucks/Batea.svg",
+};
+const DEFAULT_TRUCK_ICON = "/trucks/Camion.svg";
+
 interface TripMapProps {
   loadId: string;
   originLat?: number | null;
@@ -11,6 +21,7 @@ interface TripMapProps {
   destLng?: number | null;
   height?: number;
   isDriver?: boolean;
+  truckType?: string | null;
 }
 
 export default function TripMap({
@@ -21,6 +32,7 @@ export default function TripMap({
   destLng,
   height = 280,
   isDriver = false,
+  truckType,
 }: TripMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -105,7 +117,7 @@ export default function TripMap({
 
       const truckIcon = L.divIcon({
         className: "",
-        html: '<div style="width:33px;height:33px;overflow:hidden;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))"><img src="/trucks/batea.svg" style="width:33px;height:33px;display:block;object-fit:contain" /></div>',
+        html: `<div style="width:33px;height:33px;overflow:hidden;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))"><img src="${TRUCK_ICON[truckType ?? ""] ?? DEFAULT_TRUCK_ICON}" style="width:33px;height:33px;display:block;object-fit:contain" /></div>`,
         iconSize: [33, 33],
         iconAnchor: [17, 17],
       });

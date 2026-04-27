@@ -493,7 +493,7 @@ function TabCobros() {
   );
 }
 
-interface TripData { offerId: string; loadId: string; titulo: string; empresa: string; precio: number; fechaRetiro: string; pickupCity: string; dropoffCity: string; pickupExact: string | null; dropoffExact: string | null; pickupLat: number | null; pickupLon: number | null; dropoffLat: number | null; dropoffLon: number | null; status: string; yaCalifiqué: boolean; }
+interface TripData { offerId: string; loadId: string; titulo: string; empresa: string; precio: number; fechaRetiro: string; pickupCity: string; dropoffCity: string; pickupExact: string | null; dropoffExact: string | null; pickupLat: number | null; pickupLon: number | null; dropoffLat: number | null; dropoffLon: number | null; truckType: string | null; status: string; yaCalifiqué: boolean; }
 
 function ModalCalificarDador({ offerId, empresa, onClose }: { offerId: string; empresa: string; onClose: () => void }) {
   const [score, setScore] = useState(0);
@@ -780,6 +780,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
             originLng={t.pickupLon}
             destLat={t.dropoffLat}
             destLng={t.dropoffLon}
+            truckType={t.truckType}
             height={300}
             isDriver
           />
