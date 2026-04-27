@@ -75,7 +75,7 @@ export default function TripMap({
       if (destLat && destLng) {
         L.circleMarker([destLat, destLng], {
           radius: 8,
-          fillColor: "#dc2626",
+          fillColor: "#3b82f6",
           color: "white",
           weight: 2,
           fillOpacity: 1,

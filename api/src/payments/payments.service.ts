@@ -204,9 +204,7 @@ export class PaymentsService {
       dropoff_city: p.load?.dropoff_city ?? null,
       driver_name: p.offer?.driver?.name ?? null,
       driver_email: p.offer?.driver?.email ?? null,
-      mp_transfer_url: p.payout_status === 'requested' && p.payout_method && p.payout_destination
-        ? this.buildMpTransferUrl(p.payout_method, p.payout_destination, Math.round(Number(p.amount) * 0.90 * 100) / 100)
-        : null,
+      mp_transfer_url: null,
     }));
   }
 
