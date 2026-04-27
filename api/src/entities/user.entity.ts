@@ -35,10 +35,6 @@ export class User {
   @Column({ nullable: true })
   dni_photo_url: string;
 
-  // Estado de verificación de identidad
-  @Column({ default: 'pending' })
-  verification_status: string;
-
   // For fleet sub-drivers: points to the owner transportista
   @Column({ nullable: true, type: 'uuid' })
   fleet_id: string;

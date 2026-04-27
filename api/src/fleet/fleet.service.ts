@@ -231,7 +231,6 @@ export class FleetService {
       phone: body.phone?.trim() || null,
       dni: body.dni ? body.dni.replace(/\./g, '') : null,
       fleet_id: userId,
-      verification_status: 'pending',
     } as DeepPartial<User>);
     const saved = await this.usersRepo.save(driver);
     const { password_hash: _, ...result } = saved as any;
