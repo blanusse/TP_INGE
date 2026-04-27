@@ -62,7 +62,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ── Cómo funciona ────────────────────────────────────────────────────── */}
+      {/* ── Cómo funciona ──────────────────────────────────────────────────── */}
       <section id="como-funciona" style={{ padding: "96px 48px", maxWidth: 1000, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#3a806b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Proceso simple</div>
