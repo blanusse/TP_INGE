@@ -156,6 +156,7 @@ export class FleetService {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user || user.role !== 'transportista') throw new ForbiddenException('Solo transportistas pueden aceptar invitaciones.');
     if (user.email !== inv.email) throw new ForbiddenException('Esta invitación fue enviada a otro email.');
+    if (inv.fleet_owner_id === userId) throw new BadRequestException('No podés unirte a tu propia flota.');
 
     user.fleet_id = inv.fleet_owner_id;
     inv.status = 'accepted';
@@ -185,23 +186,10 @@ export class FleetService {
   }
 
   async getFleetDrivers(userId: string) {
-    const [fleetDrivers, owner] = await Promise.all([
-      this.usersRepo.find({
-        where: { fleet_id: userId },
-        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at'],
-      }),
-      this.usersRepo.findOne({
-        where: { id: userId },
-        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at', 'show_as_fleet_driver'],
-      }),
-    ]);
-
-    if (owner?.show_as_fleet_driver) {
-      const { show_as_fleet_driver: _, ...ownerData } = owner as any;
-      return [ownerData, ...fleetDrivers];
-    }
-
-    return fleetDrivers;
+    return this.usersRepo.find({
+      where: { fleet_id: userId },
+      select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at'],
+    });
   }
 
   async addFleetDriver(userId: string, body: { email: string; password: string; name: string; phone?: string; dni?: string }) {
@@ -211,7 +199,8 @@ export class FleetService {
     // Validaciones de nombre
     if (!body.name?.trim()) throw new BadRequestException('El nombre del conductor es requerido.');
 
-    // Email único
+    // Email único (y no puede ser el propio dueño)
+    if (body.email.toLowerCase() === owner.email.toLowerCase()) throw new BadRequestException('No podés agregarte a vos mismo como conductor.');
     const byEmail = await this.usersRepo.findOne({ where: { email: body.email.toLowerCase() } });
     if (byEmail) throw new ConflictException('Ya existe una cuenta con ese email.');
 
