@@ -1,6 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 
-export type UserRole = "transportista" | "dador";
+export type UserRole = "transportista" | "dador" | "admin";
 
 declare module "next-auth" {
   interface User {

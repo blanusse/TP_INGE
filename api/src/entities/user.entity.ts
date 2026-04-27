@@ -3,7 +3,7 @@ import {
   OneToOne, OneToMany, ManyToOne, JoinColumn,
 } from 'typeorm';
 
-export type UserRole = 'transportista' | 'shipper';
+export type UserRole = 'transportista' | 'shipper' | 'admin';
 
 @Entity('users')
 export class User {
