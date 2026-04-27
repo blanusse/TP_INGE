@@ -17,7 +17,7 @@ export class Offer {
   @Column({ type: 'uuid' })
   load_id: string;
 
-  @ManyToOne(() => Load)
+@ManyToOne(() => Load, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'load_id' })
   load: Load;
 
