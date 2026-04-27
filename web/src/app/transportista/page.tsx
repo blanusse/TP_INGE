@@ -917,7 +917,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
 
 function SeccionNotificaciones() {
   return (
-    <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760 }}>
+    <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760, margin: "0 auto", width: "100%" }}>
       <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 20 }}>Notificaciones</div>
       <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "1px solid var(--border)" }}>
         <div style={{ width: 60, height: 60, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
