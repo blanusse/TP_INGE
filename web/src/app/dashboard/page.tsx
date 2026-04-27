@@ -8,5 +8,12 @@ export default async function DashboardPage() {
   const role = session?.user?.role;
 
   if (role === "dador") redirect("/dador");
-  redirect("/transportista"); // transportistas (camioneros independientes y empresas de flota)
+  if (role === "admin") redirect("/admin");
+
+  // Transportistas: ruta según sub-tipo
+  const fleetId      = (session?.user as any)?.fleetId ?? null;
+  const isFleetOwner = (session?.user as any)?.isFleetOwner ?? false;
+  if (fleetId)      redirect("/empleado");
+  if (isFleetOwner) redirect("/flota");
+  redirect("/transportista");
 }

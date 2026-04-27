@@ -6,6 +6,7 @@ import { Shipper } from '../entities/shipper.entity';
 import { Load } from '../entities/load.entity';
 import { Offer } from '../entities/offer.entity';
 import { Rating } from '../entities/rating.entity';
+import { Truck } from '../entities/truck.entity';
 
 @Injectable()
 export class StatsService {
@@ -15,6 +16,7 @@ export class StatsService {
     @InjectRepository(Load) private loadsRepo: Repository<Load>,
     @InjectRepository(Offer) private offersRepo: Repository<Offer>,
     @InjectRepository(Rating) private ratingsRepo: Repository<Rating>,
+    @InjectRepository(Truck) private trucksRepo: Repository<Truck>,
   ) {}
 
   async getDriverStats(userId: string) {
@@ -89,6 +91,40 @@ export class StatsService {
     };
   }
 
+  async getDriverCobros(userId: string, from?: string, to?: string) {
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user || user.role !== 'transportista') throw new ForbiddenException();
+
+    const fromDate = from ? new Date(from) : null;
+    const toDate   = to   ? new Date(to)   : null;
+    if (fromDate) fromDate.setUTCHours(0, 0, 0, 0);
+    if (toDate)   toDate.setUTCHours(23, 59, 59, 999);
+
+    const offers = await this.offersRepo.find({
+      where: { driver_id: userId, status: 'accepted' },
+      relations: ['load', 'load.shipper', 'load.shipper.user'],
+      order: { created_at: 'DESC' },
+    });
+
+    const cobros = offers
+      .filter((o) => {
+        if (o.load?.status !== 'delivered') return false;
+        const d = new Date(o.created_at);
+        if (fromDate && d < fromDate) return false;
+        if (toDate   && d > toDate)   return false;
+        return true;
+      })
+      .map((o) => ({
+        id:     o.id,
+        fecha:  new Date(o.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        dador:  o.load?.shipper?.razon_social ?? o.load?.shipper?.user?.name ?? 'Dador',
+        ruta:   `${o.load?.pickup_city ?? ''} \u2192 ${o.load?.dropoff_city ?? ''}`,
+        monto:  Number(o.price),
+      }));
+
+    return { cobros };
+  }
+
   async getFleetStats(userId: string, from?: string, to?: string, driverId?: string) {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user || user.role !== 'transportista') throw new ForbiddenException();
@@ -101,7 +137,8 @@ export class StatsService {
 
     const fromDate = from ? new Date(from) : null;
     const toDate   = to   ? new Date(to)   : null;
-    if (toDate) toDate.setHours(23, 59, 59, 999);
+    if (fromDate) fromDate.setUTCHours(0, 0, 0, 0);
+    if (toDate)   toDate.setUTCHours(23, 59, 59, 999);
 
     const offers = await this.offersRepo.find({
       where: { driver_id: In(targetIds), status: 'accepted' },
@@ -143,12 +180,25 @@ export class StatsService {
       .where('r.to_user_id IN (:...ids)', { ids: allDriverIds })
       .getRawOne();
 
+    const fleetTrucks = await this.trucksRepo.find({ where: { owner_id: userId } });
+    const perTruck = fleetTrucks.map((t) => {
+      const tOffers = delivered.filter((o) => o.truck_id === t.id);
+      return {
+        id:       t.id,
+        viajes:   tOffers.length,
+        ingresos: tOffers.reduce((sum, o) => sum + Number(o.price), 0),
+      };
+    });
+
     return {
       totalViajes,
       totalIngresos,
+      totalConductores: subDrivers.length + 1,
+      totalCamiones: fleetTrucks.length,
       mejorConductor: mejorConductor ? { name: mejorConductor.name, viajes: mejorConductor.viajes } : null,
       calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,
       perConductor,
+      perTruck,
     };
   }
 

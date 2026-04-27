@@ -61,7 +61,7 @@ function ExitoContent() {
               El dinero quedó reservado en CargaBack. El camionero puede iniciar el viaje con la garantía de cobro.
             </div>
             <div style={{ background: "#f0fdf4", border: "0.5px solid #bbf7d0", borderRadius: "var(--border-radius-md)", padding: "12px 16px", marginBottom: 28, fontSize: 13, color: "#15803d" }}>
-              Podés chatear con el camionero desde la sección <strong>Mensajes</strong> para coordinar la entrega.
+              El pago fue acreditado. Podés chatear con el camionero desde <strong>Mensajes</strong> para coordinar la entrega.
             </div>
             <button
               onClick={() => router.push("/dador")}

@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
           pending: `${appUrl}/pago/fallo?offerId=${offerId}&loadId=${loadId}`,
         },
         auto_return: "approved",
+        binary_mode: true,
         statement_descriptor: "CARGABACK",
         notification_url: `${appUrl}/api/payments/webhook`,
       },

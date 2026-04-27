@@ -49,32 +49,54 @@ export class MailService {
       .map(
         (r) => `
       <tr>
-        <td style="padding:8px 12px;font-weight:bold;background:#f5f5f5;border:1px solid #e0e0e0;">${r.label}</td>
-        <td style="padding:8px 12px;border:1px solid #e0e0e0;">${r.value}</td>
+        <td class="td-label" style="padding:8px 12px;font-weight:bold;background:#f4f7f5;border:1px solid #ddeae4;color:#4a6b5e;">${r.label}</td>
+        <td class="td-value" style="padding:8px 12px;border:1px solid #ddeae4;color:#0f1f19;">${r.value}</td>
       </tr>`,
       )
       .join('');
 
     return `<!DOCTYPE html>
-<html>
-  <body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;">
-    <div style="background:#1a56db;padding:20px;text-align:center;">
+<html lang="es">
+<head>
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #0f1f19; background: #f4f7f5; }
+    .email-body { background: #ffffff; padding: 24px; }
+    .email-footer { padding: 16px; text-align: center; font-size: 12px; color: #8aab9e; border-top: 1px solid #ddeae4; background: #f4f7f5; }
+    .email-text { color: #4a6b5e; }
+    .td-label { padding: 8px 12px; font-weight: bold; background: #f4f7f5; border: 1px solid #ddeae4; color: #4a6b5e; }
+    .td-value { padding: 8px 12px; border: 1px solid #ddeae4; color: #0f1f19; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0a0a0a !important; color: #e8f0eb !important; }
+      .email-body { background: #111111 !important; }
+      .email-footer { background: #0a0a0a !important; color: #4d6357 !important; border-top-color: rgba(255,255,255,0.08) !important; }
+      .email-text { color: #8fa896 !important; }
+      .td-label { background: #1a1a1a !important; border-color: rgba(255,255,255,0.1) !important; color: #8fa896 !important; }
+      .td-value { border-color: rgba(255,255,255,0.1) !important; color: #e8f0eb !important; }
+      h1, h2, p, strong { color: #e8f0eb !important; }
+    }
+  </style>
+</head>
+  <body>
+    <div style="background:#3a806b;padding:20px;text-align:center;">
       <h1 style="color:white;margin:0;font-size:22px;">CargaBack</h1>
     </div>
-    <div style="padding:24px;">
+    <div class="email-body">
       <p>Hola <strong>${dadorName}</strong>,</p>
-      <p>${intro}</p>
+      <p class="email-text">${intro}</p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
         ${rowsHtml}
       </table>
       <div style="text-align:center;margin-top:28px;">
         <a href="${ctaUrl}"
-           style="background:#1a56db;color:white;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">
+           style="background:#3a806b;color:white;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">
           Ver oferta →
         </a>
       </div>
     </div>
-    <div style="padding:16px;text-align:center;font-size:12px;color:#888;border-top:1px solid #eee;">
+    <div class="email-footer">
       CargaBack — No respondas este mail directamente.
     </div>
   </body>
@@ -213,6 +235,58 @@ export class MailService {
         ctaUrl,
       ),
     });
+  }
+
+  async sendInvitacionFlota(opts: { email: string; ownerName: string; token: string }) {
+    const frontendUrl = this.config.get('FRONTEND_URL') ?? 'http://localhost:3000';
+    const link = `${frontendUrl}/invitacion/${opts.token}`;
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #0f1f19; background: #f4f7f5; }
+    .email-body { background: #ffffff; padding: 24px; }
+    .email-footer { padding: 16px; text-align: center; font-size: 12px; color: #8aab9e; border-top: 1px solid #ddeae4; background: #f4f7f5; }
+    .email-text { color: #4a6b5e; }
+    .info-box { background: #e0f0ea; border: 1px solid #b0d4c8; border-radius: 8px; padding: 16px; margin: 20px 0; }
+    .info-box p { margin: 0; font-size: 13px; color: #2e6656; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0a0a0a !important; color: #e8f0eb !important; }
+      .email-body { background: #111111 !important; }
+      .email-footer { background: #0a0a0a !important; color: #4d6357 !important; border-top-color: rgba(255,255,255,0.08) !important; }
+      .email-text { color: #8fa896 !important; }
+      .info-box { background: rgba(58,128,107,0.15) !important; border-color: rgba(58,128,107,0.3) !important; }
+      .info-box p { color: #3a806b !important; }
+      h1, h2, p, strong { color: #e8f0eb !important; }
+    }
+  </style>
+</head>
+<body>
+    <div style="background:#3a806b;padding:20px;text-align:center;">
+      <h1 style="color:white;margin:0;font-size:22px;">CargaBack</h1>
+    </div>
+    <div class="email-body">
+      <p>Hola,</p>
+      <p class="email-text"><strong style="color:#0f1f19;">${opts.ownerName}</strong> te invita a unirte a su flota en CargaBack como conductor.</p>
+      <p class="email-text">Al aceptar, tu cuenta quedará vinculada a su flota y podrá gestionar tus viajes.</p>
+      <div class="info-box">
+        <p>Este enlace es de <strong>uso único</strong> y vence en <strong>48 horas</strong>. Una vez abierto, no podrá usarse nuevamente.</p>
+      </div>
+      <div style="text-align:center;margin-top:28px;">
+        <a href="${link}" style="background:#3a806b;color:white;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">
+          Ver invitación →
+        </a>
+      </div>
+    </div>
+    <div class="email-footer">
+      CargaBack — No respondas este mail directamente.
+    </div>
+</body>
+</html>`;
+    await this.send({ to: opts.email, subject: `${opts.ownerName} te invita a su flota en CargaBack`, html });
   }
 
   private async send(opts: { to: string; subject: string; html: string }) {

@@ -5,11 +5,12 @@ import { Shipper } from '../entities/shipper.entity';
 import { Load } from '../entities/load.entity';
 import { Offer } from '../entities/offer.entity';
 import { Rating } from '../entities/rating.entity';
+import { Truck } from '../entities/truck.entity';
 import { StatsController } from './stats.controller';
 import { StatsService } from './stats.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Shipper, Load, Offer, Rating])],
+  imports: [TypeOrmModule.forFeature([User, Shipper, Load, Offer, Rating, Truck])],
   controllers: [StatsController],
   providers: [StatsService],
 })

@@ -44,4 +44,11 @@ export class Truck {
 
   @Column({ nullable: true })
   patente_remolque: string;
+
+  // URLs de documentos subidos a Supabase Storage
+  @Column({ nullable: true })
+  vtv_doc_url: string;
+
+  @Column({ nullable: true })
+  seguro_doc_url: string;
 }

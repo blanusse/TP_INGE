@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request, Headers, UnauthorizedException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { LoadsService } from './loads.service';
 
@@ -35,15 +35,16 @@ export class LoadsController {
     return this.loadsService.markInTransitByOffer(offerId);
   }
 
+  @Delete(':loadId')
+  @UseGuards(JwtAuthGuard)
+  deleteLoad(@Request() req, @Param('loadId') loadId: string) {
+    return this.loadsService.deleteLoad(req.user.id, loadId);
+  }
+
   @Patch(':loadId/in-transit')
   @UseGuards(JwtAuthGuard)
   markInTransit(@Request() req, @Param('loadId') loadId: string) {
     return this.loadsService.markInTransit(req.user.id, loadId);
   }
 
-  @Patch(':loadId/confirm')
-  @UseGuards(JwtAuthGuard)
-  confirmDelivery(@Request() req, @Param('loadId') loadId: string) {
-    return this.loadsService.confirmDelivery(req.user.id, loadId);
-  }
 }
