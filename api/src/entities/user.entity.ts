@@ -35,10 +35,6 @@ export class User {
   @Column({ nullable: true })
   dni_photo_url: string;
 
-  // Estado de verificación de identidad
-  @Column({ default: 'pending' })
-  verification_status: string;
-
   // For fleet sub-drivers: points to the owner transportista
   @Column({ nullable: true, type: 'uuid' })
   fleet_id: string;
@@ -49,6 +45,10 @@ export class User {
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'fleet_id' })
   fleet_owner: User;
+
+  // MercadoPago OAuth — se completa cuando el transportista conecta su cuenta MP
+  @Column({ nullable: true, type: 'varchar' })
+  mp_user_id: string;
 
   @CreateDateColumn()
   created_at: Date;
