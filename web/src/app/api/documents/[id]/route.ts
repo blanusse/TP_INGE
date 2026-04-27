@@ -5,15 +5,16 @@ const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:3001";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const session = await auth();
   if (!session || session.user.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json();
-  const res = await fetch(`${BACKEND_URL}/documents/${params.id}`, {
+  const res = await fetch(`${BACKEND_URL}/documents/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
