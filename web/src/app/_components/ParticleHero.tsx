@@ -14,8 +14,8 @@ class Particle {
   vel: Vec2 = { x: 0, y: 0 }
   acc: Vec2 = { x: 0, y: 0 }
   target: Vec2 = { x: 0, y: 0 }
-  maxSpeed = 5
-  maxForce = 0.25
+  maxSpeed = 3
+  maxForce = 0.05
   closeEnoughTarget = 100
   isKilled = false
   startColor: RGB = { r: 0, g: 0, b: 0 }
@@ -79,7 +79,7 @@ function spawnOrRecycle(pool: Particle[], index: number, w: number, h: number): 
   const angle = Math.random() * Math.PI * 2
   const mag = (w + h) / 2
   p.pos = { x: w / 2 + Math.cos(angle) * mag * Math.random(), y: h / 2 + Math.sin(angle) * mag * Math.random() }
-  p.maxSpeed = Math.random() * 5 + 3
+  p.maxSpeed = Math.random() * 1.5 + 2
   p.maxForce = p.maxSpeed * 0.05
   p.colorBlendRate = Math.random() * 0.02 + 0.005
   pool.push(p)
@@ -225,7 +225,7 @@ export function ParticleHero() {
 
         frame.current++
 
-        if (frame.current === 420 && phase.current === "map") {
+        if (frame.current === 880 && phase.current === "map") {
           phase.current = "text"
           showText(canvas, pool.current)
         }
