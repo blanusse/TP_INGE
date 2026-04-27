@@ -206,7 +206,7 @@ export class FleetService {
     ]);
 
     const alreadyInList = fleetDrivers.some((d) => d.id === userId);
-    if (owner?.show_as_fleet_driver && !alreadyInList) {
+    if (owner?.show_as_fleet_driver !== false && !alreadyInList) {
       const { show_as_fleet_driver: _, ...ownerData } = owner as any;
       return [ownerData, ...fleetDrivers];
     }
