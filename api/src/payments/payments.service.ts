@@ -170,6 +170,55 @@ export class PaymentsService {
     };
   }
 
+  private async initiatePayoutTransfer(
+    payment: Payment,
+    payoutMethod: string,
+    payoutDestination: string,
+  ): Promise<{ success: boolean; transferId?: string; mpError?: string; httpStatus?: number; rawBody?: string }> {
+    const accessToken = process.env.MP_ACCESS_TOKEN;
+    if (!accessToken) {
+      return { success: false, mpError: 'MP_ACCESS_TOKEN no configurado' };
+    }
+
+    try {
+      const body: Record<string, unknown> = {
+        amount: Number(payment.amount),
+        currency_id: 'ARS',
+        description: `Pago por carga #${payment.load_id}`,
+      };
+
+      if (payoutMethod === 'mercadopago') {
+        body.receiver = { email: payoutDestination };
+      } else {
+        // cvu_cbu
+        body.receiver = { identification: { type: 'CVU', number: payoutDestination } };
+      }
+
+      const res = await fetch('https://api.mercadopago.com/v1/transfers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      const rawBody = await res.text();
+
+      if (res.ok) {
+        let parsed: Record<string, unknown> = {};
+        try { parsed = JSON.parse(rawBody); } catch { /* noop */ }
+        const transferId = String(parsed['id'] ?? '');
+        return { success: true, transferId: transferId || undefined, httpStatus: res.status };
+      }
+
+      return { success: false, httpStatus: res.status, mpError: rawBody.slice(0, 200), rawBody };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, mpError: message };
+    }
+  }
+
   async getMyPayments(userId: string) {
     const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
     if (!shipper) throw new ForbiddenException();
