@@ -13,7 +13,7 @@ type NavItem = "Inicio" | "Buscar cargas" | "Planificar viaje" | "Mis ofertas" |
 type DashboardMode = "individual" | "flota" | "empleado";
 
 const NAV_ITEMS_BY_MODE: Record<DashboardMode, NavItem[]> = {
-  individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Notificaciones"],
+  individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Mi flota", "Notificaciones"],
   flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Notificaciones", "Mi perfil"],
   empleado:   ["Mis viajes", "Mi perfil", "Notificaciones"],
 };
