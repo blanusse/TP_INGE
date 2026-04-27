@@ -20,7 +20,7 @@ type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tr√
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
 interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
-interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; }
+interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; }
 
 interface LoadDB {
   id: string;
@@ -36,6 +36,10 @@ interface LoadDB {
   created_at: string;
   offer_count?: number;
   accepted_offer?: AcceptedOffer | null;
+  pickup_lat?: number | null;
+  pickup_lon?: number | null;
+  dropoff_lat?: number | null;
+  dropoff_lon?: number | null;
 }
 
 const TRUCK_LABEL: Record<string, string> = {
@@ -71,6 +75,10 @@ function loadToCard(load: LoadDB): Carga {
     ofertasDetalle: [],
     status:       load.status,
     acceptedOffer: load.accepted_offer ?? null,
+    originLat: load.pickup_lat ? Number(load.pickup_lat) : null,
+    originLng: load.pickup_lon ? Number(load.pickup_lon) : null,
+    destLat:   load.dropoff_lat ? Number(load.dropoff_lat) : null,
+    destLng:   load.dropoff_lon ? Number(load.dropoff_lon) : null,
   };
 }
 
@@ -1235,7 +1243,14 @@ function SeccionMisEnvios({ cargas, onRefresh }: { cargas: Carga[]; onRefresh: (
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#16a34a", display: "inline-block", animation: "pulse 1.5s infinite" }} />
                   Ubicaci√≥n en tiempo real
                 </div>
-                <TripMap loadId={c.id} height={280} />
+                <TripMap
+                  loadId={c.id}
+                  originLat={c.originLat}
+                  originLng={c.originLng}
+                  destLat={c.destLat}
+                  destLng={c.destLng}
+                  height={280}
+                />
               </div>
             )}
           </div>
