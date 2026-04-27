@@ -240,7 +240,6 @@ export class FleetService {
       dni: body.dni ? body.dni.replace(/\./g, '') : null,
       fleet_id: userId,
       is_verified: true,
-      verification_status: 'pending',
     } as DeepPartial<User>);
     const saved = await this.usersRepo.save(driver);
 

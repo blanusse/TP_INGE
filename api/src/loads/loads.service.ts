@@ -118,6 +118,19 @@ export class LoadsService {
     return this.loadsRepo.save(load);
   }
 
+  async deleteLoad(userId: string, loadId: string) {
+    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+    if (!shipper) throw new ForbiddenException();
+
+    const load = await this.loadsRepo.findOne({ where: { id: loadId } });
+    if (!load) throw new NotFoundException('Carga no encontrada.');
+    if (load.shipper_id !== shipper.id) throw new ForbiddenException();
+    if (load.status !== 'available') throw new BadRequestException('Solo se pueden eliminar cargas sin ofertas aceptadas.');
+
+    await this.loadsRepo.remove(load);
+    return { deleted: true };
+  }
+
   async confirmDelivery(userId: string, loadId: string) {
     const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
     if (!shipper) throw new ForbiddenException();
