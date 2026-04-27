@@ -142,88 +142,43 @@ export class PaymentsService {
       await this.loadsRepo.save(load);
     }
 
-    // Buscar el mp_user_id del transportista (si vinculó su cuenta MP via OAuth)
-    const driver = await this.usersRepo.findOne({ where: { id: driverId } });
-
-    // Intentar la transferencia a MercadoPago
-    const transfer = await this.initiatePayoutTransfer(payment, payoutMethod, payoutDestination.trim(), driver?.mp_user_id ?? undefined);
-    if (transfer.success && transfer.transferId) {
-      payment.payout_status = 'done';
-      payment.payout_transfer_id = transfer.transferId;
-    } else if (transfer.mpError === 'MP_ACCESS_TOKEN no configurado') {
-      payment.payout_status = 'requested';
-    } else {
-      // Guardar el error en payout_transfer_id para debugging (si no hay otro uso)
-      payment.payout_status = 'transfer_failed';
-      payment.payout_transfer_id = `ERR|${transfer.httpStatus ?? 0}|${(transfer.mpError ?? '').slice(0, 100)}`;
-    }
     await this.paymentsRepo.save(payment);
+
+    const mpTransferUrl = this.buildMpTransferUrl(payoutMethod, payoutDestination.trim(), Number(payment.amount));
 
     return {
       ok: true,
+      payment_id: payment.id,
       amount: Number(payment.amount),
       payout_method: payoutMethod,
-      transfer_initiated: transfer.success,
-      transfer_id: transfer.transferId ?? null,
-      transfer_error: transfer.success ? null : {
-        httpStatus: transfer.httpStatus,
-        message: transfer.mpError,
-        rawBody: transfer.rawBody,
-      },
+      payout_destination: payoutDestination.trim(),
+      payout_status: 'requested',
+      mp_transfer_url: mpTransferUrl,
     };
   }
 
-  private async initiatePayoutTransfer(
-    payment: Payment,
-    payoutMethod: string,
-    payoutDestination: string,
-    driverMpUserId?: string,
-  ): Promise<{ success: boolean; transferId?: string; mpError?: string; httpStatus?: number; rawBody?: string }> {
-    const accessToken = process.env.MP_ACCESS_TOKEN;
-    if (!accessToken) {
-      return { success: false, mpError: 'MP_ACCESS_TOKEN no configurado' };
+  private buildMpTransferUrl(payoutMethod: string, payoutDestination: string, amount: number): string {
+    // Link a la página de transferencias de MP con los datos pre-completados
+    const base = 'https://www.mercadopago.com.ar/transfers/new';
+    const params = new URLSearchParams({ amount: String(amount) });
+
+    if (payoutMethod === 'mercadopago') {
+      params.set('recipient', payoutDestination); // email o alias de MP
+    } else {
+      // cvu_cbu o alias bancario
+      params.set('recipient', payoutDestination);
     }
 
-    // Para transferir a una cuenta MP necesitamos el mp_user_id del transportista (OAuth)
-    if (payoutMethod === 'mercadopago' && !driverMpUserId) {
-      return { success: false, mpError: 'El transportista no vinculó su cuenta MercadoPago' };
-    }
+    return `${base}?${params.toString()}`;
+  }
 
-    try {
-      const body: Record<string, unknown> = {
-        amount: Number(payment.amount),
-        currency_id: 'ARS',
-        description: `Pago CargaBack por carga #${payment.load_id}`,
-      };
+  async markPayoutDone(paymentId: string) {
+    const payment = await this.paymentsRepo.findOne({ where: { id: paymentId } });
+    if (!payment) throw new NotFoundException('Pago no encontrado.');
 
-      if (payoutMethod === 'mercadopago') {
-        body.receiver = { id: Number(driverMpUserId) };
-      } else {
-        // cvu_cbu o alias — payoutDestination es el CBU/CVU/alias
-        body.receiver = { identification: { number: payoutDestination } };
-      }
-
-      const res = await fetch('https://api.mercadopago.com/v1/transfers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const rawBody = await res.text();
-
-      if (res.ok) {
-        let parsed: Record<string, unknown> = {};
-        try { parsed = JSON.parse(rawBody); } catch { /* noop */ }
-        return { success: true, transferId: parsed['id'] ? String(parsed['id']) : undefined, httpStatus: res.status };
-      }
-
-      return { success: false, httpStatus: res.status, mpError: rawBody.slice(0, 300), rawBody };
-    } catch (err: unknown) {
-      return { success: false, mpError: err instanceof Error ? err.message : String(err) };
-    }
+    payment.payout_status = 'done';
+    await this.paymentsRepo.save(payment);
+    return { ok: true };
   }
 
   async getMyPayments(userId: string) {
