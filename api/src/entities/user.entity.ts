@@ -22,17 +22,17 @@ export class User {
   @Column({ type: 'varchar' })
   role: UserRole;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   phone: string | null;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   dni: string | null;
 
   @Column({ default: false })
   is_verified: boolean;
 
   // URL de la foto del DNI subida a Supabase Storage
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   dni_photo_url: string | null;
 
   // For fleet sub-drivers: points to the owner transportista
@@ -52,6 +52,7 @@ export class User {
   // MercadoPago OAuth — se completa cuando el transportista conecta su cuenta MP
   @Column({ nullable: true, type: 'varchar' })
   mp_user_id: string | null;
+
 
   @CreateDateColumn()
   created_at: Date;
