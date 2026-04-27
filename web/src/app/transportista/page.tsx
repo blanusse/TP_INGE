@@ -10,6 +10,18 @@ import { signOut, useSession } from "next-auth/react";
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
 type NavItem = "Inicio" | "Buscar cargas" | "Planificar viaje" | "Mis ofertas" | "Mis viajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
+type DashboardMode = "individual" | "flota" | "empleado";
+
+const NAV_ITEMS_BY_MODE: Record<DashboardMode, NavItem[]> = {
+  individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Mi flota", "Notificaciones"],
+  flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Notificaciones", "Mi perfil"],
+  empleado:   ["Mis viajes", "Mi perfil", "Notificaciones"],
+};
+const DEFAULT_NAV: Record<DashboardMode, NavItem> = {
+  individual: "Inicio",
+  flota:      "Mi flota",
+  empleado:   "Mis viajes",
+};
 type SortKey = "Mayor precio" | "Menor precio" | "Más cercano" | "Fecha de retiro";
 
 interface ModalOfertaState {
@@ -1223,9 +1235,12 @@ function ModalConfirmarEliminar({ mensaje, onConfirmar, onCancelar }: { mensaje:
 interface FleetStats {
   totalViajes: number;
   totalIngresos: number;
+  totalConductores: number;
+  totalCamiones: number;
   mejorConductor: { name: string; viajes: number } | null;
   calificacionPromedio: string | null;
   perConductor: { id: string; name: string; viajes: number; ingresos: number }[];
+  perTruck: { id: string; viajes: number; ingresos: number }[];
 }
 
 function TabEstadisticas({ drivers }: { drivers: Driver[] }) {
@@ -1341,7 +1356,9 @@ function TabEstadisticas({ drivers }: { drivers: Driver[] }) {
   );
 }
 
-function SeccionMiFlota({ ownerId }: { ownerId: string }) {
+function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: DashboardMode }) {
+  const tabsDisponibles: ("Camiones" | "Conductores" | "Estadísticas")[] =
+    mode === "individual" ? ["Camiones"] : ["Camiones", "Conductores", "Estadísticas"];
   const [tabFlota, setTabFlota] = useState<"Camiones" | "Conductores" | "Estadísticas">("Camiones");
   const [trucks, setTrucks] = useState<TruckData[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -1356,6 +1373,7 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
   const [emailInvitar, setEmailInvitar] = useState("");
   const [invitando, setInvitando] = useState(false);
   const [invitacionMsg, setInvitacionMsg] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
+  const [fleetStats, setFleetStats] = useState<FleetStats | null>(null);
 
   const enviarInvitacion = async () => {
     if (!emailInvitar.trim()) return;
@@ -1370,7 +1388,10 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
   useEffect(() => {
     fetch("/api/fleet/trucks").then((r) => r.json()).then((d) => { if (d.trucks) setTrucks(d.trucks); }).catch(() => {}).finally(() => setLoadingTrucks(false));
     fetch("/api/fleet/drivers").then((r) => r.json()).then((d) => { if (d.drivers) setDrivers(d.drivers); }).catch(() => {}).finally(() => setLoadingDrivers(false));
-  }, []);
+    if (mode === "flota") {
+      fetch("/api/fleet/stats").then((r) => r.json()).then((d) => { if (d.totalViajes !== undefined) setFleetStats(d); }).catch(() => {});
+    }
+  }, [mode]);
 
   return (
     <main style={{ padding: "20px 24px", flex: 1, maxWidth: 900, margin: "0 auto", width: "100%" }}>
@@ -1395,7 +1416,7 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>Mi flota</div>
-        {tabFlota !== "Estadísticas" && (
+        {tabFlota !== "Estadísticas" && (tabFlota === "Camiones" || mode !== "individual") && (
           <button
             onClick={() => tabFlota === "Camiones" ? setModalCamion(true) : setModalConductor(true)}
             style={{ fontSize: 13, padding: "8px 18px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
@@ -1404,12 +1425,34 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
         )}
       </div>
 
+      {/* KPI resumen — solo modo flota */}
+      {mode === "flota" && fleetStats && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
+          {[
+            { label: "Viajes totales", value: String(fleetStats.totalViajes), icon: "fa-solid fa-route" },
+            { label: "Ingresos totales", value: `$${fleetStats.totalIngresos.toLocaleString("es-AR")}`, icon: "fa-solid fa-dollar-sign" },
+            { label: "Conductores", value: String(fleetStats.totalConductores ?? drivers.length), icon: "fa-solid fa-id-card" },
+            { label: "Camiones", value: String(fleetStats.totalCamiones ?? trucks.length), icon: "fa-solid fa-truck-front" },
+          ].map(({ label, value, icon }) => (
+            <div key={label} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, padding: "16px 18px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <i className={icon} style={{ fontSize: 13, color: "var(--color-brand)" }} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--color-text-primary)", lineHeight: 1 }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Tabs */}
-      <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 2, marginBottom: 20 }}>
-        {(["Camiones", "Conductores", "Estadísticas"] as const).map((t) => (
-          <button key={t} onClick={() => setTabFlota(t)} style={{ fontSize: 14, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", background: tabFlota === t ? "var(--color-background-primary)" : "transparent", color: tabFlota === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabFlota === t ? 600 : 400, boxShadow: tabFlota === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>{t}</button>
-        ))}
-      </div>
+      {tabsDisponibles.length > 1 && (
+        <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 2, marginBottom: 20 }}>
+          {tabsDisponibles.map((t) => (
+            <button key={t} onClick={() => setTabFlota(t)} style={{ fontSize: 14, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", background: tabFlota === t ? "var(--color-background-primary)" : "transparent", color: tabFlota === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabFlota === t ? 600 : 400, boxShadow: tabFlota === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>{t}</button>
+          ))}
+        </div>
+      )}
 
       {/* Camiones */}
       {tabFlota === "Camiones" && (
@@ -1442,6 +1485,16 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
                       <div key={label}><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div><div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{val}</div></div>
                     ))}
                   </div>
+                  {mode === "flota" && fleetStats && (() => {
+                    const ts = fleetStats.perTruck?.find((p) => p.id === t.id);
+                    if (!ts) return null;
+                    return (
+                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: "0.5px solid var(--color-border-tertiary)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Viajes realizados</div><div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>{ts.viajes}</div></div>
+                        <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Ingresos</div><div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-brand)" }}>${ts.ingresos.toLocaleString("es-AR")}</div></div>
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
@@ -2257,9 +2310,9 @@ function OnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void; onNa
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function TransportistaDashboard() {
+export default function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode }) {
   const { data: session } = useSession();
-  const [navActivo, setNavActivo] = useState<NavItem>("Inicio");
+  const [navActivo, setNavActivo] = useState<NavItem>(DEFAULT_NAV[mode]);
   const [modalOferta, setModalOferta] = useState<ModalOfertaState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
@@ -2298,7 +2351,7 @@ export default function TransportistaDashboard() {
 
   const mostrarToast = (msg: string) => setToast(msg);
 
-  const navItems: NavItem[] = ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Notificaciones", "Mi flota"];
+  const navItems = NAV_ITEMS_BY_MODE[mode];
   const NAV_ICONS: Record<NavItem, string> = {
     "Inicio": "fa-solid fa-house",
     "Buscar cargas": "fa-solid fa-magnifying-glass",
@@ -2346,7 +2399,7 @@ export default function TransportistaDashboard() {
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
-        {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} />}
+        {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} mode={mode} />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>
 
