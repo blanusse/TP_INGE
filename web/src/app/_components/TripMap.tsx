@@ -117,7 +117,7 @@ export default function TripMap({
 
       const truckIcon = L.divIcon({
         className: "",
-        html: `<div style="width:33px;height:33px;overflow:hidden;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))"><img src="${TRUCK_ICON[truckType ?? ""] ?? DEFAULT_TRUCK_ICON}" style="width:33px;height:33px;display:block;object-fit:contain" /></div>`,
+        html: `<div style="width:33px;height:33px;overflow:hidden;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))"><img src="${TRUCK_ICON[truckType ?? ""] ?? DEFAULT_TRUCK_ICON}" style="width:33px;height:33px;display:block;object-fit:contain;filter:brightness(0) saturate(100%) invert(43%) sepia(18%) saturate(1000%) hue-rotate(124deg) brightness(82%)" /></div>`,
         iconSize: [33, 33],
         iconAnchor: [17, 17],
       });
