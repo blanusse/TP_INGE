@@ -5,8 +5,8 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
-type Perfil    = "transportista" | "dador";
-type Paso      = "inicio" | "perfil" | "dador-tipo" | "login" | "registro";
+type Perfil    = "transportista" | "flota" | "empleado" | "dador";
+type Paso      = "inicio" | "perfil" | "dador-tipo" | "empleado-token" | "login" | "registro";
 type TipoDador = "personal" | "empresa";
 
 function LoginInner() {
@@ -22,10 +22,14 @@ function LoginInner() {
     const modo      = searchParams.get("modo");
     const perfilP   = searchParams.get("perfil") as Perfil | null;
     const fromP     = searchParams.get("from");
+    const tokenP    = searchParams.get("token");
     if (fromP) setFrom(fromP);
     if (perfilP) setPerfil(perfilP);
+    if (tokenP) setInvitationToken(tokenP);
     if (modo === "login")                         setPaso("login");
-    else if (modo === "registro" && perfilP)      setPaso(perfilP === "dador" ? "dador-tipo" : "registro");
+    else if (modo === "registro" && perfilP === "dador")   setPaso("dador-tipo");
+    else if (modo === "registro" && perfilP === "empleado") { setPaso("empleado-token"); }
+    else if (modo === "registro" && perfilP)      setPaso("registro");
     else if (modo === "registro")                 setPaso("perfil");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -36,13 +40,50 @@ function LoginInner() {
   const [password, setPassword]   = useState("");
   const [mostrarPwd, setMostrarPwd]       = useState(false);
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
-  const [razonSocial, setRazonSocial] = useState("");
-  const [cuit, setCuit]               = useState("");
-  const [direccion, setDireccion]     = useState("");
+  const [razonSocial, setRazonSocial]         = useState("");
+  const [cuit, setCuit]                       = useState("");
+  const [direccion, setDireccion]             = useState("");
+  const [invitationToken, setInvitationToken] = useState("");
+  const [invitacionInfo, setInvitacionInfo]   = useState<{ ownerName: string; email: string } | null>(null);
+  const [tokenError, setTokenError]           = useState("");
   const [error, setError]             = useState("");
   const [isPending, startTransition]  = useTransition();
   const [emailDisponible, setEmailDisponible]         = useState<boolean | null>(null);
   const [telefonoDisponible, setTelefonoDisponible]   = useState<boolean | null>(null);
+  const [dniDisponible, setDniDisponible]             = useState<boolean | null>(null);
+  const [cuitDisponible, setCuitDisponible]           = useState<boolean | null>(null);
+
+  // Verificación en tiempo real: DNI
+  useEffect(() => {
+    if (paso !== "registro") return;
+    const necesitaDni = perfil === "transportista" || perfil === "flota" || perfil === "empleado" || (perfil === "dador" && tipoDador === "personal");
+    if (!necesitaDni || !/^\d{7,8}$/.test(dni)) { setDniDisponible(null); return; }
+    setDniDisponible(null);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check?field=dni&value=${encodeURIComponent(dni)}`);
+        const { available } = await res.json();
+        setDniDisponible(available);
+      } catch { /* ignorar */ }
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [dni, paso, perfil, tipoDador]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Verificación en tiempo real: CUIT
+  useEffect(() => {
+    if (paso !== "registro" || perfil !== "dador" || tipoDador !== "empresa") return;
+    const digitos = cuit.replace(/\D/g, "");
+    if (digitos.length < 11) { setCuitDisponible(null); return; }
+    setCuitDisponible(null);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check?field=cuit&value=${encodeURIComponent(cuit)}`);
+        const { available } = await res.json();
+        setCuitDisponible(available);
+      } catch { /* ignorar */ }
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [cuit, paso, perfil, tipoDador]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Verificación en tiempo real: email
   useEffect(() => {
@@ -79,6 +120,7 @@ function LoginInner() {
   const resetForm = () => {
     setNombre(""); setDni(""); setTelefono(""); setEmail(""); setPassword("");
     setRazonSocial(""); setCuit(""); setDireccion("");
+    setInvitationToken(""); setInvitacionInfo(null); setTokenError("");
     setAceptaTerminos(false); setError("");
   };
 
@@ -86,8 +128,29 @@ function LoginInner() {
   const irAPerfil  = () => { setPaso("perfil"); setTipoDador(null); setError(""); };
 
   const handleSeleccionarPerfil = (p: Perfil) => {
-    setPerfil(p); setTipoDador(null); setError("");
-    setPaso(p === "dador" ? "dador-tipo" : "registro");
+    setPerfil(p); setTipoDador(null); setError(""); setTokenError(""); setInvitacionInfo(null);
+    if (p === "dador") setPaso("dador-tipo");
+    else if (p === "empleado") setPaso("empleado-token");
+    else setPaso("registro");
+  };
+
+  const handleVerificarToken = async () => {
+    setTokenError("");
+    if (!invitationToken.trim()) { setTokenError("Ingresá el código de invitación."); return; }
+    try {
+      const res = await fetch(`/api/fleet/invitations/${invitationToken.trim()}`);
+      const data = await res.json();
+      if (res.ok && data.token) {
+        setInvitacionInfo({ ownerName: data.ownerName, email: data.email });
+        setPaso("registro");
+      } else if (res.status === 410) {
+        setTokenError(data.message?.includes("utilizada") ? "Este código ya fue utilizado." : "Este código de invitación ha vencido.");
+      } else {
+        setTokenError("Código de invitación no válido. Verificá el enlace.");
+      }
+    } catch {
+      setTokenError("Error al verificar el código. Intentá de nuevo.");
+    }
   };
 
   const handleSeleccionarTipoDador = (tipo: TipoDador) => {
@@ -96,18 +159,28 @@ function LoginInner() {
 
   const validarPersonal = (): string | null => {
     if (!nombre.trim())  return "Ingresá tu nombre completo.";
-    if (perfil === "transportista") {
-      if (!/^\d{7,8}$/.test(dni.replace(/\./g, ""))) return "El DNI debe tener 7 u 8 dígitos numéricos.";
+
+    const necesitaDni = perfil === "transportista" || perfil === "flota" || perfil === "empleado" || (perfil === "dador" && tipoDador === "personal");
+    if (necesitaDni) {
+      const dniLimpio = dni.replace(/\./g, "");
+      if (!/^\d{7,8}$/.test(dniLimpio)) return "El DNI debe tener 7 u 8 dígitos numéricos.";
+      const num = parseInt(dniLimpio);
+      if (num < 1_000_000 || num > 99_999_999) return "El DNI ingresado no está en el rango argentino válido.";
+      if (dniDisponible === false) return "Ya existe una cuenta registrada con ese DNI.";
     }
-    if (perfil === "dador" && tipoDador === "personal") {
-      if (!/^\d{7,8}$/.test(dni.replace(/\./g, ""))) return "El DNI debe tener 7 u 8 dígitos numéricos.";
-    }
+
     if (!telefono.trim()) return "El teléfono es obligatorio.";
     if (!/^\+?\d{8,15}$/.test(telefono.replace(/\s/g, ""))) return "El teléfono debe tener entre 8 y 15 dígitos.";
+    if (telefonoDisponible === false) return "Ya existe una cuenta registrada con ese teléfono.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Email inválido.";
+    if (emailDisponible === false) return "Ya existe una cuenta registrada con ese email.";
     if (password.length < 8) return "La contraseña debe tener al menos 8 caracteres.";
-    if (perfil === "dador" && tipoDador === "empresa" && !razonSocial.trim()) return "Ingresá la razón social.";
-    if (perfil === "dador" && tipoDador === "empresa" && !/^\d{2}-\d{8}-\d$/.test(cuit)) return "El CUIT debe tener el formato XX-XXXXXXXX-X.";
+    if (perfil === "dador" && tipoDador === "empresa") {
+      if (!razonSocial.trim()) return "Ingresá la razón social.";
+      if (!/^\d{2}-\d{8}-\d$/.test(cuit)) return "El CUIT debe tener el formato XX-XXXXXXXX-X.";
+      if (!validarCuitChecksum(cuit)) return "El CUIT ingresado no es válido. Verificá el dígito verificador.";
+      if (cuitDisponible === false) return "Ya existe una empresa registrada con ese CUIT.";
+    }
     if (!aceptaTerminos) return "Aceptá los términos para continuar.";
     return null;
   };
@@ -126,16 +199,16 @@ function LoginInner() {
           email, password, name: nombre, role: perfil,
           tipo_dador: tipoDador || null, phone: telefono || null, dni: dni || null,
           razon_social: razonSocial || null, cuit: cuit || null, address: direccion || null,
+          invitation_token: perfil === "empleado" ? invitationToken.trim() : undefined,
         }),
       });
       if (!res.ok) {
-        const { error: msg } = await res.json();
-        setError(msg ?? "Error al crear la cuenta.");
+        const data = await res.json();
+        setError(data.message ?? data.error ?? "Error al crear la cuenta.");
         return;
       }
-      const result = await signIn("credentials", { email, password, redirect: false });
-      if (result?.error) setError("Cuenta creada. Iniciá sesión.");
-      else { router.push("/dashboard"); router.refresh(); }
+      sessionStorage.setItem("pending_auth", JSON.stringify({ email, password }));
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     });
   };
 
@@ -145,8 +218,15 @@ function LoginInner() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("Email inválido."); return; }
     startTransition(async () => {
       const result = await signIn("credentials", { email, password, redirect: false });
-      if (result?.error) setError("Email o contraseña incorrectos.");
-      else { router.push("/dashboard"); router.refresh(); }
+      if (result?.error) {
+        const check = await fetch(`/api/auth/check?field=email&value=${encodeURIComponent(email)}`);
+        const checkData = await check.json();
+        if (!checkData.available && checkData.is_verified === false) {
+          router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+          return;
+        }
+        setError("Email o contraseña incorrectos.");
+      } else { router.push("/dashboard"); router.refresh(); }
     });
   };
 
@@ -268,7 +348,7 @@ function LoginInner() {
 
         {/* ── Selección de perfil ── */}
         {paso === "perfil" && (
-          <div style={{ maxWidth: 560, width: "100%" }}>
+          <div style={{ maxWidth: 600, width: "100%" }}>
             <BtnVolver onClick={irAInicio} />
             <h1 style={{ fontSize: 26, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: -0.5 }}>Crear cuenta</h1>
             <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 24 }}>¿Cuál describe mejor tu rol?</p>
@@ -277,36 +357,46 @@ function LoginInner() {
               {([
                 {
                   id: "transportista" as Perfil,
-                  icono: (<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>),
-                  titulo: "Soy transportista",
-                  color: "#3a806b",
-                  features: ["Encontrá cargas para tu vuelta en minutos", "Ofertá tu precio directamente", "Gestioná tu flota desde un panel unificado"],
+                  icono: (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>),
+                  titulo: "Transportista individual",
+                  features: ["Buscá cargas y ofertá tu precio", "Planificá viajes y optimizá rutas", "Invitá conductores cuando crezcas"],
+                },
+                {
+                  id: "flota" as Perfil,
+                  icono: (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>),
+                  titulo: "Dueño de flota",
+                  features: ["Gestioná camiones y conductores", "Asigná cargas a tu equipo", "Panel unificado de toda tu flota"],
+                },
+                {
+                  id: "empleado" as Perfil,
+                  icono: (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="m9 11 3 3 3-3"/></svg>),
+                  titulo: "Empleado de flota",
+                  features: ["Recibí viajes asignados por tu jefe", "Accedé a tu perfil y documentación", "Requiere código de invitación"],
                 },
                 {
                   id: "dador" as Perfil,
-                  icono: (<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><line x1="12" y1="22" x2="12" y2="12"/></svg>),
-                  titulo: "Tengo cargas para enviar",
-                  color: "#3a806b",
-                  features: ["Publicá tu carga en menos de 2 minutos", "Recibí ofertas de transportistas verificados", "Seguimiento en tiempo real de cada envío"],
+                  icono: (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><line x1="12" y1="22" x2="12" y2="12"/></svg>),
+                  titulo: "Dador de carga",
+                  features: ["Publicá cargas en menos de 2 minutos", "Recibí ofertas de transportistas verificados", "Seguimiento en tiempo real"],
                 },
               ]).map((p) => (
                 <div key={p.id} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, border: "0.5px solid rgba(255,255,255,0.2)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                  <div style={{ padding: "20px 20px 14px" }}>
-                    <div style={{ marginBottom: 12 }}>{p.icono}</div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: p.color, marginBottom: 14, lineHeight: 1.3 }}>{p.titulo}</div>
+                  <div style={{ padding: "18px 18px 12px" }}>
+                    <div style={{ marginBottom: 10 }}>{p.icono}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#3a806b", marginBottom: 12, lineHeight: 1.3 }}>{p.titulo}</div>
                     {p.features.map((f) => (
-                      <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
-                        <span style={{ color: p.color, flexShrink: 0, marginTop: 1 }}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 7 }}>
+                        <span style={{ color: "#3a806b", flexShrink: 0, marginTop: 1 }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         </span>
-                        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", lineHeight: 1.5 }}>{f}</span>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", lineHeight: 1.5 }}>{f}</span>
                       </div>
                     ))}
                   </div>
-                  <div style={{ padding: "12px 20px 20px", marginTop: "auto" }}>
+                  <div style={{ padding: "10px 18px 18px", marginTop: "auto" }}>
                     <button onClick={() => handleSeleccionarPerfil(p.id)}
-                      style={{ width: "100%", fontSize: 12, fontWeight: 600, padding: "8px", borderRadius: 8, background: p.color, color: "#fff", border: "none", cursor: "pointer", textAlign: "center" as const }}>
-                      Registrarme →
+                      style={{ width: "100%", fontSize: 12, fontWeight: 600, padding: "8px", borderRadius: 8, background: "#3a806b", color: "#fff", border: "none", cursor: "pointer", textAlign: "center" as const }}>
+                      Elegir →
                     </button>
                   </div>
                 </div>
@@ -318,6 +408,35 @@ function LoginInner() {
               ¿Ya tenés cuenta?{" "}
               <button onClick={() => { resetForm(); setPaso("login"); }} style={linkBtnStyle}>Iniciá sesión</button>
             </p>
+          </div>
+        )}
+
+        {/* ── Empleado: ingresar código de invitación ── */}
+        {paso === "empleado-token" && (
+          <div style={{ maxWidth: 420, width: "100%" }}>
+            <BtnVolver onClick={irAPerfil} />
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: -0.5 }}>Empleado de flota</h1>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 28 }}>Ingresá el código que te envió el dueño de la flota.</p>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={labelStyle}>Código de invitación *</label>
+              <input
+                type="text"
+                value={invitationToken}
+                onChange={(e) => setInvitationToken(e.target.value)}
+                placeholder="Ej: a1b2c3d4-e5f6-..."
+                style={inputStyle}
+              />
+              {tokenError && (
+                <p style={{ fontSize: 12, color: "#ef4444", margin: "6px 0 0", fontWeight: 500 }}>⚠ {tokenError}</p>
+              )}
+            </div>
+
+            <button
+              onClick={handleVerificarToken}
+              style={{ width: "100%", fontSize: 15, padding: "13px", borderRadius: 12, background: "#3a806b", border: "none", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+              Verificar código →
+            </button>
           </div>
         )}
 
@@ -352,12 +471,16 @@ function LoginInner() {
         {/* ── Registro ── */}
         {paso === "registro" && perfil && (
           <div style={{ maxWidth: 520, width: "100%" }}>
-            <BtnVolver onClick={perfil === "dador" ? () => setPaso("dador-tipo") : irAPerfil} />
+            <BtnVolver onClick={perfil === "dador" ? () => setPaso("dador-tipo") : perfil === "empleado" ? () => setPaso("empleado-token") : irAPerfil} />
             <div style={{ marginBottom: 24 }}>
               <h1 style={{ fontSize: 26, fontWeight: 800, color: "#fff", marginBottom: 8, letterSpacing: -0.5 }}>Crear cuenta</h1>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(58,128,107,0.15)", color: "#3a806b", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
                 {perfil === "transportista" ? (
-                  <><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Transportista</>
+                  <><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Transportista individual</>
+                ) : perfil === "flota" ? (
+                  <><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg> Dueño de flota</>
+                ) : perfil === "empleado" ? (
+                  <><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Empleado {invitacionInfo ? `· Flota de ${invitacionInfo.ownerName}` : ""}</>
                 ) : (
                   <><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><line x1="12" y1="22" x2="12" y2="12"/></svg> Dador de carga</>
                 )}
@@ -372,8 +495,9 @@ function LoginInner() {
                   id="nombre" type="text" autoComplete="name" value={nombre} onChange={setNombre}
                   placeholder="Juan Rodríguez"
                   style={{ gridColumn: "1 / -1" }} required />
-                {(perfil === "transportista" || (perfil === "dador" && tipoDador === "personal")) && (
-                  <Campo label="DNI" id="dni" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" required />
+                {(perfil === "transportista" || perfil === "flota" || perfil === "empleado" || (perfil === "dador" && tipoDador === "personal")) && (
+                  <Campo label="DNI" id="dni" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" required
+                    hint={dniDisponible === false ? { text: "⚠ Ya existe una cuenta con ese DNI.", color: "#ef4444" } : dniDisponible === true ? { text: "✓ DNI disponible.", color: "#16a34a" } : undefined} />
                 )}
                 <Campo label="Celular" id="tel" type="tel" value={telefono} onChange={(v) => setTelefono(v.replace(/[^\d+\s]/g, ""))} placeholder="+54 9 11 1234-5678" maxLength={15} inputMode="tel" required
                   hint={telefonoDisponible === false ? { text: "⚠ Este celular ya está registrado.", color: "#ef4444" } : telefonoDisponible === true ? { text: "✓ Celular disponible.", color: "#16a34a" } : undefined} />
@@ -385,15 +509,20 @@ function LoginInner() {
                 <Separador label="Empresa" />
                 <Campo label="Razón social" id="rs" type="text" value={razonSocial} onChange={setRazonSocial} placeholder="Mi Empresa S.R.L." required />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                  <Campo label="CUIT" id="cuit" type="text" value={cuit} onChange={(v) => setCuit(formatCuit(v))} placeholder="20-12345678-9" maxLength={13} inputMode="numeric" required />
+                  <Campo label="CUIT" id="cuit" type="text" value={cuit} onChange={(v) => setCuit(formatCuit(v))} placeholder="20-12345678-9" maxLength={13} inputMode="numeric" required
+                    hint={cuitDisponible === false ? { text: "⚠ Ya existe una empresa con ese CUIT.", color: "#ef4444" } : cuitDisponible === true ? { text: "✓ CUIT disponible.", color: "#16a34a" } : undefined} />
                   <Campo label="Dirección" id="dir" type="text" value={direccion} onChange={setDireccion} placeholder="Av. Corrientes 1234" />
                 </div>
               </>}
 
-              {perfil === "transportista" && (
+              {(perfil === "transportista" || perfil === "flota") && (
                 <div style={{ background: "rgba(58,128,107,0.15)", border: "0.5px solid #3a806b", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
                   <p style={{ fontSize: 13, color: "#3a806b", margin: 0, lineHeight: 1.5 }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }}><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> <strong>Una vez que ingreses</strong>, vas a poder agregar tus camiones y conductores desde la sección <strong>Mi flota</strong>.
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }}><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>{" "}
+                    {perfil === "flota"
+                      ? <><strong>Como dueño de flota</strong>, vas a poder agregar camiones y conductores desde <strong>Mi flota</strong>.</>
+                      : <><strong>Una vez que ingreses</strong>, vas a poder agregar tus camiones y conductores desde la sección <strong>Mi flota</strong>.</>
+                    }
                   </p>
                 </div>
               )}
@@ -575,6 +704,19 @@ function formatCuit(v: string): string {
   if (digits.length <= 10) return `${digits.slice(0,2)}-${digits.slice(2)}`;
   return `${digits.slice(0,2)}-${digits.slice(2,10)}-${digits.slice(10)}`;
 }
+
+/** Dígito verificador CUIT argentino — misma lógica que el backend */
+function validarCuitChecksum(cuit: string): boolean {
+  const limpio = cuit.replace(/[-\s]/g, "");
+  if (!/^\d{11}$/.test(limpio)) return false;
+  const factores = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+  const suma = factores.reduce((acc, f, i) => acc + f * parseInt(limpio[i]), 0);
+  const resto = 11 - (suma % 11);
+  if (resto === 11) return parseInt(limpio[10]) === 0;
+  if (resto === 10) return false;
+  return parseInt(limpio[10]) === resto;
+}
+
 
 function passwordStrength(pwd: string): number {
   let s = 0;
