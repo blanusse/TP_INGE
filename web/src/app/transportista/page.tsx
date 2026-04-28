@@ -1417,7 +1417,7 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>Mi flota</div>
-        {tabFlota !== "Estadísticas" && (tabFlota === "Camiones" || mode !== "individual") && (
+        {tabFlota !== "Estadísticas" && (tabFlota === "Camiones" || mode !== "empleado") && (
           <button
             onClick={() => tabFlota === "Camiones" ? setModalCamion(true) : setModalConductor(true)}
             style={{ fontSize: 13, padding: "8px 18px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
