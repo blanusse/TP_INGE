@@ -20,7 +20,7 @@ type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tr�
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
 interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
-interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; origenExacto?: string | null; destinoExacto?: string | null; }
+interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; origenExacto?: string | null; destinoExacto?: string | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null}
 
 interface LoadDB {
   id: string;
@@ -38,6 +38,10 @@ interface LoadDB {
   created_at: string;
   offer_count?: number;
   accepted_offer?: AcceptedOffer | null;
+  pickup_lat?: number | null;
+  pickup_lon?: number | null;
+  dropoff_lat?: number | null;
+  dropoff_lon?: number | null;
 }
 
 const TRUCK_LABEL: Record<string, string> = {
@@ -75,6 +79,11 @@ function loadToCard(load: LoadDB): Carga {
     acceptedOffer: load.accepted_offer ?? null,
     origenExacto: load.pickup_exact ?? null,
     destinoExacto: load.dropoff_exact ?? null,
+    originLat: load.pickup_lat ? Number(load.pickup_lat) : null,
+    originLng: load.pickup_lon ? Number(load.pickup_lon) : null,
+    destLat:   load.dropoff_lat ? Number(load.dropoff_lat) : null,
+    destLng:   load.dropoff_lon ? Number(load.dropoff_lon) : null,
+    truckType: load.truck_type_required ?? null,
   };
 }
 
@@ -1235,7 +1244,8 @@ function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }
                   onClick={() => setMapaAbierto(mapaAbierto === c.id ? null : c.id)}
                   style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: mapaAbierto === c.id ? "rgba(58,128,107,0.08)" : "transparent", color: mapaAbierto === c.id ? "#3a806b" : "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
                 >
-                  <span style={{ fontSize: 13 }}>🗺</span> {mapaAbierto === c.id ? "Ocultar mapa" : "Ver en mapa"}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                  {mapaAbierto === c.id ? "Ocultar mapa" : "Ver en mapa"}
                 </button>
                 <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ fontSize: 14 }}>&#9993;</span> Chat
@@ -1285,7 +1295,15 @@ function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#16a34a", display: "inline-block", animation: "pulse 1.5s infinite" }} />
                   Ubicación en tiempo real
                 </div>
-                <TripMap loadId={c.id} height={280} />
+                <TripMap
+                  loadId={c.id}
+                  originLat={c.originLat}
+                  originLng={c.originLng}
+                  destLat={c.destLat}
+                  destLng={c.destLng}
+                  truckType={c.truckType}
+                  height={280}
+                />
               </div>
             )}
 

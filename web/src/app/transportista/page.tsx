@@ -10,6 +10,18 @@ import { signOut, useSession } from "next-auth/react";
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
 type NavItem = "Inicio" | "Buscar cargas" | "Planificar viaje" | "Mis ofertas" | "Mis viajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
+type DashboardMode = "individual" | "flota" | "empleado";
+
+const NAV_ITEMS_BY_MODE: Record<DashboardMode, NavItem[]> = {
+  individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Mi flota", "Notificaciones"],
+  flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Notificaciones", "Mi perfil"],
+  empleado:   ["Mis viajes", "Mi perfil", "Notificaciones"],
+};
+const DEFAULT_NAV: Record<DashboardMode, NavItem> = {
+  individual: "Inicio",
+  flota:      "Mi flota",
+  empleado:   "Mis viajes",
+};
 type SortKey = "Mayor precio" | "Menor precio" | "Más cercano" | "Fecha de retiro";
 
 interface ModalOfertaState {
@@ -330,7 +342,7 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
 
   return (
     <main style={{ padding: 20, flex: 1 }}>
-      <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis ofertas</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis ofertas</div>
       {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
       {!loading && ofertas.length === 0 && (
         <div style={{ textAlign: "center", padding: "56px 20px" }}>
@@ -481,7 +493,7 @@ function TabCobros() {
   );
 }
 
-interface TripData { offerId: string; loadId: string; titulo: string; empresa: string; precio: number; fechaRetiro: string; pickupCity: string; dropoffCity: string; pickupExact: string | null; dropoffExact: string | null; pickupLat: number | null; pickupLon: number | null; dropoffLat: number | null; dropoffLon: number | null; status: string; yaCalifiqué: boolean; }
+interface TripData { offerId: string; loadId: string; titulo: string; empresa: string; precio: number; fechaRetiro: string; pickupCity: string; dropoffCity: string; pickupExact: string | null; dropoffExact: string | null; pickupLat: number | null; pickupLon: number | null; dropoffLat: number | null; dropoffLon: number | null; truckType: string | null; status: string; yaCalifiqué: boolean; }
 
 function ModalCalificarDador({ offerId, empresa, onClose }: { offerId: string; empresa: string; onClose: () => void }) {
   const [score, setScore] = useState(0);
@@ -586,7 +598,7 @@ function SeccionMisViajes({ userId }: { userId: string }) {
   return (
     <main style={{ padding: "20px 24px", flex: 1 }}>
       {modalCalificar && <ModalCalificarDador offerId={modalCalificar.offerId} empresa={modalCalificar.empresa} onClose={() => { setCalificados((prev) => new Set([...prev, modalCalificar.offerId])); setModalCalificar(null); }} />}
-      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis viajes</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis viajes</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
         {([
         { t: "En curso" as TabViajes, faIcon: "fa-truck-moving", count: trips.enCurso.length, desc: "Viaje activo ahora" },
@@ -768,6 +780,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
             originLng={t.pickupLon}
             destLat={t.dropoffLat}
             destLng={t.dropoffLon}
+            truckType={t.truckType}
             height={300}
             isDriver
           />
@@ -917,7 +930,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
 
 function SeccionNotificaciones() {
   return (
-    <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760 }}>
+    <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760, margin: "0 auto", width: "100%" }}>
       <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 20 }}>Notificaciones</div>
       <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "1px solid var(--border)" }}>
         <div style={{ width: 60, height: 60, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
@@ -1223,9 +1236,12 @@ function ModalConfirmarEliminar({ mensaje, onConfirmar, onCancelar }: { mensaje:
 interface FleetStats {
   totalViajes: number;
   totalIngresos: number;
+  totalConductores: number;
+  totalCamiones: number;
   mejorConductor: { name: string; viajes: number } | null;
   calificacionPromedio: string | null;
   perConductor: { id: string; name: string; viajes: number; ingresos: number }[];
+  perTruck: { id: string; viajes: number; ingresos: number }[];
 }
 
 function TabEstadisticas({ drivers }: { drivers: Driver[] }) {
@@ -1341,7 +1357,9 @@ function TabEstadisticas({ drivers }: { drivers: Driver[] }) {
   );
 }
 
-function SeccionMiFlota({ ownerId }: { ownerId: string }) {
+function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: DashboardMode }) {
+  const tabsDisponibles: ("Camiones" | "Conductores" | "Estadísticas")[] =
+    mode === "individual" ? ["Camiones"] : ["Camiones", "Conductores", "Estadísticas"];
   const [tabFlota, setTabFlota] = useState<"Camiones" | "Conductores" | "Estadísticas">("Camiones");
   const [trucks, setTrucks] = useState<TruckData[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -1356,6 +1374,7 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
   const [emailInvitar, setEmailInvitar] = useState("");
   const [invitando, setInvitando] = useState(false);
   const [invitacionMsg, setInvitacionMsg] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
+  const [fleetStats, setFleetStats] = useState<FleetStats | null>(null);
 
   const enviarInvitacion = async () => {
     if (!emailInvitar.trim()) return;
@@ -1370,7 +1389,10 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
   useEffect(() => {
     fetch("/api/fleet/trucks").then((r) => r.json()).then((d) => { if (d.trucks) setTrucks(d.trucks); }).catch(() => {}).finally(() => setLoadingTrucks(false));
     fetch("/api/fleet/drivers").then((r) => r.json()).then((d) => { if (d.drivers) setDrivers(d.drivers); }).catch(() => {}).finally(() => setLoadingDrivers(false));
-  }, []);
+    if (mode === "flota") {
+      fetch("/api/fleet/stats").then((r) => r.json()).then((d) => { if (d.totalViajes !== undefined) setFleetStats(d); }).catch(() => {});
+    }
+  }, [mode]);
 
   return (
     <main style={{ padding: "20px 24px", flex: 1, maxWidth: 900, margin: "0 auto", width: "100%" }}>
@@ -1395,7 +1417,7 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>Mi flota</div>
-        {tabFlota !== "Estadísticas" && (
+        {tabFlota !== "Estadísticas" && (tabFlota === "Camiones" || mode !== "individual") && (
           <button
             onClick={() => tabFlota === "Camiones" ? setModalCamion(true) : setModalConductor(true)}
             style={{ fontSize: 13, padding: "8px 18px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
@@ -1404,12 +1426,34 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
         )}
       </div>
 
+      {/* KPI resumen — solo modo flota */}
+      {mode === "flota" && fleetStats && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
+          {[
+            { label: "Viajes totales", value: String(fleetStats.totalViajes), icon: "fa-solid fa-route" },
+            { label: "Ingresos totales", value: `$${fleetStats.totalIngresos.toLocaleString("es-AR")}`, icon: "fa-solid fa-dollar-sign" },
+            { label: "Conductores", value: String(fleetStats.totalConductores ?? drivers.length), icon: "fa-solid fa-id-card" },
+            { label: "Camiones", value: String(fleetStats.totalCamiones ?? trucks.length), icon: "fa-solid fa-truck-front" },
+          ].map(({ label, value, icon }) => (
+            <div key={label} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, padding: "16px 18px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <i className={icon} style={{ fontSize: 13, color: "var(--color-brand)" }} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--color-text-primary)", lineHeight: 1 }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Tabs */}
-      <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 2, marginBottom: 20 }}>
-        {(["Camiones", "Conductores", "Estadísticas"] as const).map((t) => (
-          <button key={t} onClick={() => setTabFlota(t)} style={{ fontSize: 14, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", background: tabFlota === t ? "var(--color-background-primary)" : "transparent", color: tabFlota === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabFlota === t ? 600 : 400, boxShadow: tabFlota === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>{t}</button>
-        ))}
-      </div>
+      {tabsDisponibles.length > 1 && (
+        <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 2, marginBottom: 20 }}>
+          {tabsDisponibles.map((t) => (
+            <button key={t} onClick={() => setTabFlota(t)} style={{ fontSize: 14, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", background: tabFlota === t ? "var(--color-background-primary)" : "transparent", color: tabFlota === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabFlota === t ? 600 : 400, boxShadow: tabFlota === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>{t}</button>
+          ))}
+        </div>
+      )}
 
       {/* Camiones */}
       {tabFlota === "Camiones" && (
@@ -1442,6 +1486,16 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
                       <div key={label}><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div><div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{val}</div></div>
                     ))}
                   </div>
+                  {mode === "flota" && fleetStats && (() => {
+                    const ts = fleetStats.perTruck?.find((p) => p.id === t.id);
+                    if (!ts) return null;
+                    return (
+                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: "0.5px solid var(--color-border-tertiary)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Viajes realizados</div><div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>{ts.viajes}</div></div>
+                        <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Ingresos</div><div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-brand)" }}>${ts.ingresos.toLocaleString("es-AR")}</div></div>
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
@@ -1523,7 +1577,7 @@ function SeccionMiFlota({ ownerId }: { ownerId: string }) {
 
 // ── Perfil ────────────────────────────────────────────────────────────────────
 
-type TabPerfil = "Perfil" | "Estadísticas";
+type TabPerfil = "Perfil" | "Documentos" | "Estadísticas";
 interface EarningsMes { mes: string; monto: number; }
 interface TipoCargaStat { tipo: string; pct: number; count: number; color: string; cantidad?: number; }
 interface RutaStat { ruta: string; viajes: number; }
@@ -1536,12 +1590,39 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
   const [stats, setStats] = useState<TransportistaStats | null>(null);
   const [showAsDriver, setShowAsDriver] = useState(true);
+  const [docs, setDocs] = useState<{ id: string; tipo: string; status: string; url: string; admin_note: string | null }[]>([]);
+  const [uploadingTipo, setUploadingTipo] = useState<string | null>(null);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
+
+  const TIPOS_DOC = [
+    { key: "dni",    label: "DNI" },
+    { key: "vtv",    label: "VTV" },
+    { key: "seguro", label: "Seguro" },
+    { key: "carnet", label: "Carnet de conducir" },
+  ] as const;
+
+  const todosAprobados = TIPOS_DOC.every((t) => docs.some((d) => d.tipo === t.key && d.status === "approved"));
+
+  const fetchDocs = () => {
+    fetch("/api/documents").then((r) => r.json()).then((d) => setDocs(Array.isArray(d) ? d : [])).catch(() => {});
+  };
 
   useEffect(() => {
     fetch("/api/stats/camionero").then((r) => r.json()).then((d) => setStats(d)).catch(() => {});
     fetch("/api/fleet/settings").then((r) => r.json()).then((d) => { if (d.show_as_fleet_driver !== undefined) setShowAsDriver(d.show_as_fleet_driver); }).catch(() => {});
+    fetchDocs();
   }, []);
+
+  const handleUpload = async (tipo: string, file: File) => {
+    setUploadingTipo(tipo);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("tipo", tipo);
+    const res = await fetch("/api/documents/upload", { method: "POST", body: fd });
+    if (res.ok) { onToast("Documento enviado a revisión."); fetchDocs(); }
+    else { onToast("Error al subir el documento."); }
+    setUploadingTipo(null);
+  };
 
   const toggleShowAsDriver = async (val: boolean) => {
     setShowAsDriver(val);
@@ -1557,7 +1638,10 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             {editando ? <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ fontSize: 24, fontWeight: 700, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "var(--border-radius-md)", padding: "4px 10px", color: "#fff", outline: "none", width: "100%", maxWidth: 300 }} /> : <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.2 }}>{nombre}</div>}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
               <span style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>Transportista</span>
-              <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4 }}><i className="fa-solid fa-circle-check" />Verificado</span>
+              {todosAprobados
+                ? <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4 }}><i className="fa-solid fa-circle-check" />Documentación verificada</span>
+                : <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "rgba(255,200,100,0.25)", color: "#fef3c7", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }} onClick={() => setTabPerfil("Documentos")}><i className="fa-solid fa-triangle-exclamation" />Verificación pendiente</span>
+              }
             </div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{userEmail}</div>
           </div>
@@ -1577,7 +1661,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
       <div style={{ padding: "22px 40px 0", maxWidth: 840, margin: "0 auto" }}>
         <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 3, gap: 2 }}>
-          {(["Perfil", "Estadísticas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
+          {(["Perfil", "Documentos", "Estadísticas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
         </div>
       </div>
 
@@ -1608,6 +1692,65 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             </div>
             <button onClick={() => signOut({ callbackUrl: "/" })} style={{ fontSize: 13, padding: "12px", borderRadius: "var(--border-radius-lg)", border: "0.5px solid rgba(220,38,38,0.4)", background: "rgba(220,38,38,0.1)", color: "#dc2626", cursor: "pointer", fontWeight: 500 }}>Cerrar sesión</button>
           </div>
+        </div>
+      )}
+
+      {tabPerfil === "Documentos" && (
+        <div style={{ padding: "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
+          <div style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
+            Subí fotos claras de cada documento. Serán revisadas por el equipo de CargaBack y verás el resultado aquí.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 16 }}>
+            {TIPOS_DOC.map(({ key, label }) => {
+              const doc = docs.find((d) => d.tipo === key);
+              const isUploading = uploadingTipo === key;
+              const statusMap: Record<string, { label: string; color: string; bg: string }> = {
+                pending:  { label: "En revisión", color: "#b45309", bg: "#fef3c7" },
+                approved: { label: "Aprobado",    color: "#065f46", bg: "#d1fae5" },
+                rejected: { label: "Rechazado",   color: "#991b1b", bg: "#fee2e2" },
+              };
+              const st = doc ? statusMap[doc.status] : null;
+              return (
+                <div key={key} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{label}</div>
+                    {st && (
+                      <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{st.label}</span>
+                    )}
+                  </div>
+                  {doc?.status === "rejected" && doc.admin_note && (
+                    <div style={{ fontSize: 12, color: "#991b1b", marginBottom: 10, padding: "8px 10px", background: "#fee2e2", borderRadius: 6 }}>
+                      Motivo: {doc.admin_note}
+                    </div>
+                  )}
+                  {doc?.url && (
+                    <a href={doc.url} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 12, color: "var(--color-brand)", marginBottom: 10 }}>Ver documento actual</a>
+                  )}
+                  <label style={{ display: "block", cursor: isUploading ? "not-allowed" : "pointer" }}>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      style={{ display: "none" }}
+                      disabled={isUploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(key, f); e.target.value = ""; }}
+                    />
+                    <div style={{ fontSize: 13, padding: "9px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUploading ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-secondary)" }}>
+                      {isUploading ? "Subiendo..." : doc ? "Reemplazar documento" : "+ Subir documento"}
+                    </div>
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+          {todosAprobados && (
+            <div style={{ marginTop: 20, padding: "14px 20px", borderRadius: "var(--border-radius-lg)", background: "#d1fae5", border: "0.5px solid #6ee7b7", display: "flex", alignItems: "center", gap: 10 }}>
+              <i className="fa-solid fa-circle-check" style={{ color: "#065f46", fontSize: 18 }} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#065f46" }}>Documentación verificada</div>
+                <div style={{ fontSize: 12, color: "#065f46", opacity: 0.8 }}>Todos tus documentos están aprobados. Los dadores de carga pueden ver tu badge de verificación.</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2168,9 +2311,9 @@ function OnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void; onNa
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function TransportistaDashboard() {
+export default function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode }) {
   const { data: session } = useSession();
-  const [navActivo, setNavActivo] = useState<NavItem>("Inicio");
+  const [navActivo, setNavActivo] = useState<NavItem>(DEFAULT_NAV[mode]);
   const [modalOferta, setModalOferta] = useState<ModalOfertaState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
@@ -2209,7 +2352,7 @@ export default function TransportistaDashboard() {
 
   const mostrarToast = (msg: string) => setToast(msg);
 
-  const navItems: NavItem[] = ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Notificaciones", "Mi flota"];
+  const navItems = NAV_ITEMS_BY_MODE[mode];
   const NAV_ICONS: Record<NavItem, string> = {
     "Inicio": "fa-solid fa-house",
     "Buscar cargas": "fa-solid fa-magnifying-glass",
@@ -2257,7 +2400,7 @@ export default function TransportistaDashboard() {
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
-        {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} />}
+        {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} mode={mode} />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>
 

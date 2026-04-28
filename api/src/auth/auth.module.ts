@@ -11,11 +11,12 @@ import { MpOauthService } from './mp-oauth.service';
 import { User } from '../entities/user.entity';
 import { Shipper } from '../entities/shipper.entity';
 import { EmailVerification } from '../entities/email-verification.entity';
+import { FleetInvitation } from '../entities/fleet-invitation.entity';
 import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Shipper, EmailVerification]),
+    TypeOrmModule.forFeature([User, Shipper, EmailVerification, FleetInvitation]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

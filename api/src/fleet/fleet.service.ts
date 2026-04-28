@@ -156,9 +156,18 @@ export class FleetService {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user || user.role !== 'transportista') throw new ForbiddenException('Solo transportistas pueden aceptar invitaciones.');
     if (user.email !== inv.email) throw new ForbiddenException('Esta invitación fue enviada a otro email.');
+    if (inv.fleet_owner_id === userId) throw new BadRequestException('No podés unirte a tu propia flota.');
 
     user.fleet_id = inv.fleet_owner_id;
     inv.status = 'accepted';
+
+    // Marcar al dueño como fleet owner
+    const fleetOwner = await this.usersRepo.findOne({ where: { id: inv.fleet_owner_id } });
+    if (fleetOwner && !fleetOwner.is_fleet_owner) {
+      fleetOwner.is_fleet_owner = true;
+      await this.usersRepo.save(fleetOwner);
+    }
+
     await Promise.all([this.usersRepo.save(user), this.invitationsRepo.save(inv)]);
     return { ok: true };
   }
@@ -185,10 +194,24 @@ export class FleetService {
   }
 
   async getFleetDrivers(userId: string) {
-    return this.usersRepo.find({
-      where: { fleet_id: userId },
-      select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at'],
-    });
+    const [fleetDrivers, owner] = await Promise.all([
+      this.usersRepo.find({
+        where: { fleet_id: userId },
+        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at'],
+      }),
+      this.usersRepo.findOne({
+        where: { id: userId },
+        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at', 'show_as_fleet_driver'],
+      }),
+    ]);
+
+    const alreadyInList = fleetDrivers.some((d) => d.id === userId);
+    if (owner?.show_as_fleet_driver !== false && !alreadyInList) {
+      const { show_as_fleet_driver: _, ...ownerData } = owner as any;
+      return [ownerData, ...fleetDrivers];
+    }
+
+    return fleetDrivers;
   }
 
   async addFleetDriver(userId: string, body: { email: string; password: string; name: string; phone?: string; dni?: string }) {
@@ -198,7 +221,8 @@ export class FleetService {
     // Validaciones de nombre
     if (!body.name?.trim()) throw new BadRequestException('El nombre del conductor es requerido.');
 
-    // Email único
+    // Email único (y no puede ser el propio dueño)
+    if (body.email.toLowerCase() === owner.email.toLowerCase()) throw new BadRequestException('No podés agregarte a vos mismo como conductor.');
     const byEmail = await this.usersRepo.findOne({ where: { email: body.email.toLowerCase() } });
     if (byEmail) throw new ConflictException('Ya existe una cuenta con ese email.');
 
@@ -231,8 +255,16 @@ export class FleetService {
       phone: body.phone?.trim() || null,
       dni: body.dni ? body.dni.replace(/\./g, '') : null,
       fleet_id: userId,
+      is_verified: true,
     } as DeepPartial<User>);
     const saved = await this.usersRepo.save(driver);
+
+    // Marcar al dueño como fleet owner si todavía no lo era
+    if (!owner.is_fleet_owner) {
+      owner.is_fleet_owner = true;
+      await this.usersRepo.save(owner);
+    }
+
     const { password_hash: _, ...result } = saved as any;
     return result;
   }

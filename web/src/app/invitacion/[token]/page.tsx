@@ -35,7 +35,7 @@ export default function InvitacionPage() {
 
   const handleAceptar = async () => {
     if (status === "unauthenticated") {
-      router.push(`/login?callbackUrl=/invitacion/${token}`);
+      router.push(`/login?modo=registro&perfil=empleado&token=${token}`);
       return;
     }
     setState("accepting");
@@ -107,7 +107,7 @@ export default function InvitacionPage() {
       {logo}
       <h2 style={{ fontSize: 20, fontWeight: 700, color: "#0f1f19", marginBottom: 8 }}>Bienvenido a la flota</h2>
       <p style={{ color: "#4a6b5e", fontSize: 14, marginBottom: 28 }}>Tu cuenta quedó vinculada a la flota de <strong>{invitation?.ownerName}</strong>.</p>
-      <button onClick={() => router.push("/transportista")} style={{ background: "#3a806b", color: "#fff", border: "none", borderRadius: 8, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+      <button onClick={() => router.push("/empleado")} style={{ background: "#3a806b", color: "#fff", border: "none", borderRadius: 8, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
         Ir a mi cuenta
       </button>
     </div></div>

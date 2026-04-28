@@ -10,6 +10,7 @@ import { Truck } from '../entities/truck.entity';
 import { Rating } from '../entities/rating.entity';
 import { User } from '../entities/user.entity';
 import { Shipper } from '../entities/shipper.entity';
+import { TruckerDocument } from '../entities/trucker-document.entity';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
@@ -21,12 +22,16 @@ export class OffersService {
     @InjectRepository(Rating) private ratingsRepo: Repository<Rating>,
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Shipper) private shippersRepo: Repository<Shipper>,
+    @InjectRepository(TruckerDocument) private documentsRepo: Repository<TruckerDocument>,
     private mailService: MailService,
   ) {}
 
   async submitOffer(userId: string, body: { load_id: string; price: number; truck_id?: string; note?: string }) {
     const truckCount = await this.trucksRepo.count({ where: { owner_id: userId } });
     if (truckCount === 0) throw new BadRequestException('Debés registrar al menos un camión antes de ofertar.');
+
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user?.is_verified) throw new BadRequestException('Debés tener la documentación verificada antes de ofertar.');
 
     const load = await this.loadsRepo.findOne({ where: { id: body.load_id } });
     if (!load || load.status !== 'available') throw new BadRequestException('La carga no está disponible.');

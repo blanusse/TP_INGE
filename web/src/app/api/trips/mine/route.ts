@@ -34,6 +34,7 @@ export async function GET() {
     pickupLon: o.load?.pickup_lon ? Number(o.load.pickup_lon) : null,
     dropoffLat: o.load?.dropoff_lat ? Number(o.load.dropoff_lat) : null,
     dropoffLon: o.load?.dropoff_lon ? Number(o.load.dropoff_lon) : null,
+    truckType: o.load?.truck_type_required ?? null,
     status: o.load?.status ?? "unknown",
     yaCalifiqué: false,
   });

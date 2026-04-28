@@ -6,6 +6,7 @@ import { Shipper } from '../entities/shipper.entity';
 import { Load } from '../entities/load.entity';
 import { Offer } from '../entities/offer.entity';
 import { Rating } from '../entities/rating.entity';
+import { Truck } from '../entities/truck.entity';
 
 @Injectable()
 export class StatsService {
@@ -15,6 +16,7 @@ export class StatsService {
     @InjectRepository(Load) private loadsRepo: Repository<Load>,
     @InjectRepository(Offer) private offersRepo: Repository<Offer>,
     @InjectRepository(Rating) private ratingsRepo: Repository<Rating>,
+    @InjectRepository(Truck) private trucksRepo: Repository<Truck>,
   ) {}
 
   async getDriverStats(userId: string) {
@@ -178,12 +180,25 @@ export class StatsService {
       .where('r.to_user_id IN (:...ids)', { ids: allDriverIds })
       .getRawOne();
 
+    const fleetTrucks = await this.trucksRepo.find({ where: { owner_id: userId } });
+    const perTruck = fleetTrucks.map((t) => {
+      const tOffers = delivered.filter((o) => o.truck_id === t.id);
+      return {
+        id:       t.id,
+        viajes:   tOffers.length,
+        ingresos: tOffers.reduce((sum, o) => sum + Number(o.price), 0),
+      };
+    });
+
     return {
       totalViajes,
       totalIngresos,
+      totalConductores: subDrivers.length + 1,
+      totalCamiones: fleetTrucks.length,
       mejorConductor: mejorConductor ? { name: mejorConductor.name, viajes: mejorConductor.viajes } : null,
       calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,
       perConductor,
+      perTruck,
     };
   }
 

@@ -62,6 +62,23 @@ export class PaymentsController {
     );
   }
 
+  // El admin lista todos los retiros pendientes/completados
+  @Get('admin/payouts')
+  getAdminPayouts(@Headers('x-internal-secret') secret: string) {
+    if (secret !== process.env.INTERNAL_SECRET) throw new UnauthorizedException();
+    return this.paymentsService.getAdminPayouts();
+  }
+
+  // El admin marca un pago como transferido manualmente (protegido por secreto interno)
+  @Post('internal/:paymentId/mark-paid')
+  markPaid(
+    @Param('paymentId') paymentId: string,
+    @Headers('x-internal-secret') secret: string,
+  ) {
+    if (secret !== process.env.INTERNAL_SECRET) throw new UnauthorizedException();
+    return this.paymentsService.markPayoutDone(paymentId);
+  }
+
   // Descarga de factura en PDF
   @Get(':paymentId/invoice')
   @UseGuards(JwtAuthGuard)
