@@ -1598,6 +1598,9 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const [nombre, setNombre]     = useState(userName);
   const [telefono, setTelefono] = useState("");
   const [stats, setStats]       = useState<DadorStats | null>(null);
+  const [dniVerified, setDniVerified] = useState<boolean | null>(null);
+  const [dniUploading, setDniUploading] = useState(false);
+  const [dniMsg, setDniMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
 
   React.useEffect(() => {
@@ -1605,7 +1608,36 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
       .then((r) => r.json())
       .then((d) => setStats(d))
       .catch(() => {});
+    fetch("/api/documents/verify-dni")
+      .then((r) => r.json())
+      .then((d) => setDniVerified(d.dni_verified ?? false))
+      .catch(() => {});
   }, []);
+
+  async function handleDniUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDniUploading(true);
+    setDniMsg(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/documents/verify-dni", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.verified) {
+        setDniVerified(true);
+        setDniMsg({ ok: true, text: "DNI verificado correctamente." });
+        onToast("DNI verificado.");
+      } else {
+        setDniMsg({ ok: false, text: data.message ?? "No se pudo verificar el DNI." });
+      }
+    } catch {
+      setDniMsg({ ok: false, text: "Error al subir la imagen." });
+    } finally {
+      setDniUploading(false);
+      e.target.value = "";
+    }
+  }
 
   const card: React.CSSProperties = { background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 10, padding: 20 };
   const fieldLabel: React.CSSProperties = { fontSize: 11, color: "var(--muted-color)", marginBottom: 3, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em" };
@@ -1631,7 +1663,10 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             : <div style={{ fontSize: 15, fontWeight: 700, color: "var(--heading-color)", textAlign: "center" }}>{nombre}</div>
           }
           <div style={{ fontSize: 12, color: "var(--body-color)", textAlign: "center" }}>{userEmail}</div>
-          <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontWeight: 600 }}>Verificado <i className="fa-solid fa-circle-check" /></span>
+          {dniVerified
+            ? <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontWeight: 600 }}>Verificado <i className="fa-solid fa-circle-check" /></span>
+            : <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>Sin verificar <i className="fa-solid fa-circle-exclamation" /></span>
+          }
         </div>
 
         {/* Stats */}
@@ -1697,6 +1732,38 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
               <div style={fieldLabel}>Calificación</div>
               <div style={fieldVal}>{stats?.calificacionPromedio != null ? `${stats.calificacionPromedio} / 5` : "Sin calificaciones aún"}</div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Verificación de identidad */}
+      <div style={{ ...card, marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading-color)", marginBottom: 4 }}>Verificación de identidad</div>
+            <div style={{ fontSize: 12, color: "var(--muted-color)" }}>
+              {dniVerified
+                ? "Tu DNI fue verificado. Tu cuenta está habilitada para operar."
+                : "Subí una foto del frente de tu DNI para verificar tu identidad. El número debe coincidir con el que ingresaste al registrarte."}
+            </div>
+            {dniMsg && (
+              <div style={{ marginTop: 8, fontSize: 12, fontWeight: 500, color: dniMsg.ok ? "#065f46" : "#b91c1c" }}>
+                {dniMsg.ok ? "✓ " : "✗ "}{dniMsg.text}
+              </div>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {dniVerified
+              ? <span style={{ fontSize: 12, padding: "6px 14px", borderRadius: 8, background: "#d1fae5", color: "#065f46", fontWeight: 600 }}>✓ DNI verificado</span>
+              : (
+                <label style={{ display: "inline-block", cursor: dniUploading ? "not-allowed" : "pointer" }}>
+                  <input type="file" accept="image/*" onChange={handleDniUpload} disabled={dniUploading} style={{ display: "none" }} />
+                  <span style={{ fontSize: 12, padding: "7px 16px", borderRadius: 8, background: dniUploading ? "#e5e7eb" : "#3a806b", color: dniUploading ? "#9ca3af" : "#fff", fontWeight: 600, pointerEvents: "none" }}>
+                    {dniUploading ? "Verificando..." : "Subir foto del DNI"}
+                  </span>
+                </label>
+              )
+            }
           </div>
         </div>
       </div>
