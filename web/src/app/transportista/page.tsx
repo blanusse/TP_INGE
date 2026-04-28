@@ -9,11 +9,11 @@ import { signOut, useSession } from "next-auth/react";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Inicio" | "Buscar cargas" | "Planificar viaje" | "Mis ofertas" | "Mis viajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
+type NavItem = "Inicio" | "Buscar cargas" | "Planificar viaje" | "Mis viajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
 type DashboardMode = "individual" | "flota" | "empleado";
 
 const NAV_ITEMS_BY_MODE: Record<DashboardMode, NavItem[]> = {
-  individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Mi flota", "Notificaciones"],
+  individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis viajes", "Mi flota", "Notificaciones"],
   flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Notificaciones"],
   empleado:   ["Mis viajes", "Mi perfil", "Notificaciones"],
 };
@@ -384,7 +384,7 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
   );
 }
 
-type TabViajes = "En curso" | "Próximos" | "Completados" | "Cobros";
+type TabViajes = "Ofertas" | "Próximos" | "En curso" | "Completados";
 
 interface Cobro { id: string; fecha: string; dador: string; ruta: string; monto: number; }
 
@@ -550,34 +550,66 @@ function Calendario({ eventos }: { eventos: { fecha: string; tipo: "salida" | "l
   );
 }
 
-function SeccionMisViajes({ userId }: { userId: string }) {
+function SeccionMisViajes({ userId, onToast }: { userId: string; onToast: (m: string) => void }) {
   const [tab, setTab] = useState<TabViajes>("En curso");
   const [trips, setTrips] = useState<{ enCurso: TripData[]; proximos: TripData[]; completados: TripData[] }>({ enCurso: [], proximos: [], completados: [] });
-  const [loading, setLoading] = useState(true);
+  const [loadingTrips, setLoadingTrips] = useState(true);
+  const [ofertas, setOfertas] = useState<MiOferta[]>([]);
+  const [loadingOfertas, setLoadingOfertas] = useState(true);
+  const [accionando, setAccionando] = useState<string | null>(null);
   const [modalCalificar, setModalCalificar] = useState<{ offerId: string; empresa: string } | null>(null);
   const [calificados, setCalificados] = useState<Set<string>>(new Set());
   const [tripSeleccionado, setTripSeleccionado] = useState<TripData | null>(null);
 
-  useEffect(() => {
+  const fetchTrips = () => {
+    setLoadingTrips(true);
     fetch("/api/trips/mine").then((r) => r.json()).then((d) => {
       setTrips({ enCurso: d.enCurso ?? [], proximos: d.proximos ?? [], completados: d.completados ?? [] });
       const alreadyRated = new Set<string>((d.completados ?? []).filter((t: TripData) => t.yaCalifiqué).map((t: TripData) => t.offerId));
       setCalificados(alreadyRated);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    }).catch(() => {}).finally(() => setLoadingTrips(false));
+  };
+
+  const fetchOfertas = () => {
+    setLoadingOfertas(true);
+    fetch("/api/offers/mine").then((r) => r.json()).then((d) => { if (d.offers) setOfertas(d.offers); }).catch(() => {}).finally(() => setLoadingOfertas(false));
+  };
+
+  useEffect(() => { fetchTrips(); fetchOfertas(); }, []);
 
   if (tripSeleccionado) return <VistaTripDetalle t={tripSeleccionado} userId={userId} onVolver={() => setTripSeleccionado(null)} />;
 
-  const tabData = { "En curso": trips.enCurso, "Próximos": trips.proximos, "Completados": trips.completados, "Cobros": [] as TripData[] };
-  const current = tabData[tab] ?? [];
+  const accion = async (offerId: string, action: string) => {
+    setAccionando(offerId + action);
+    try {
+      const res = await fetch(`/api/offers/${offerId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      if (res.ok) {
+        if (action === "withdraw") onToast("Oferta retirada.");
+        else if (action === "accept_counter") onToast("Contraoferta aceptada. ¡El viaje está confirmado!");
+        else if (action === "reject_counter") onToast("Contraoferta rechazada.");
+        fetchOfertas(); fetchTrips();
+      }
+    } finally { setAccionando(null); }
+  };
+
+  const estadoLabel: Record<string, string> = { pending: "Pendiente", countered: "Contraoferta recibida", accepted: "Aceptada", rejected: "Rechazada" };
+  const estadoStyle: Record<string, { bg: string; color: string }> = {
+    pending: { bg: "var(--green-glow)", color: "var(--green)" },
+    countered: { bg: "rgba(37,99,235,0.15)", color: "#3b82f6" },
+    accepted: { bg: "rgba(22,163,74,0.15)", color: "#16a34a" },
+    rejected: { bg: "rgba(220,38,38,0.15)", color: "#dc2626" },
+  };
+
+  const ofertasActivas = ofertas.filter(o => o.estado === "pending" || o.estado === "countered");
 
   const TripCard = ({ t }: { t: TripData }) => {
     const partes = t.titulo.split(" — "); const tipoCarga = partes[0]; const ruta = partes[1] ?? t.titulo; const [or, dest] = ruta.split(" → ");
     const completado = t.status === "delivered"; const yaCalif = calificados.has(t.offerId);
     const retiroExacto = t.pickupExact && t.pickupExact !== t.pickupCity ? t.pickupExact : null;
     const entregaExacta = t.dropoffExact && t.dropoffExact !== t.dropoffCity ? t.dropoffExact : null;
+    const accentColor = completado ? "#16a34a" : tab === "En curso" ? "var(--green)" : "#3b82f6";
     return (
-      <div onClick={() => setTripSeleccionado(t)} style={{ background: "var(--bg0)", border: `1px solid var(--border)`, borderLeft: `3px solid ${completado ? "#16a34a" : tab === "En curso" ? "var(--green)" : "#3b82f6"}`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10, cursor: "pointer" }}>
+      <div onClick={() => setTripSeleccionado(t)} style={{ background: "var(--bg0)", border: `1px solid var(--border)`, borderLeft: `3px solid ${accentColor}`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10, cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
@@ -595,47 +627,129 @@ function SeccionMisViajes({ userId }: { userId: string }) {
     );
   };
 
+  const tabs: { t: TabViajes; faIcon: string; count: number; desc: string }[] = [
+    { t: "Ofertas",     faIcon: "fa-handshake",      count: ofertasActivas.length,     desc: "Pendientes y contraofertas" },
+    { t: "Próximos",    faIcon: "fa-calendar-check", count: trips.proximos.length,     desc: "Confirmados" },
+    { t: "En curso",    faIcon: "fa-truck-moving",   count: trips.enCurso.length,      desc: "Viaje activo ahora" },
+    { t: "Completados", faIcon: "fa-flag-checkered", count: trips.completados.length,  desc: "Historial y cobros" },
+  ];
+
+  const tripsByTab: Record<TabViajes, TripData[]> = {
+    "Ofertas":     [],
+    "Próximos":    trips.proximos,
+    "En curso":    trips.enCurso,
+    "Completados": trips.completados,
+  };
+
   return (
     <main style={{ padding: "20px 24px", flex: 1 }}>
       {modalCalificar && <ModalCalificarDador offerId={modalCalificar.offerId} empresa={modalCalificar.empresa} onClose={() => { setCalificados((prev) => new Set([...prev, modalCalificar.offerId])); setModalCalificar(null); }} />}
       <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis viajes</div>
+
+      {/* KPI tabs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
-        {([
-        { t: "En curso" as TabViajes, faIcon: "fa-truck-moving", count: trips.enCurso.length, desc: "Viaje activo ahora" },
-        { t: "Próximos" as TabViajes, faIcon: "fa-calendar-check", count: trips.proximos.length, desc: "Confirmados" },
-        { t: "Completados" as TabViajes, faIcon: "fa-flag-checkered", count: trips.completados.length, desc: "Historial" },
-        { t: "Cobros" as TabViajes, faIcon: "fa-receipt", count: trips.completados.length, desc: "Historial de cobros" },
-      ]).map(({ t, faIcon, count, desc }) => {
-        const active = tab === t;
-        return (
-          <button key={t} onClick={() => setTab(t)} style={{ border: `1px solid ${active ? "var(--green)" : "var(--border)"}`, borderRadius: "var(--border-radius-lg)", background: "var(--bg0)", padding: "18px 20px", cursor: "pointer", textAlign: "left" as const, boxShadow: active ? "0 0 0 3px var(--green-glow)" : "none" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 8, background: active ? "var(--green-muted)" : "var(--bg2)", border: `1px solid ${active ? "var(--green-dim)" : "var(--border)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <i className={`fa-solid ${faIcon}`} style={{ fontSize: 16, color: active ? "var(--green)" : "var(--text3)" }} />
+        {tabs.map(({ t, faIcon, count, desc }) => {
+          const active = tab === t;
+          return (
+            <button key={t} onClick={() => setTab(t)} style={{ border: `1px solid ${active ? "var(--green)" : "var(--border)"}`, borderRadius: "var(--border-radius-lg)", background: "var(--bg0)", padding: "18px 20px", cursor: "pointer", textAlign: "left" as const, boxShadow: active ? "0 0 0 3px var(--green-glow)" : "none" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 8, background: active ? "var(--green-muted)" : "var(--bg2)", border: `1px solid ${active ? "var(--green-dim)" : "var(--border)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <i className={`fa-solid ${faIcon}`} style={{ fontSize: 16, color: active ? "var(--green)" : "var(--text3)" }} />
+                </div>
+                <span style={{ fontSize: 28, fontWeight: 600, color: "var(--text1)", lineHeight: 1 }}>{count}</span>
               </div>
-              <span style={{ fontSize: 28, fontWeight: 600, color: "var(--text1)", lineHeight: 1 }}>{count}</span>
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text1)", marginBottom: 3 }}>{t}</div>
-            <div style={{ fontSize: 12, color: "var(--text3)" }}>{desc}</div>
-          </button>
-        );
-      })}
+              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text1)", marginBottom: 3 }}>{t}</div>
+              <div style={{ fontSize: 12, color: "var(--text3)" }}>{desc}</div>
+            </button>
+          );
+        })}
       </div>
-      {tab === "Cobros" && <TabCobros />}
-      {loading && tab !== "Cobros" && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
-      {!loading && tab !== "Cobros" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
-          <div>{current.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "48px 20px" }}>
-              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                <i className="fa-solid fa-route" style={{ fontSize: 22, color: "var(--green)" }} />
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6, lineHeight: 1.7 }}>Sin viajes en esta categoría</div>
-              <div style={{ fontSize: 13, color: "var(--text2)" }}>Los viajes aceptados van a aparecer acá.</div>
+
+      {/* Tab: Ofertas */}
+      {tab === "Ofertas" && (
+        <>
+          {loadingOfertas && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+          {!loadingOfertas && ofertas.length === 0 && (
+            <div style={{ textAlign: "center", padding: "56px 20px" }}>
+              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><i className="fa-solid fa-handshake" style={{ fontSize: 22, color: "var(--green)" }} /></div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6 }}>Sin ofertas todavía</div>
+              <div style={{ fontSize: 13, color: "var(--text2)" }}>Buscá cargas disponibles y enviá tu primera oferta.</div>
             </div>
-          ) : (current.map((t) => <TripCard key={t.offerId} t={t} />))}</div>
-          <Calendario eventos={[]} />
-        </div>
+          )}
+          {!loadingOfertas && ofertas.map((o) => (
+            <div key={o.id} style={{ background: "var(--bg0)", border: o.estado === "countered" ? "1px solid #3b82f6" : "1px solid var(--border)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                <div><div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{o.titulo}</div><div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{o.empresa} · {o.fecha}</div></div>
+                <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: estadoStyle[o.estado]?.bg, color: estadoStyle[o.estado]?.color }}>{estadoLabel[o.estado]}</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
+                <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Precio base del dador</div><div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{o.precioBase ? `$${o.precioBase.toLocaleString("es-AR")}` : "—"}</div></div>
+                <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Tu oferta</div><div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-brand-dark)" }}>{o.miOferta != null ? `$${o.miOferta.toLocaleString("es-AR")}` : "—"}</div></div>
+              </div>
+              {o.estado === "countered" && o.counterPrice != null && (
+                <div style={{ marginTop: 12, padding: "12px 14px", background: "rgba(37,99,235,0.1)", borderRadius: "var(--border-radius-md)", border: "1px solid rgba(37,99,235,0.3)" }}>
+                  <div style={{ fontSize: 12, color: "#3b82f6", fontWeight: 600, marginBottom: 8 }}>El dador propuso un nuevo precio: <span style={{ fontSize: 15 }}>${o.counterPrice.toLocaleString("es-AR")}</span></div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => accion(o.id, "accept_counter")} disabled={accionando === o.id + "accept_counter"} style={{ flex: 1, padding: "8px 0", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: accionando === o.id + "accept_counter" ? 0.6 : 1 }}>Aceptar contraoferta</button>
+                    <button onClick={() => accion(o.id, "reject_counter")} disabled={accionando === o.id + "reject_counter"} style={{ flex: 1, padding: "8px 0", borderRadius: "var(--border-radius-md)", border: "1px solid rgba(220,38,38,0.4)", background: "rgba(220,38,38,0.1)", color: "#dc2626", fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: accionando === o.id + "reject_counter" ? 0.6 : 1 }}>Rechazar</button>
+                  </div>
+                </div>
+              )}
+              {o.nota && <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 10, padding: "8px 10px", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)" }}>&ldquo;{o.nota}&rdquo;</div>}
+              {(o.estado === "pending" || o.estado === "countered") && (
+                <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
+                  <button onClick={() => accion(o.id, "withdraw")} disabled={accionando === o.id + "withdraw"} style={{ fontSize: 12, padding: "5px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "none", color: "var(--color-text-tertiary)", cursor: "pointer", opacity: accionando === o.id + "withdraw" ? 0.5 : 1 }}>Retirar oferta</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Tabs: Próximos / En curso */}
+      {(tab === "Próximos" || tab === "En curso") && (
+        <>
+          {loadingTrips && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+          {!loadingTrips && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
+              <div>
+                {tripsByTab[tab].length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "48px 20px" }}>
+                    <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><i className="fa-solid fa-route" style={{ fontSize: 22, color: "var(--green)" }} /></div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6 }}>Sin viajes en esta categoría</div>
+                    <div style={{ fontSize: 13, color: "var(--text2)" }}>Los viajes aceptados van a aparecer acá.</div>
+                  </div>
+                ) : tripsByTab[tab].map((t) => <TripCard key={t.offerId} t={t} />)}
+              </div>
+              <Calendario eventos={[]} />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Tab: Completados + Cobros */}
+      {tab === "Completados" && (
+        <>
+          {loadingTrips && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+          {!loadingTrips && (
+            <>
+              {trips.completados.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "48px 20px" }}>
+                  <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><i className="fa-solid fa-flag-checkered" style={{ fontSize: 22, color: "var(--green)" }} /></div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6 }}>Sin viajes completados</div>
+                  <div style={{ fontSize: 13, color: "var(--text2)" }}>Los viajes entregados van a aparecer acá.</div>
+                </div>
+              ) : trips.completados.map((t) => <TripCard key={t.offerId} t={t} />)}
+
+              <div style={{ marginTop: 28, paddingTop: 24, borderTop: "0.5px solid var(--color-border-tertiary)" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <i className="fa-solid fa-receipt" style={{ color: "var(--green)", fontSize: 14 }} /> Historial de cobros
+                </div>
+                <TabCobros />
+              </div>
+            </>
+          )}
+        </>
       )}
     </main>
   );
@@ -1978,7 +2092,7 @@ function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; 
           <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 18 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>Ofertas activas</div>
-              <button onClick={() => onNavegar("Mis ofertas")} style={{ fontSize: 11, color: "var(--color-brand)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ver todas</button>
+              <button onClick={() => onNavegar("Mis viajes")} style={{ fontSize: 11, color: "var(--color-brand)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ver todas</button>
             </div>
             {ofertas.length === 0 && <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", textAlign: "center", padding: "20px 0" }}>Sin ofertas activas</div>}
             {ofertas.slice(0, 4).map(o => {
@@ -2431,7 +2545,6 @@ export default function TransportistaDashboard({ mode: modeProp = "individual" }
     "Inicio": "fa-solid fa-house",
     "Buscar cargas": "fa-solid fa-magnifying-glass",
     "Planificar viaje": "fa-solid fa-map-location-dot",
-    "Mis ofertas": "fa-solid fa-handshake",
     "Mis viajes": "fa-solid fa-route",
     "Notificaciones": "fa-solid fa-bell",
     "Mi flota": "fa-solid fa-truck-front",
@@ -2446,7 +2559,7 @@ export default function TransportistaDashboard({ mode: modeProp = "individual" }
           <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: "var(--text1)", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>Carga<span style={{ color: "var(--green)" }}>Back</span></Link>
           <nav style={{ display: "flex", height: "100%" }}>
             {navItems.map((item) => {
-              const badge = item === "Mis ofertas" ? ofertasBadge : 0;
+              const badge = item === "Mis viajes" ? ofertasBadge : 0;
               const active = navActivo === item;
               return (
                 <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 20px", background: "transparent", border: "none", borderBottom: active ? "2.5px solid var(--green)" : "2.5px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 15, display: "flex", alignItems: "center", gap: 8, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
@@ -2471,8 +2584,7 @@ export default function TransportistaDashboard({ mode: modeProp = "individual" }
         {navActivo === "Inicio" && <SeccionInicio trucks={trucks} userName={userName} onNavegar={setNavActivo} />}
         {navActivo === "Buscar cargas" && <SeccionBuscar onOfertar={(c) => setModalOferta(c)} onAlerta={() => mostrarToast("¡Alerta guardada! Te avisamos cuando aparezca una carga que te interese.")} excluirIds={ofertadasIds} trucks={trucks} drivers={rootDrivers} onNoTruck={() => mostrarToast("Necesitás registrar al menos un camión en Mi flota para poder ofertar.")} onNoDriver={() => mostrarToast("Necesitás registrar al menos un camionero en Mi flota para poder ofertar.")} />}
         {navActivo === "Planificar viaje" && <SeccionPlanificar trucks={trucks} />}
-        {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
-        {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} />}
+        {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} onToast={mostrarToast} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
         {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} mode={effectiveMode} />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
