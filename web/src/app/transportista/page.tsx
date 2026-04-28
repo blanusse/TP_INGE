@@ -2439,16 +2439,16 @@ export default function TransportistaDashboard({ mode: modeProp = "individual" }
   return (
     <>
       <div className={`transportista-${theme}`} style={{ background: "var(--bg1)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 56, background: "var(--bg0)", backdropFilter: "blur(8px)", position: "sticky", top: 0, zIndex: 10, borderBottom: "1px solid var(--border)" }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: "var(--bg0)", backdropFilter: "blur(8px)", position: "sticky", top: 0, zIndex: 10, borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
-          <Link href="/" style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>Carga<span style={{ color: "var(--green)" }}>Back</span></Link>
+          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: "var(--text1)", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>Carga<span style={{ color: "var(--green)" }}>Back</span></Link>
           <nav style={{ display: "flex", height: "100%" }}>
             {navItems.map((item) => {
               const badge = item === "Mis ofertas" ? ofertasBadge : 0;
               const active = navActivo === item;
               return (
-                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
-                  <i className={NAV_ICONS[item]} style={{ fontSize: 12 }} />
+                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 20px", background: "transparent", border: "none", borderBottom: active ? "2.5px solid var(--green)" : "2.5px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 15, display: "flex", alignItems: "center", gap: 8, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
+                  <i className={NAV_ICONS[item]} style={{ fontSize: 14 }} />
                   {item}
                   {badge > 0 && <span style={{ position: "absolute", top: 10, right: 6, width: 15, height: 15, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{badge > 9 ? "9+" : badge}</span>}
                 </button>
