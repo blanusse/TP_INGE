@@ -165,7 +165,7 @@ export default function AdminPayoutsPage() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
                 <a
-                  href="https://www.mercadopago.com.ar/send-money"
+                  href="https://www.mercadopago.com.ar"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ background: "#009ee3", color: "#fff", borderRadius: 8, padding: "9px 18px", fontSize: 13, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
