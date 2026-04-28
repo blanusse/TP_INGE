@@ -88,6 +88,8 @@ export class StatsService {
       rutasFrecuentes,
       calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,
       memberSince: user.created_at,
+      phone: user.phone ?? null,
+      dni: user.dni ?? null,
     };
   }
 

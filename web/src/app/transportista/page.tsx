@@ -1580,7 +1580,7 @@ type TabPerfil = "Perfil" | "Documentos" | "Estadísticas";
 interface EarningsMes { mes: string; monto: number; }
 interface TipoCargaStat { tipo: string; pct: number; count: number; color: string; cantidad?: number; }
 interface RutaStat { ruta: string; viajes: number; }
-interface TransportistaStats { viajesCompletados: number; calificacionPromedio: number | null; memberSince: string; ingresosUltimos6Meses: EarningsMes[]; tiposCarga: TipoCargaStat[]; rutasFrecuentes: RutaStat[]; totalIngresos6m: number; viajes6m: number; }
+interface TransportistaStats { viajesCompletados: number; calificacionPromedio: number | null; memberSince: string; ingresosUltimos6Meses: EarningsMes[]; tiposCarga: TipoCargaStat[]; rutasFrecuentes: RutaStat[]; totalIngresos6m: number; viajes6m: number; phone?: string | null; dni?: string | null; }
 
 interface TruckData2 { id: string; patente: string; marca: string | null; modelo: string | null; vtv_vence: string | null; seguro_vence: string | null; vtv_verified: boolean; seguro_verified: boolean; }
 
@@ -1588,6 +1588,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const [editando, setEditando] = useState(false);
   const [nombre, setNombre] = useState(userName);
   const [telefono, setTelefono] = useState("");
+  const [dni, setDni] = useState<string | null>(null);
   const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
   const [stats, setStats] = useState<TransportistaStats | null>(null);
   const [showAsDriver, setShowAsDriver] = useState(true);
@@ -1614,7 +1615,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   };
 
   useEffect(() => {
-    fetch("/api/stats/camionero").then((r) => r.json()).then((d) => setStats(d)).catch(() => {});
+    fetch("/api/stats/camionero").then((r) => r.json()).then((d) => { setStats(d); if (d.phone) setTelefono(d.phone); if (d.dni) setDni(d.dni); }).catch(() => {});
     fetch("/api/fleet/settings").then((r) => r.json()).then((d) => { if (d.show_as_fleet_driver !== undefined) setShowAsDriver(d.show_as_fleet_driver); }).catch(() => {});
     fetchStatus();
   }, []);
@@ -1691,6 +1692,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Teléfono</div>{editando ? <input value={telefono} onChange={(e) => setTelefono(e.target.value)} style={{ fontSize: 14, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "7px 10px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", width: "100%", boxSizing: "border-box" as const }} /> : <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{telefono || "—"}</div>}</div>
               <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Email</div><div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{userEmail || "—"}</div></div>
+              <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>DNI</div><div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{dni || "—"}</div></div>
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

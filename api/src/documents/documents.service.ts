@@ -70,6 +70,11 @@ export class DocumentsService {
     if (!user.dni) throw new BadRequestException('El usuario no tiene DNI registrado');
 
     const text = await this.visionService.extractTextFromFile(filePath);
+
+    if (!this.visionService.isDniDocument(text)) {
+      return { verified: false, message: 'El documento no parece ser un DNI argentino válido. Asegurate de fotografiar el frente del DNI.' };
+    }
+
     const found = this.visionService.dniFoundInText(text, user.dni);
 
     const backendUrl = process.env.BACKEND_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
@@ -79,7 +84,6 @@ export class DocumentsService {
       await this.usersRepo.update({ id: userId }, { dni_verified: true, dni_photo_url: photoUrl });
       return { verified: true, message: 'DNI verificado correctamente' };
     } else {
-      // Save the photo anyway so admin can review manually if needed
       await this.usersRepo.update({ id: userId }, { dni_photo_url: photoUrl });
       return { verified: false, message: 'El número de DNI en la foto no coincide con el registrado. Asegurate de fotografiar el frente del DNI con buena iluminación.' };
     }
@@ -91,6 +95,11 @@ export class DocumentsService {
     if (!user.dni) throw new BadRequestException('El usuario no tiene DNI registrado');
 
     const text = await this.visionService.extractTextFromFile(filePath);
+
+    if (!this.visionService.isLicenseDocument(text)) {
+      return { verified: false, message: 'El documento no parece ser un registro de conducir válido. Asegurate de fotografiar el frente del carnet.' };
+    }
+
     const found = this.visionService.dniFoundInText(text, user.dni);
 
     if (found) {
@@ -106,6 +115,11 @@ export class DocumentsService {
     if (truck.owner_id !== userId) throw new ForbiddenException();
 
     const text = await this.visionService.extractTextFromFile(filePath);
+
+    if (!this.visionService.isVtvDocument(text)) {
+      return { verified: false, message: 'El documento no parece ser una VTV válida. Asegurate de fotografiar el certificado de verificación técnica vehicular.' };
+    }
+
     const plateFound = this.visionService.plateFoundInText(text, truck.patente);
 
     if (!plateFound) {
@@ -135,6 +149,11 @@ export class DocumentsService {
     if (truck.owner_id !== userId) throw new ForbiddenException();
 
     const text = await this.visionService.extractTextFromFile(filePath);
+
+    if (!this.visionService.isSeguroDocument(text)) {
+      return { verified: false, message: 'El documento no parece ser una póliza de seguro válida. Asegurate de fotografiar el certificado o la tarjeta del seguro del vehículo.' };
+    }
+
     const plateFound = this.visionService.plateFoundInText(text, truck.patente);
 
     if (!plateFound) {

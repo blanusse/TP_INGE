@@ -38,6 +38,60 @@ export class DniVisionService {
     return annotations[0].description ?? '';
   }
 
+  /** Checks if at least `min` keywords from the list appear in the (uppercased) text */
+  private hasKeywords(text: string, keywords: string[], min: number): boolean {
+    const upper = text.toUpperCase();
+    const found = keywords.filter(k => upper.includes(k.toUpperCase()));
+    return found.length >= min;
+  }
+
+  /** Returns true only if the image looks like an Argentine DNI */
+  isDniDocument(text: string): boolean {
+    const keywords = [
+      'REPUBLICA ARGENTINA', 'REPÚBLICA ARGENTINA',
+      'DOCUMENTO NACIONAL DE IDENTIDAD', 'DNI',
+      'APELLIDO', 'APELL',
+      'NOMBRES', 'NOMBRE',
+      'SEXO', 'GENERO', 'GÉNERO',
+      'NACIMIENTO', 'NACIDO',
+      'IDENTIDAD',
+    ];
+    return this.hasKeywords(text, keywords, 3);
+  }
+
+  /** Returns true only if the image looks like an Argentine driver's license */
+  isLicenseDocument(text: string): boolean {
+    const keywords = [
+      'LICENCIA', 'CONDUCIR', 'CONDUCTOR',
+      'HABILITANTE', 'CLASE', 'CATEGORIA', 'CATEGORÍA',
+      'PERMISO', 'MUNICIPAL',
+    ];
+    return this.hasKeywords(text, keywords, 2);
+  }
+
+  /** Returns true only if the image looks like a VTV certificate */
+  isVtvDocument(text: string): boolean {
+    const keywords = [
+      'VTV', 'VERIFICACION', 'VERIFICACIÓN',
+      'TECNICA', 'TÉCNICA', 'VEHICULAR',
+      'DOMINIO', 'PATENTE',
+      'VENCIMIENTO', 'VIGENCIA',
+    ];
+    return this.hasKeywords(text, keywords, 2);
+  }
+
+  /** Returns true only if the image looks like a vehicle insurance document */
+  isSeguroDocument(text: string): boolean {
+    const keywords = [
+      'SEGURO', 'PÓLIZA', 'POLIZA',
+      'ASEGURADO', 'ASEGURADA',
+      'VIGENCIA', 'VENCIMIENTO',
+      'COBERTURA', 'PRIMA', 'ASEGURADORA',
+      'AUTOMOTOR', 'VEHICULO', 'VEHÍCULO',
+    ];
+    return this.hasKeywords(text, keywords, 2);
+  }
+
   dniFoundInText(text: string, dni: string): boolean {
     const normalize = (s: string) => s.replace(/[\s.\-_]/g, '');
     return normalize(text).includes(normalize(dni));
