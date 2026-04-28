@@ -1115,14 +1115,9 @@ function SeccionMisCargas({
     <>
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", margin: 0 }}>Mis cargas</h1>
-          <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Publica cargas y gestiona ofertas de transportistas</p>
-        </div>
-        <button onClick={onPublicar} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const }}>
-          + Publicar carga
-        </button>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", margin: 0 }}>Mis cargas</h1>
+        <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Publica cargas y gestiona ofertas de transportistas</p>
       </div>
 
       {/* Tabs */}
