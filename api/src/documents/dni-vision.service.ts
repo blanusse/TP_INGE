@@ -24,8 +24,12 @@ export class DniVisionService {
     );
 
     if (!response.ok) {
-      const err = await response.text();
-      throw new ServiceUnavailableException(`Google Vision error: ${err}`);
+      const errData = await response.json().catch(() => ({})) as any;
+      const reason = errData?.error?.status ?? 'ERROR';
+      if (reason === 'PERMISSION_DENIED') {
+        throw new ServiceUnavailableException('El servicio de verificación no está disponible en este momento. Contactá al soporte.');
+      }
+      throw new ServiceUnavailableException('Error al procesar la imagen. Intentá de nuevo.');
     }
 
     const data = await response.json() as any;
@@ -35,10 +39,35 @@ export class DniVisionService {
   }
 
   dniFoundInText(text: string, dni: string): boolean {
-    // Remove formatting characters to compare raw digit sequences
     const normalize = (s: string) => s.replace(/[\s.\-_]/g, '');
-    const normalizedText = normalize(text);
-    const normalizedDni = normalize(dni);
-    return normalizedText.includes(normalizedDni);
+    return normalize(text).includes(normalize(dni));
+  }
+
+  plateFoundInText(text: string, patente: string): boolean {
+    const normalize = (s: string) => s.replace(/[\s\-\.]/g, '').toUpperCase();
+    return normalize(text).includes(normalize(patente));
+  }
+
+  extractExpiryDate(text: string): Date | null {
+    const now = new Date();
+    // Try DD/MM/YYYY
+    const fullDates = [...text.matchAll(/\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/g)];
+    if (fullDates.length > 0) {
+      const future = fullDates
+        .map(m => new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1])))
+        .filter(d => d > now && d.getFullYear() > 2020)
+        .sort((a, b) => b.getTime() - a.getTime());
+      if (future.length > 0) return future[0];
+    }
+    // Try MM/YYYY
+    const monthDates = [...text.matchAll(/\b(\d{2})[\/\-](\d{4})\b/g)];
+    if (monthDates.length > 0) {
+      const future = monthDates
+        .map(m => new Date(parseInt(m[2]), parseInt(m[1]) - 1, 1))
+        .filter(d => d > now && d.getFullYear() > 2020)
+        .sort((a, b) => b.getTime() - a.getTime());
+      if (future.length > 0) return future[0];
+    }
+    return null;
   }
 }
