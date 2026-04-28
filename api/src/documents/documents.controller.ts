@@ -44,6 +44,26 @@ export class DocumentsController {
     return this.documentsService.getMyDocuments(req.user.id);
   }
 
+  @Get('dni-status')
+  getDniStatus(@Request() req) {
+    return this.documentsService.getDniStatus(req.user.id);
+  }
+
+  @Post('verify-dni')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: uploadsDir,
+      filename: (_req, file, cb) => {
+        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+        cb(null, `dni-${unique}${extname(file.originalname)}`);
+      },
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
+  async verifyDni(@Request() req, @UploadedFile() file: Express.Multer.File) {
+    return this.documentsService.verifyDni(req.user.id, file.path);
+  }
+
   @Get('pending')
   getPending(@Request() req) {
     if (req.user.role !== 'admin') throw new ForbiddenException();
