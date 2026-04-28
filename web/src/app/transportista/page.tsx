@@ -994,7 +994,7 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al agregar el camión."); return; }
+      if (!res.ok) { setError(data.message ?? data.error ?? "Error al agregar el camión."); return; }
       onAdded(data.truck);
       onClose();
     } finally { setLoading(false); }
@@ -1112,7 +1112,7 @@ function ModalEditarCamion({ truck, onClose, onSaved }: { truck: TruckData; onCl
     try {
       const res = await fetch(`/api/fleet/trucks/${truck.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patente: patente.toUpperCase(), patente_remolque: patenteRemolque || undefined, marca, modelo, año: año || undefined, truck_type: tipo, capacity_kg: capacidad || undefined, vtv_vence: vtvVence || undefined, seguro_poliza: seguroPoliza || undefined, seguro_vence: seguroVence || undefined }) });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al guardar los cambios."); return; }
+      if (!res.ok) { setError(data.message ?? data.error ?? "Error al guardar los cambios."); return; }
       onSaved(data.truck);
       onClose();
     } finally { setLoading(false); }
@@ -1167,7 +1167,7 @@ function ModalEditarConductor({ driver, onClose, onSaved }: { driver: Driver; on
     try {
       const res = await fetch(`/api/fleet/drivers/${driver.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, phone: phone || undefined, dni: dni || undefined }) });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al guardar los cambios."); return; }
+      if (!res.ok) { setError(data.message ?? data.error ?? "Error al guardar los cambios."); return; }
       onSaved({ ...driver, ...data.driver });
       onClose();
     } finally { setLoading(false); }
