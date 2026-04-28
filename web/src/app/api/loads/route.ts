@@ -13,6 +13,30 @@ export async function GET() {
   return NextResponse.json(wrapped, { status: res.status });
 }
 
+export async function PATCH(req: NextRequest) {
+  const session = await auth();
+  if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+
+  const { loadId, ...body } = await req.json();
+  if (!loadId) return NextResponse.json({ error: "loadId requerido." }, { status: 400 });
+
+  const payload = {
+    cargo_type: body.tipoCarga,
+    truck_type_required: body.tipoCamion,
+    weight_kg: body.peso ? Number(body.peso) : undefined,
+    price_base: body.precio ? Number(body.precio) : undefined,
+    ready_at: body.retiro || undefined,
+    description: body.descripcion,
+  };
+
+  const res = await apiFetch(`/loads/${loadId}`, session.backendToken, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  return NextResponse.json(res.ok ? { load: data } : data, { status: res.status });
+}
+
 export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
