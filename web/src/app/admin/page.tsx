@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
+
 
 interface Payout {
   id: string;
@@ -25,7 +25,6 @@ const METHOD_LABEL: Record<string, string> = {
 };
 
 export default function AdminPayoutsPage() {
-  const router = useRouter();
   const [secret, setSecret] = React.useState("");
   const [input, setInput] = React.useState("");
   const [payouts, setPayouts] = React.useState<Payout[]>([]);
