@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:3001";
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET ?? "";
 
-function isAuthorized(req: NextRequest, session: Awaited<ReturnType<typeof auth>>) {
+function isAuthorized(req: NextRequest, session: { user?: { role?: string } } | null) {
   if (session?.user?.role === "admin") return true;
   const clientSecret = req.headers.get("x-internal-secret");
   return INTERNAL_SECRET !== "" && clientSecret === INTERNAL_SECRET;
@@ -14,7 +14,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
+  const session = await auth() as { user?: { role?: string } } | null;
   if (!isAuthorized(req, session)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
