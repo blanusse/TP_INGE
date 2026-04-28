@@ -104,7 +104,7 @@ export default function AdminPayoutsPage() {
             <div style={{ fontSize: 14, color: "#6b7280", marginTop: 2 }}>Transferí el monto y marcalo como pagado</div>
           </div>
           <button
-            onClick={() => router.push("/login")}
+            onClick={() => { setSecret(""); setInput(""); }}
             style={{ background: "none", border: "1px solid #d1d5db", borderRadius: 8, padding: "7px 16px", fontSize: 13, color: "#6b7280", cursor: "pointer" }}
           >
             Cerrar sesión
