@@ -193,7 +193,7 @@ export class StatsService {
     return {
       totalViajes,
       totalIngresos,
-      totalConductores: subDrivers.length + 1,
+      totalConductores: subDrivers.length,
       totalCamiones: fleetTrucks.length,
       mejorConductor: mejorConductor ? { name: mejorConductor.name, viajes: mejorConductor.viajes } : null,
       calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,

@@ -14,7 +14,7 @@ type DashboardMode = "individual" | "flota" | "empleado";
 
 const NAV_ITEMS_BY_MODE: Record<DashboardMode, NavItem[]> = {
   individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Mi flota", "Notificaciones"],
-  flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Notificaciones", "Mi perfil"],
+  flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Notificaciones"],
   empleado:   ["Mis viajes", "Mi perfil", "Notificaciones"],
 };
 const DEFAULT_NAV: Record<DashboardMode, NavItem> = {
@@ -1465,8 +1465,7 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
                 <i className="fa-solid fa-truck-front" style={{ fontSize: 22, color: "var(--green)" }} />
               </div>
               <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6, lineHeight: 1.7 }}>Sin camiones registrados</div>
-              <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 20, lineHeight: 1.7 }}>Agregá tus camiones para poder recibir y aceptar cargas.</div>
-              <button onClick={() => setModalCamion(true)} style={{ fontSize: 13, padding: "7px 18px", borderRadius: 6, border: "none", background: "var(--green)", color: "#fff", cursor: "pointer", fontWeight: 500 }}>+ Agregar primer camión</button>
+              <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.7 }}>Agregá tus camiones para poder recibir y aceptar cargas.</div>
             </div>
           )}
           {!loadingTrucks && trucks.length > 0 && (
