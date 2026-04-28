@@ -492,6 +492,87 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
 
 interface OfertaSeleccionada { oferta: Oferta; cargaTitulo: string; cargaId: string; offerId: string; }
 
+function ModalEditar({ carga, onClose, onGuardado }: { carga: Carga; onClose: () => void; onGuardado: (c: Carga) => void }) {
+  const tituloPartes = carga.titulo.split("—");
+  const tipoCargaInicial = tituloPartes[0]?.trim() ?? "General";
+
+  const pesoNum = carga.peso !== "—" ? carga.peso.replace(/[^\d]/g, "") : "";
+  const [form, setForm] = useState({
+    tipoCarga: tipoCargaInicial,
+    tipoCamion: carga.tipoCamion === "Cualquiera" ? "Cualquiera" : carga.tipoCamion,
+    peso: pesoNum,
+    precio: "",
+    retiro: carga.retiro !== "—" ? (() => { const [d,m,y] = carga.retiro.split("/"); return `${y}-${m?.padStart(2,"0")}-${d?.padStart(2,"0")}`; })() : "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/loads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loadId: carga.id, ...form }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Error al guardar."); return; }
+      onGuardado(loadToCard(data.load));
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal title="Editar carga" onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={labelStyle}>Tipo de carga</label>
+            <select value={form.tipoCarga} onChange={(e) => set("tipoCarga", e.target.value)} style={selectStyle}>
+              {["General", "Granel", "Refrigerado", "Plataforma", "Peligroso", "Frágil"].map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Camión requerido</label>
+            <select value={form.tipoCamion} onChange={(e) => set("tipoCamion", e.target.value)} style={selectStyle}>
+              {["Cualquiera", "Granelero", "Furgón cerrado", "Plataforma", "Refrigerado", "Cisterna"].map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={labelStyle}>Peso estimado (kg)</label>
+            <input type="number" value={form.peso} onChange={(e) => set("peso", e.target.value)} placeholder="ej: 22000" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Precio base (ARS)</label>
+            <input type="number" value={form.precio} onChange={(e) => set("precio", e.target.value)} placeholder="Dejar vacío para no cambiar" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Fecha de retiro</label>
+            <input type="date" value={form.retiro} onChange={(e) => set("retiro", e.target.value)} style={inputStyle} />
+          </div>
+        </div>
+        {error && <div style={{ fontSize: 13, color: "#b91c1c", background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
+            Cancelar
+          </button>
+          <button type="submit" disabled={loading} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "none", background: loading ? "#aaa" : "var(--color-brand)", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>
+            {loading ? "Guardando..." : "Guardar cambios →"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
   carga: Carga;
   onClose: () => void;
@@ -918,6 +999,7 @@ function SeccionMisCargas({
   const [tab, setTab] = useState<MisCargasTab>("Publicadas");
   const [detalleCarga, setDetalleCarga] = useState<Carga | null>(null);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [editando, setEditando] = useState<Carga | null>(null);
   const [deliveryCode, setDeliveryCode] = useState<{ code: string; used: boolean } | null>(null);
 
   const publicadas = cargas.filter((c) => c.status === "available");
@@ -1030,6 +1112,7 @@ function SeccionMisCargas({
   }
 
   return (
+    <>
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
@@ -1141,7 +1224,7 @@ function SeccionMisCargas({
                 )}
                 <div style={{ display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>
                   {!esAsignada && (
-                    <button onClick={() => onDestacado(c.titulo)} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                    <button onClick={() => setEditando(c)} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>
                       Editar
                     </button>
                   )}
@@ -1162,6 +1245,14 @@ function SeccionMisCargas({
         );
       })}
     </main>
+    {editando && (
+      <ModalEditar
+        carga={editando}
+        onClose={() => setEditando(null)}
+        onGuardado={() => { onRefresh(); setEditando(null); }}
+      />
+    )}
+    </>
   );
 }
 

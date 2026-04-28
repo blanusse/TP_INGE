@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 
 interface Payout {
   id: string;
@@ -24,6 +25,7 @@ const METHOD_LABEL: Record<string, string> = {
 };
 
 export default function AdminPayoutsPage() {
+  const router = useRouter();
   const [secret, setSecret] = React.useState("");
   const [input, setInput] = React.useState("");
   const [payouts, setPayouts] = React.useState<Payout[]>([]);
@@ -102,10 +104,10 @@ export default function AdminPayoutsPage() {
             <div style={{ fontSize: 14, color: "#6b7280", marginTop: 2 }}>Transferí el monto y marcalo como pagado</div>
           </div>
           <button
-            onClick={() => setSecret("")}
+            onClick={() => router.push("/login")}
             style={{ background: "none", border: "1px solid #d1d5db", borderRadius: 8, padding: "7px 16px", fontSize: 13, color: "#6b7280", cursor: "pointer" }}
           >
-            Salir
+            Cerrar sesión
           </button>
         </div>
 
