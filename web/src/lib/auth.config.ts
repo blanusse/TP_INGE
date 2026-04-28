@@ -23,6 +23,19 @@ declare module "next-auth" {
   }
 }
 
+function readJwtExp(jwt: string): number | null {
+  try {
+    const part = jwt.split(".")[1];
+    if (!part) return null;
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), "=");
+    const payload = JSON.parse(atob(padded));
+    return typeof payload.exp === "number" ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
 export const authConfig: NextAuthConfig = {
   providers: [],
   trustHost: true,
@@ -30,9 +43,20 @@ export const authConfig: NextAuthConfig = {
     jwt({ token, user }) {
       if (user?.id)                        token.sub                          = user.id;
       if (user?.role)                      (token as any).role                = user.role;
-      if (user?.backendToken)              (token as any).backendToken        = user.backendToken;
+      if (user?.backendToken) {
+        (token as any).backendToken    = user.backendToken;
+        (token as any).backendTokenExp = readJwtExp(user.backendToken);
+      }
       if (user?.fleetId !== undefined)     (token as any).fleetId             = user.fleetId;
       if (user?.isFleetOwner !== undefined)(token as any).isFleetOwner        = user.isFleetOwner;
+
+      // Si el JWT del backend ya expiró, invalidamos la sesión de NextAuth.
+      // Devolver null hace que el middleware vea loggedIn=false y redirija a /login.
+      const exp = (token as any).backendTokenExp;
+      if (typeof exp === "number" && Math.floor(Date.now() / 1000) >= exp) {
+        return null;
+      }
+
       return token;
     },
     session({ session, token }) {
