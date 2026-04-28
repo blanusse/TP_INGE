@@ -20,7 +20,7 @@ type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tr�
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
 interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
-interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; origenExacto?: string | null; destinoExacto?: string | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null}
+interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; precio: number | null; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; origenExacto?: string | null; destinoExacto?: string | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null}
 
 interface LoadDB {
   id: string;
@@ -72,6 +72,7 @@ function loadToCard(load: LoadDB): Carga {
     peso:         load.weight_kg ? `${load.weight_kg.toLocaleString("es-AR")} kg` : "—",
     tipoCamion:   load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required] ?? load.truck_type_required) : "Cualquiera",
     retiro:       load.ready_at ? new Date(load.ready_at).toLocaleDateString("es-AR") : "—",
+    precio:       load.price_base != null ? Number(load.price_base) : null,
     ofertas:      load.offer_count ?? 0,
     camioneros:   [],
     ofertasDetalle: [],
@@ -300,10 +301,21 @@ interface PriceEstimate { distanceKm: number; minPrice: number; suggestedPrice: 
 
 interface UbicacionMeta { zone: string; lat: number; lon: number; }
 
-function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublicar: (c: Carga) => void }) {
-  const [form, setForm] = useState({ origen: "", destino: "", tipoCarga: "General", tipoCamion: "Cualquiera", peso: "", precio: "", retiro: "" });
-  const [origenMeta,  setOrigenMeta]  = useState<UbicacionMeta | null>(null);
-  const [destinoMeta, setDestinoMeta] = useState<UbicacionMeta | null>(null);
+function ModalPublicar({ onClose, onPublicar, cargaEditar }: { onClose: () => void; onPublicar: (c: Carga) => void; cargaEditar?: Carga }) {
+  const editando = !!cargaEditar;
+
+  const tipoCargaInicial = editando ? (cargaEditar!.titulo.split("—")[0]?.trim() ?? "General") : "General";
+  const pesoInicial = editando && cargaEditar!.peso !== "—" ? cargaEditar!.peso.replace(/[^\d]/g, "") : "";
+  const precioInicial = editando && cargaEditar!.precio != null ? String(cargaEditar!.precio) : "";
+  const retiroInicial = editando && cargaEditar!.retiro !== "—"
+    ? (() => { const [d, m, y] = cargaEditar!.retiro.split("/"); return `${y}-${m?.padStart(2, "0")}-${d?.padStart(2, "0")}`; })()
+    : "";
+  const origenInicial = editando ? (cargaEditar!.origenExacto ?? "") : "";
+  const destinoInicial = editando ? (cargaEditar!.destinoExacto ?? "") : "";
+
+  const [form, setForm] = useState({ origen: origenInicial, destino: destinoInicial, tipoCarga: tipoCargaInicial, tipoCamion: editando ? cargaEditar!.tipoCamion : "Cualquiera", peso: pesoInicial, precio: precioInicial, retiro: retiroInicial });
+  const [origenMeta,  setOrigenMeta]  = useState<UbicacionMeta | null>(editando ? { zone: "", lat: 0, lon: 0 } : null);
+  const [destinoMeta, setDestinoMeta] = useState<UbicacionMeta | null>(editando ? { zone: "", lat: 0, lon: 0 } : null);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [estimate, setEstimate]     = useState<PriceEstimate | null>(null);
@@ -339,29 +351,40 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!origenMeta) { setError("El origen debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
-    if (!destinoMeta) { setError("El destino debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
+    if (!editando && !origenMeta) { setError("El origen debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
+    if (!editando && !destinoMeta) { setError("El destino debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
+    if (form.precio && Number(form.precio) < 0) { setError("El precio no puede ser negativo."); return; }
+    if (form.peso && Number(form.peso) < 0) { setError("El peso no puede ser negativo."); return; }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/loads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          // Zona aproximada (barrio/ciudad) — visible a todos los camioneros
-          origenZona:  origenMeta?.zone  ?? undefined,
-          destinoZona: destinoMeta?.zone ?? undefined,
-          // Coordenadas para calcular distancias
-          origenLat:   origenMeta?.lat   ?? undefined,
-          origenLon:   origenMeta?.lon   ?? undefined,
-          destinoLat:  destinoMeta?.lat  ?? undefined,
-          destinoLon:  destinoMeta?.lon  ?? undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al publicar."); return; }
-      onPublicar(loadToCard(data.load));
+      if (editando) {
+        const res = await fetch("/api/loads", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ loadId: cargaEditar!.id, ...form }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setError(data.error ?? "Error al guardar."); return; }
+        onPublicar(loadToCard(data.load));
+      } else {
+        const res = await fetch("/api/loads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...form,
+            origenZona:  origenMeta?.zone  ?? undefined,
+            destinoZona: destinoMeta?.zone ?? undefined,
+            origenLat:   origenMeta?.lat   ?? undefined,
+            origenLon:   origenMeta?.lon   ?? undefined,
+            destinoLat:  destinoMeta?.lat  ?? undefined,
+            destinoLon:  destinoMeta?.lon  ?? undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setError(data.error ?? "Error al publicar."); return; }
+        onPublicar(loadToCard(data.load));
+      }
       onClose();
     } finally {
       setLoading(false);
@@ -369,32 +392,40 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
   };
 
   return (
-    <Modal title="Publicar nueva carga" onClose={onClose}>
+    <Modal title={editando ? "Editar carga" : "Publicar nueva carga"} onClose={onClose}>
       <form onSubmit={handleSubmit}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={labelStyle}>Origen *</label>
-            <InputUbicacion
-              id="origen"
-              value={form.origen}
-              onChange={(v) => { set("origen", v); setOrigenMeta(null); }}
-              onSelect={(r) => { set("origen", r.label); setOrigenMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
-              placeholder="Dirección exacta de retiro"
-              confirmed={origenMeta !== null}
-            />
-            {origenMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{origenMeta.zone}</strong></div>}
+            <label style={labelStyle}>Origen {!editando && "*"}</label>
+            {editando ? (
+              <input value={form.origen || "—"} disabled style={{ ...inputStyle, background: "var(--color-background-secondary)", color: "var(--color-text-secondary)" }} />
+            ) : (
+              <InputUbicacion
+                id="origen"
+                value={form.origen}
+                onChange={(v) => { set("origen", v); setOrigenMeta(null); }}
+                onSelect={(r) => { set("origen", r.label); setOrigenMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
+                placeholder="Dirección exacta de retiro"
+                confirmed={origenMeta !== null}
+              />
+            )}
+            {!editando && origenMeta && origenMeta.zone && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{origenMeta.zone}</strong></div>}
           </div>
           <div>
-            <label style={labelStyle}>Destino *</label>
-            <InputUbicacion
-              id="destino"
-              value={form.destino}
-              onChange={(v) => { set("destino", v); setDestinoMeta(null); }}
-              onSelect={(r) => { set("destino", r.label); setDestinoMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
-              placeholder="Dirección exacta de entrega"
-              confirmed={destinoMeta !== null}
-            />
-            {destinoMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{destinoMeta.zone}</strong></div>}
+            <label style={labelStyle}>Destino {!editando && "*"}</label>
+            {editando ? (
+              <input value={form.destino || "—"} disabled style={{ ...inputStyle, background: "var(--color-background-secondary)", color: "var(--color-text-secondary)" }} />
+            ) : (
+              <InputUbicacion
+                id="destino"
+                value={form.destino}
+                onChange={(v) => { set("destino", v); setDestinoMeta(null); }}
+                onSelect={(r) => { set("destino", r.label); setDestinoMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
+                placeholder="Dirección exacta de entrega"
+                confirmed={destinoMeta !== null}
+              />
+            )}
+            {!editando && destinoMeta && destinoMeta.zone && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{destinoMeta.zone}</strong></div>}
           </div>
         </div>
 
@@ -444,13 +475,13 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={labelStyle}>Peso estimado (kg) *</label>
-            <input required type="number" value={form.peso} onChange={(e) => set("peso", e.target.value)} placeholder="ej: 22000" style={inputStyle} />
+            <label style={labelStyle}>Peso estimado (kg) {!editando && "*"}</label>
+            <input required={!editando} min="0" type="number" value={form.peso} onChange={(e) => set("peso", e.target.value)} placeholder="ej: 22000" style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Precio base (ARS) *</label>
+            <label style={labelStyle}>Precio base (ARS) {!editando && "*"}</label>
             <input
-              required type="number" value={form.precio}
+              required={!editando} min="0" type="number" value={form.precio}
               onChange={(e) => set("precio", e.target.value)}
               placeholder={estimate ? `Sugerido: $${estimate.suggestedPrice.toLocaleString("es-AR")}` : "ej: 280000"}
               style={{ ...inputStyle, borderColor: bajoMinimo ? "#ef4444" : sobreMax ? "#f59e0b" : undefined }}
@@ -480,7 +511,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
             Cancelar
           </button>
           <button type="submit" disabled={loading} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "none", background: loading ? "#aaa" : "var(--color-brand)", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>
-            {loading ? "Publicando..." : "Publicar carga →"}
+            {loading ? (editando ? "Guardando..." : "Publicando...") : (editando ? "Guardar cambios →" : "Publicar carga →")}
           </button>
         </div>
       </form>
@@ -492,86 +523,6 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
 
 interface OfertaSeleccionada { oferta: Oferta; cargaTitulo: string; cargaId: string; offerId: string; }
 
-function ModalEditar({ carga, onClose, onGuardado }: { carga: Carga; onClose: () => void; onGuardado: (c: Carga) => void }) {
-  const tituloPartes = carga.titulo.split("—");
-  const tipoCargaInicial = tituloPartes[0]?.trim() ?? "General";
-
-  const pesoNum = carga.peso !== "—" ? carga.peso.replace(/[^\d]/g, "") : "";
-  const [form, setForm] = useState({
-    tipoCarga: tipoCargaInicial,
-    tipoCamion: carga.tipoCamion === "Cualquiera" ? "Cualquiera" : carga.tipoCamion,
-    peso: pesoNum,
-    precio: "",
-    retiro: carga.retiro !== "—" ? (() => { const [d,m,y] = carga.retiro.split("/"); return `${y}-${m?.padStart(2,"0")}-${d?.padStart(2,"0")}`; })() : "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/loads", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ loadId: carga.id, ...form }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al guardar."); return; }
-      onGuardado(loadToCard(data.load));
-      onClose();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal title="Editar carga" onClose={onClose}>
-      <form onSubmit={handleSubmit}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-          <div>
-            <label style={labelStyle}>Tipo de carga</label>
-            <select value={form.tipoCarga} onChange={(e) => set("tipoCarga", e.target.value)} style={selectStyle}>
-              {["General", "Granel", "Refrigerado", "Plataforma", "Peligroso", "Frágil"].map((o) => <option key={o}>{o}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Camión requerido</label>
-            <select value={form.tipoCamion} onChange={(e) => set("tipoCamion", e.target.value)} style={selectStyle}>
-              {["Cualquiera", "Granelero", "Furgón cerrado", "Plataforma", "Refrigerado", "Cisterna"].map((o) => <option key={o}>{o}</option>)}
-            </select>
-          </div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
-          <div>
-            <label style={labelStyle}>Peso estimado (kg)</label>
-            <input type="number" value={form.peso} onChange={(e) => set("peso", e.target.value)} placeholder="ej: 22000" style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Precio base (ARS)</label>
-            <input type="number" value={form.precio} onChange={(e) => set("precio", e.target.value)} placeholder="Dejar vacío para no cambiar" style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Fecha de retiro</label>
-            <input type="date" value={form.retiro} onChange={(e) => set("retiro", e.target.value)} style={inputStyle} />
-          </div>
-        </div>
-        {error && <div style={{ fontSize: 13, color: "#b91c1c", background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
-            Cancelar
-          </button>
-          <button type="submit" disabled={loading} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "none", background: loading ? "#aaa" : "var(--color-brand)", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>
-            {loading ? "Guardando..." : "Guardar cambios →"}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
 
 function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
   carga: Carga;
@@ -1241,10 +1192,10 @@ function SeccionMisCargas({
       })}
     </main>
     {editando && (
-      <ModalEditar
-        carga={editando}
+      <ModalPublicar
+        cargaEditar={editando}
         onClose={() => setEditando(null)}
-        onGuardado={() => { onRefresh(); setEditando(null); }}
+        onPublicar={() => { onRefresh(); setEditando(null); }}
       />
     )}
     </>
