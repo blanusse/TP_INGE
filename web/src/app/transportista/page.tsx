@@ -2172,9 +2172,8 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
     if (typeof window !== "undefined") return localStorage.getItem("gasoil-precio") ?? "";
     return "";
   });
-  const [cargasDisponibles, setCargasDisponibles] = useState<CargaCard[]>([]);
   const [loadingCargas, setLoadingCargas] = useState(false);
-  const [buscado, setBuscado] = useState(false);
+  const [searchResult, setSearchResult] = useState<{ paradas: Parada[]; tramos: TramoEstado[]; loads: CargaCard[] } | null>(null);
 
   const addParada = () => {
     setParadas(prev => [...prev, { id: `p${Date.now()}`, ciudad: "", fecha: "" }]);
@@ -2196,26 +2195,30 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
 
   const buscarCargas = async () => {
     setLoadingCargas(true);
-    setBuscado(true);
     if (gasoilPrecio && typeof window !== "undefined") localStorage.setItem("gasoil-precio", gasoilPrecio);
+    const snapParadas = paradas.map(p => ({ ...p }));
+    const snapTramos = [...tramos];
     try {
       const r = await fetch("/api/loads/available");
       const d = await r.json();
-      if (d.loads) setCargasDisponibles(d.loads.map(dbLoadToCard));
-    } catch {}
+      const loads: CargaCard[] = d.loads ? d.loads.map(dbLoadToCard) : [];
+      setSearchResult({ paradas: snapParadas, tramos: snapTramos, loads });
+    } catch {
+      setSearchResult({ paradas: snapParadas, tramos: snapTramos, loads: [] });
+    }
     finally { setLoadingCargas(false); }
   };
 
   const selectedTruck = trucks.find(t => t.id === camionId);
   const canSearch = paradas[0].ciudad.trim() !== "" && paradas[paradas.length - 1].ciudad.trim() !== "";
 
-  const cargasPorTramo: { idx: number; cargas: CargaCard[] }[] = tramos
+  const cargasPorTramo: { idx: number; cargas: CargaCard[] }[] = !searchResult ? [] : searchResult.tramos
     .map((estado, i) => {
       if (estado !== "busco_carga") return null;
-      const desde = paradas[i].ciudad.trim().toLowerCase();
-      const hasta = paradas[i + 1]?.ciudad.trim().toLowerCase() ?? "";
+      const desde = searchResult.paradas[i].ciudad.trim().toLowerCase();
+      const hasta = searchResult.paradas[i + 1]?.ciudad.trim().toLowerCase() ?? "";
       if (!desde || !hasta) return { idx: i, cargas: [] };
-      const matches = cargasDisponibles.filter(c => {
+      const matches = searchResult.loads.filter(c => {
         const parts = c.titulo.split(" — ");
         const ruta = parts[1] ?? c.titulo;
         const [or, dest] = ruta.split(" → ");
@@ -2303,7 +2306,7 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
           </div>
 
           <div>
-            {!buscado && (
+            {!searchResult && !loadingCargas && (
               <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 48, textAlign: "center" }}>
                 <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(29,158,117,0.08)", border: "1px solid rgba(29,158,117,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                   <i className="fa-solid fa-route" style={{ fontSize: 20, color: "var(--color-brand-dark)" }} />
@@ -2313,23 +2316,23 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
               </div>
             )}
 
-            {buscado && loadingCargas && (
+            {loadingCargas && (
               <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 40, textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13 }}>
                 Buscando cargas disponibles...
               </div>
             )}
 
-            {buscado && !loadingCargas && cargasPorTramo.length === 0 && (
+            {searchResult && !loadingCargas && cargasPorTramo.length === 0 && (
               <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 32, textAlign: "center" }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>Sin tramos de búsqueda</div>
                 <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Marcá al menos un tramo como "Busco carga" para ver resultados.</div>
               </div>
             )}
 
-            {buscado && !loadingCargas && cargasPorTramo.map(({ idx, cargas }) => (
+            {searchResult && !loadingCargas && cargasPorTramo.map(({ idx, cargas }) => (
               <div key={idx} style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 8 }}>
-                  Tramo {idx + 1} — {paradas[idx].ciudad || "..."} → {paradas[idx + 1]?.ciudad || "..."}
+                  Tramo {idx + 1} — {searchResult.paradas[idx].ciudad || "..."} → {searchResult.paradas[idx + 1]?.ciudad || "..."}
                 </div>
                 {cargas.length === 0 ? (
                   <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 20, textAlign: "center" }}>
