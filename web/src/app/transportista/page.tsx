@@ -1651,7 +1651,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
   return (
     <main style={{ flex: 1, background: "var(--bg1)" }}>
-      <div style={{ background: "var(--bg0)", padding: "32px 40px 48px", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ background: "var(--color-brand-dark)", padding: "32px 40px 48px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 24, maxWidth: 800 }}>
           <div style={{ width: 84, height: 84, borderRadius: "50%", background: "var(--color-brand)", border: "3px solid rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{initials}</div>
           <div style={{ flex: 1 }}>
