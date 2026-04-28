@@ -20,12 +20,14 @@ type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En trÃ
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
 interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
-interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null; }
+interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; origenExacto?: string | null; destinoExacto?: string | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null}
 
 interface LoadDB {
   id: string;
   pickup_city: string;
   dropoff_city: string;
+  pickup_exact?: string | null;
+  dropoff_exact?: string | null;
   cargo_type: string | null;
   truck_type_required: string | null;
   weight_kg: number | null;
@@ -75,6 +77,8 @@ function loadToCard(load: LoadDB): Carga {
     ofertasDetalle: [],
     status:       load.status,
     acceptedOffer: load.accepted_offer ?? null,
+    origenExacto: load.pickup_exact ?? null,
+    destinoExacto: load.dropoff_exact ?? null,
     originLat: load.pickup_lat ? Number(load.pickup_lat) : null,
     originLng: load.pickup_lon ? Number(load.pickup_lon) : null,
     destLat:   load.dropoff_lat ? Number(load.dropoff_lat) : null,
@@ -962,6 +966,12 @@ function SeccionMisCargas({
                 {ao ? "ASIGNADA" : dc.ofertas > 0 ? `${dc.ofertas} OFERTA${dc.ofertas > 1 ? "S" : ""}` : "SIN OFERTAS"}
               </span>
               <div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 10 }}>{origen} <span style={{ color: "#3a806b" }}>&rarr;</span> {destino}</div>
+              {(dc.origenExacto || dc.destinoExacto) && (
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 6, lineHeight: 1.7 }}>
+                  {dc.origenExacto && <div>&#128205; <strong>Origen:</strong> {dc.origenExacto}</div>}
+                  {dc.destinoExacto && <div>&#128205; <strong>Destino:</strong> {dc.destinoExacto}</div>}
+                </div>
+              )}
             </div>
             <div style={{ fontSize: 24, fontWeight: 700, color: "#16a34a" }}>
               {ao ? `$${ao.precio.toLocaleString("es-AR")}` : ""}
