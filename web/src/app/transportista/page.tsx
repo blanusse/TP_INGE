@@ -2373,9 +2373,20 @@ function OnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void; onNa
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode }) {
+export default function TransportistaDashboard({ mode: modeProp = "individual" }: { mode?: DashboardMode }) {
   const { data: session } = useSession();
-  const [navActivo, setNavActivo] = useState<NavItem>(DEFAULT_NAV[mode]);
+
+  const effectiveMode: DashboardMode = session?.user?.isFleetOwner
+    ? "flota"
+    : (session?.user?.fleetId ? "empleado" : modeProp);
+
+  const [navActivo, setNavActivo] = useState<NavItem>(DEFAULT_NAV[modeProp]);
+
+  // Once session loads, update to the correct default nav for the real mode
+  useEffect(() => {
+    if (session) setNavActivo(prev => prev === DEFAULT_NAV[modeProp] ? DEFAULT_NAV[effectiveMode] : prev);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.isFleetOwner, session?.user?.fleetId]);
   const [modalOferta, setModalOferta] = useState<ModalOfertaState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
@@ -2414,7 +2425,7 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
 
   const mostrarToast = (msg: string) => setToast(msg);
 
-  const navItems = NAV_ITEMS_BY_MODE[mode];
+  const navItems = NAV_ITEMS_BY_MODE[effectiveMode];
   const NAV_ICONS: Record<NavItem, string> = {
     "Inicio": "fa-solid fa-house",
     "Buscar cargas": "fa-solid fa-magnifying-glass",
@@ -2462,7 +2473,7 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
-        {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} mode={mode} />}
+        {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} mode={effectiveMode} />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>
 
