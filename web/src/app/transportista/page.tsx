@@ -1862,7 +1862,7 @@ function ModalOfertar({ info, onClose, onEnviar, trucks }: { info: ModalOfertaSt
     try {
       const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loadId: info.cargaId, price: precio, truckId: truckId || undefined }) });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al enviar la oferta."); return; }
+      if (!res.ok) { setError(data.message ?? data.error ?? "Error al enviar la oferta."); return; }
       onEnviar(info.cargaId); onClose();
     } finally { setLoading(false); }
   };
