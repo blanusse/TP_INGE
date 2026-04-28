@@ -31,6 +31,12 @@ export class User {
   @Column({ default: false })
   is_verified: boolean;
 
+  @Column({ default: false })
+  dni_verified: boolean;
+
+  @Column({ default: false })
+  license_verified: boolean;
+
   // URL de la foto del DNI subida a Supabase Storage
   @Column({ nullable: true, type: 'varchar' })
   dni_photo_url: string | null;

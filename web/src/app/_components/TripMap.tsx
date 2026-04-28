@@ -3,6 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 
+const TRUCK_ICON: Record<string, string> = {
+  camion:      "/trucks/Camion.svg",
+  semi:        "/trucks/Semi.svg",
+  frigorifico: "/trucks/Frigorifico.svg",
+  cisterna:    "/trucks/Cisterna.svg",
+  acoplado:    "/trucks/Trailer.svg",
+  batea:       "/trucks/Batea.svg",
+};
+const DEFAULT_TRUCK_ICON = "/trucks/Camion.svg";
+
 interface TripMapProps {
   loadId: string;
   originLat?: number | null;
@@ -11,6 +21,7 @@ interface TripMapProps {
   destLng?: number | null;
   height?: number;
   isDriver?: boolean;
+  truckType?: string | null;
 }
 
 export default function TripMap({
@@ -21,6 +32,7 @@ export default function TripMap({
   destLng,
   height = 280,
   isDriver = false,
+  truckType,
 }: TripMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -29,6 +41,12 @@ export default function TripMap({
   const watchIdRef = useRef<number | null>(null);
   const [sharing, setSharing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,9 +117,9 @@ export default function TripMap({
 
       const truckIcon = L.divIcon({
         className: "",
-        html: '<div style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));display:flex;align-items:center;justify-content:center"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3a806b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1" fill="white"/><path d="M16 8h4l3 5v3h-7V8z" fill="white"/><circle cx="5.5" cy="18.5" r="2.5" fill="#1a1a1a" stroke="#1a1a1a"/><circle cx="18.5" cy="18.5" r="2.5" fill="#1a1a1a" stroke="#1a1a1a"/></svg></div>',
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
+        html: `<div style="width:33px;height:33px;overflow:hidden;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))"><img src="${TRUCK_ICON[truckType ?? ""] ?? DEFAULT_TRUCK_ICON}" style="width:33px;height:33px;display:block;object-fit:contain;filter:brightness(0) saturate(100%) invert(43%) sepia(18%) saturate(1000%) hue-rotate(124deg) brightness(82%)" /></div>`,
+        iconSize: [33, 33],
+        iconAnchor: [17, 17],
       });
 
       const moveTruck = (lat: number, lng: number) => {
@@ -183,7 +201,6 @@ export default function TripMap({
   };
 
   const formatLastUpdate = (date: Date) => {
-    const now = new Date();
     const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
     if (diffSec < 60) return `hace ${diffSec} seg`;
     if (diffSec < 3600) return `hace ${Math.floor(diffSec / 60)} min`;

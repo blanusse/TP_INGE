@@ -20,12 +20,14 @@ type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tr�
 
 interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
 interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
-interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; }
+interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; precio: number | null; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; origenExacto?: string | null; destinoExacto?: string | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null}
 
 interface LoadDB {
   id: string;
   pickup_city: string;
   dropoff_city: string;
+  pickup_exact?: string | null;
+  dropoff_exact?: string | null;
   cargo_type: string | null;
   truck_type_required: string | null;
   weight_kg: number | null;
@@ -36,6 +38,10 @@ interface LoadDB {
   created_at: string;
   offer_count?: number;
   accepted_offer?: AcceptedOffer | null;
+  pickup_lat?: number | null;
+  pickup_lon?: number | null;
+  dropoff_lat?: number | null;
+  dropoff_lon?: number | null;
 }
 
 const TRUCK_LABEL: Record<string, string> = {
@@ -66,11 +72,19 @@ function loadToCard(load: LoadDB): Carga {
     peso:         load.weight_kg ? `${load.weight_kg.toLocaleString("es-AR")} kg` : "—",
     tipoCamion:   load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required] ?? load.truck_type_required) : "Cualquiera",
     retiro:       load.ready_at ? new Date(load.ready_at).toLocaleDateString("es-AR") : "—",
+    precio:       load.price_base != null ? Number(load.price_base) : null,
     ofertas:      load.offer_count ?? 0,
     camioneros:   [],
     ofertasDetalle: [],
     status:       load.status,
     acceptedOffer: load.accepted_offer ?? null,
+    origenExacto: load.pickup_exact ?? null,
+    destinoExacto: load.dropoff_exact ?? null,
+    originLat: load.pickup_lat ? Number(load.pickup_lat) : null,
+    originLng: load.pickup_lon ? Number(load.pickup_lon) : null,
+    destLat:   load.dropoff_lat ? Number(load.dropoff_lat) : null,
+    destLng:   load.dropoff_lon ? Number(load.dropoff_lon) : null,
+    truckType: load.truck_type_required ?? null,
   };
 }
 
@@ -287,10 +301,21 @@ interface PriceEstimate { distanceKm: number; minPrice: number; suggestedPrice: 
 
 interface UbicacionMeta { zone: string; lat: number; lon: number; }
 
-function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublicar: (c: Carga) => void }) {
-  const [form, setForm] = useState({ origen: "", destino: "", tipoCarga: "General", tipoCamion: "Cualquiera", peso: "", precio: "", retiro: "" });
-  const [origenMeta,  setOrigenMeta]  = useState<UbicacionMeta | null>(null);
-  const [destinoMeta, setDestinoMeta] = useState<UbicacionMeta | null>(null);
+function ModalPublicar({ onClose, onPublicar, cargaEditar }: { onClose: () => void; onPublicar: (c: Carga) => void; cargaEditar?: Carga }) {
+  const editando = !!cargaEditar;
+
+  const tipoCargaInicial = editando ? (cargaEditar!.titulo.split("—")[0]?.trim() ?? "General") : "General";
+  const pesoInicial = editando && cargaEditar!.peso !== "—" ? cargaEditar!.peso.replace(/[^\d]/g, "") : "";
+  const precioInicial = editando && cargaEditar!.precio != null ? String(cargaEditar!.precio) : "";
+  const retiroInicial = editando && cargaEditar!.retiro !== "—"
+    ? (() => { const [d, m, y] = cargaEditar!.retiro.split("/"); return `${y}-${m?.padStart(2, "0")}-${d?.padStart(2, "0")}`; })()
+    : "";
+  const origenInicial = editando ? (cargaEditar!.origenExacto ?? "") : "";
+  const destinoInicial = editando ? (cargaEditar!.destinoExacto ?? "") : "";
+
+  const [form, setForm] = useState({ origen: origenInicial, destino: destinoInicial, tipoCarga: tipoCargaInicial, tipoCamion: editando ? cargaEditar!.tipoCamion : "Cualquiera", peso: pesoInicial, precio: precioInicial, retiro: retiroInicial });
+  const [origenMeta,  setOrigenMeta]  = useState<UbicacionMeta | null>(editando ? { zone: "", lat: 0, lon: 0 } : null);
+  const [destinoMeta, setDestinoMeta] = useState<UbicacionMeta | null>(editando ? { zone: "", lat: 0, lon: 0 } : null);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [estimate, setEstimate]     = useState<PriceEstimate | null>(null);
@@ -326,29 +351,40 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!origenMeta) { setError("El origen debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
-    if (!destinoMeta) { setError("El destino debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
+    if (!editando && !origenMeta) { setError("El origen debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
+    if (!editando && !destinoMeta) { setError("El destino debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
+    if (form.precio && Number(form.precio) < 0) { setError("El precio no puede ser negativo."); return; }
+    if (form.peso && Number(form.peso) < 0) { setError("El peso no puede ser negativo."); return; }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/loads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          // Zona aproximada (barrio/ciudad) — visible a todos los camioneros
-          origenZona:  origenMeta?.zone  ?? undefined,
-          destinoZona: destinoMeta?.zone ?? undefined,
-          // Coordenadas para calcular distancias
-          origenLat:   origenMeta?.lat   ?? undefined,
-          origenLon:   origenMeta?.lon   ?? undefined,
-          destinoLat:  destinoMeta?.lat  ?? undefined,
-          destinoLon:  destinoMeta?.lon  ?? undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al publicar."); return; }
-      onPublicar(loadToCard(data.load));
+      if (editando) {
+        const res = await fetch("/api/loads", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ loadId: cargaEditar!.id, ...form }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setError(data.error ?? "Error al guardar."); return; }
+        onPublicar(loadToCard(data.load));
+      } else {
+        const res = await fetch("/api/loads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...form,
+            origenZona:  origenMeta?.zone  ?? undefined,
+            destinoZona: destinoMeta?.zone ?? undefined,
+            origenLat:   origenMeta?.lat   ?? undefined,
+            origenLon:   origenMeta?.lon   ?? undefined,
+            destinoLat:  destinoMeta?.lat  ?? undefined,
+            destinoLon:  destinoMeta?.lon  ?? undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setError(data.error ?? "Error al publicar."); return; }
+        onPublicar(loadToCard(data.load));
+      }
       onClose();
     } finally {
       setLoading(false);
@@ -356,32 +392,40 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
   };
 
   return (
-    <Modal title="Publicar nueva carga" onClose={onClose}>
+    <Modal title={editando ? "Editar carga" : "Publicar nueva carga"} onClose={onClose}>
       <form onSubmit={handleSubmit}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={labelStyle}>Origen *</label>
-            <InputUbicacion
-              id="origen"
-              value={form.origen}
-              onChange={(v) => { set("origen", v); setOrigenMeta(null); }}
-              onSelect={(r) => { set("origen", r.label); setOrigenMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
-              placeholder="Dirección exacta de retiro"
-              confirmed={origenMeta !== null}
-            />
-            {origenMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{origenMeta.zone}</strong></div>}
+            <label style={labelStyle}>Origen {!editando && "*"}</label>
+            {editando ? (
+              <input value={form.origen || "—"} disabled style={{ ...inputStyle, background: "var(--color-background-secondary)", color: "var(--color-text-secondary)" }} />
+            ) : (
+              <InputUbicacion
+                id="origen"
+                value={form.origen}
+                onChange={(v) => { set("origen", v); setOrigenMeta(null); }}
+                onSelect={(r) => { set("origen", r.label); setOrigenMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
+                placeholder="Dirección exacta de retiro"
+                confirmed={origenMeta !== null}
+              />
+            )}
+            {!editando && origenMeta && origenMeta.zone && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{origenMeta.zone}</strong></div>}
           </div>
           <div>
-            <label style={labelStyle}>Destino *</label>
-            <InputUbicacion
-              id="destino"
-              value={form.destino}
-              onChange={(v) => { set("destino", v); setDestinoMeta(null); }}
-              onSelect={(r) => { set("destino", r.label); setDestinoMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
-              placeholder="Dirección exacta de entrega"
-              confirmed={destinoMeta !== null}
-            />
-            {destinoMeta && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{destinoMeta.zone}</strong></div>}
+            <label style={labelStyle}>Destino {!editando && "*"}</label>
+            {editando ? (
+              <input value={form.destino || "—"} disabled style={{ ...inputStyle, background: "var(--color-background-secondary)", color: "var(--color-text-secondary)" }} />
+            ) : (
+              <InputUbicacion
+                id="destino"
+                value={form.destino}
+                onChange={(v) => { set("destino", v); setDestinoMeta(null); }}
+                onSelect={(r) => { set("destino", r.label); setDestinoMeta({ zone: r.zone, lat: r.lat, lon: r.lon }); }}
+                placeholder="Dirección exacta de entrega"
+                confirmed={destinoMeta !== null}
+              />
+            )}
+            {!editando && destinoMeta && destinoMeta.zone && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}><i className="fa-solid fa-location-dot" /> Zona visible a camioneros: <strong>{destinoMeta.zone}</strong></div>}
           </div>
         </div>
 
@@ -431,13 +475,13 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={labelStyle}>Peso estimado (kg) *</label>
-            <input required type="number" value={form.peso} onChange={(e) => set("peso", e.target.value)} placeholder="ej: 22000" style={inputStyle} />
+            <label style={labelStyle}>Peso estimado (kg) {!editando && "*"}</label>
+            <input required={!editando} min="0" type="number" value={form.peso} onChange={(e) => set("peso", e.target.value)} placeholder="ej: 22000" style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Precio base (ARS) *</label>
+            <label style={labelStyle}>Precio base (ARS) {!editando && "*"}</label>
             <input
-              required type="number" value={form.precio}
+              required={!editando} min="0" type="number" value={form.precio}
               onChange={(e) => set("precio", e.target.value)}
               placeholder={estimate ? `Sugerido: $${estimate.suggestedPrice.toLocaleString("es-AR")}` : "ej: 280000"}
               style={{ ...inputStyle, borderColor: bajoMinimo ? "#ef4444" : sobreMax ? "#f59e0b" : undefined }}
@@ -467,7 +511,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
             Cancelar
           </button>
           <button type="submit" disabled={loading} style={{ flex: 2, fontSize: 13, padding: "9px", borderRadius: "var(--border-radius-md)", border: "none", background: loading ? "#aaa" : "var(--color-brand)", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>
-            {loading ? "Publicando..." : "Publicar carga →"}
+            {loading ? (editando ? "Guardando..." : "Publicando...") : (editando ? "Guardar cambios →" : "Publicar carga →")}
           </button>
         </div>
       </form>
@@ -478,6 +522,7 @@ function ModalPublicar({ onClose, onPublicar }: { onClose: () => void; onPublica
 // ── Modal: Ver ofertas ────────────────────────────────────────────────────────
 
 interface OfertaSeleccionada { oferta: Oferta; cargaTitulo: string; cargaId: string; offerId: string; }
+
 
 function ModalVerOfertas({ carga, onClose, onRechazar, onIniciarPago }: {
   carga: Carga;
@@ -905,6 +950,7 @@ function SeccionMisCargas({
   const [tab, setTab] = useState<MisCargasTab>("Publicadas");
   const [detalleCarga, setDetalleCarga] = useState<Carga | null>(null);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [editando, setEditando] = useState<Carga | null>(null);
   const [deliveryCode, setDeliveryCode] = useState<{ code: string; used: boolean } | null>(null);
 
   const publicadas = cargas.filter((c) => c.status === "available");
@@ -953,6 +999,12 @@ function SeccionMisCargas({
                 {ao ? "ASIGNADA" : dc.ofertas > 0 ? `${dc.ofertas} OFERTA${dc.ofertas > 1 ? "S" : ""}` : "SIN OFERTAS"}
               </span>
               <div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 10 }}>{origen} <span style={{ color: "#3a806b" }}>&rarr;</span> {destino}</div>
+              {(dc.origenExacto || dc.destinoExacto) && (
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 6, lineHeight: 1.7 }}>
+                  {dc.origenExacto && <div>&#128205; <strong>Origen:</strong> {dc.origenExacto}</div>}
+                  {dc.destinoExacto && <div>&#128205; <strong>Destino:</strong> {dc.destinoExacto}</div>}
+                </div>
+              )}
             </div>
             <div style={{ fontSize: 24, fontWeight: 700, color: "#16a34a" }}>
               {ao ? `$${ao.precio.toLocaleString("es-AR")}` : ""}
@@ -1011,16 +1063,12 @@ function SeccionMisCargas({
   }
 
   return (
+    <>
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", margin: 0 }}>Mis cargas</h1>
-          <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Publica cargas y gestiona ofertas de transportistas</p>
-        </div>
-        <button onClick={onPublicar} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const }}>
-          + Publicar carga
-        </button>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", margin: 0 }}>Mis cargas</h1>
+        <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Publica cargas y gestiona ofertas de transportistas</p>
       </div>
 
       {/* Tabs */}
@@ -1122,7 +1170,7 @@ function SeccionMisCargas({
                 )}
                 <div style={{ display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>
                   {!esAsignada && (
-                    <button onClick={() => onDestacado(c.titulo)} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                    <button onClick={() => setEditando(c)} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>
                       Editar
                     </button>
                   )}
@@ -1143,6 +1191,14 @@ function SeccionMisCargas({
         );
       })}
     </main>
+    {editando && (
+      <ModalPublicar
+        cargaEditar={editando}
+        onClose={() => setEditando(null)}
+        onPublicar={() => { onRefresh(); setEditando(null); }}
+      />
+    )}
+    </>
   );
 }
 
@@ -1225,7 +1281,8 @@ function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }
                   onClick={() => setMapaAbierto(mapaAbierto === c.id ? null : c.id)}
                   style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: mapaAbierto === c.id ? "rgba(58,128,107,0.08)" : "transparent", color: mapaAbierto === c.id ? "#3a806b" : "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
                 >
-                  <span style={{ fontSize: 13 }}>🗺</span> {mapaAbierto === c.id ? "Ocultar mapa" : "Ver en mapa"}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                  {mapaAbierto === c.id ? "Ocultar mapa" : "Ver en mapa"}
                 </button>
                 <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ fontSize: 14 }}>&#9993;</span> Chat
@@ -1275,7 +1332,15 @@ function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#16a34a", display: "inline-block", animation: "pulse 1.5s infinite" }} />
                   Ubicación en tiempo real
                 </div>
-                <TripMap loadId={c.id} height={280} />
+                <TripMap
+                  loadId={c.id}
+                  originLat={c.originLat}
+                  originLng={c.originLng}
+                  destLat={c.destLat}
+                  destLng={c.destLng}
+                  truckType={c.truckType}
+                  height={280}
+                />
               </div>
             )}
 
@@ -1511,7 +1576,7 @@ function SeccionFacturacion() {
 
 // ── Sección Perfil ────────────────────────────────────────────────────────────
 
-interface DadorStats { totalCargas: number; enTransito: number; memberSince: string; calificacionPromedio: number | null; razonSocial: string | null; cuit: string | null; address: string | null; }
+interface DadorStats { totalCargas: number; enTransito: number; memberSince: string; calificacionPromedio: number | null; tipo: string | null; phone: string | null; dni: string | null; razonSocial: string | null; cuit: string | null; address: string | null; }
 
 function formatMemberSince(raw: string | null | undefined): string {
   if (!raw) return "—";
@@ -1533,14 +1598,46 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const [nombre, setNombre]     = useState(userName);
   const [telefono, setTelefono] = useState("");
   const [stats, setStats]       = useState<DadorStats | null>(null);
+  const [dniVerified, setDniVerified] = useState<boolean | null>(null);
+  const [dniUploading, setDniUploading] = useState(false);
+  const [dniMsg, setDniMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
 
   React.useEffect(() => {
     fetch("/api/stats/dador")
       .then((r) => r.json())
-      .then((d) => setStats(d))
+      .then((d) => { setStats(d); if (d.phone) setTelefono(d.phone); })
+      .catch(() => {});
+    fetch("/api/documents/verify-dni")
+      .then((r) => r.json())
+      .then((d) => setDniVerified(d.dni_verified ?? false))
       .catch(() => {});
   }, []);
+
+  async function handleDniUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDniUploading(true);
+    setDniMsg(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/documents/verify-dni", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.verified) {
+        setDniVerified(true);
+        setDniMsg({ ok: true, text: "DNI verificado correctamente." });
+        onToast("DNI verificado.");
+      } else {
+        setDniMsg({ ok: false, text: data.message ?? "No se pudo verificar el DNI." });
+      }
+    } catch {
+      setDniMsg({ ok: false, text: "Error al subir la imagen." });
+    } finally {
+      setDniUploading(false);
+      e.target.value = "";
+    }
+  }
 
   const card: React.CSSProperties = { background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 10, padding: 20 };
   const fieldLabel: React.CSSProperties = { fontSize: 11, color: "var(--muted-color)", marginBottom: 3, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.04em" };
@@ -1566,7 +1663,10 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             : <div style={{ fontSize: 15, fontWeight: 700, color: "var(--heading-color)", textAlign: "center" }}>{nombre}</div>
           }
           <div style={{ fontSize: 12, color: "var(--body-color)", textAlign: "center" }}>{userEmail}</div>
-          <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontWeight: 600 }}>Verificado <i className="fa-solid fa-circle-check" /></span>
+          {dniVerified
+            ? <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontWeight: 600 }}>Verificado <i className="fa-solid fa-circle-check" /></span>
+            : <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>Sin verificar <i className="fa-solid fa-circle-exclamation" /></span>
+          }
         </div>
 
         {/* Stats */}
@@ -1582,25 +1682,27 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
         ))}
       </div>
 
-      {/* Fila inferior: empresa, contacto, actividad */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+      {/* Fila inferior: empresa (solo si es empresa), contacto, actividad */}
+      <div style={{ display: "grid", gridTemplateColumns: stats?.tipo === "empresa" ? "1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginBottom: 20 }}>
 
-        {/* Datos de empresa */}
-        <div style={card}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading-color)", marginBottom: 16 }}>Datos de empresa</div>
-          <div style={{ display: "grid", gap: 14 }}>
-            {[
-              { label: "Razón social", val: stats?.razonSocial ?? "—" },
-              { label: "CUIT / CUIL",  val: stats?.cuit ?? "—" },
-              { label: "Dirección",    val: stats?.address ?? "—" },
-            ].map(({ label, val }) => (
-              <div key={label}>
-                <div style={fieldLabel}>{label}</div>
-                <div style={fieldVal}>{val}</div>
-              </div>
-            ))}
+        {/* Datos de empresa — solo visible si tipo === 'empresa' */}
+        {stats?.tipo === "empresa" && (
+          <div style={card}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading-color)", marginBottom: 16 }}>Datos de empresa</div>
+            <div style={{ display: "grid", gap: 14 }}>
+              {[
+                { label: "Razón social", val: stats?.razonSocial ?? "—" },
+                { label: "CUIT / CUIL",  val: stats?.cuit ?? "—" },
+                { label: "Dirección",    val: stats?.address ?? "—" },
+              ].map(({ label, val }) => (
+                <div key={label}>
+                  <div style={fieldLabel}>{label}</div>
+                  <div style={fieldVal}>{val}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Contacto */}
         <div style={card}>
@@ -1609,6 +1711,10 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             <div>
               <div style={fieldLabel}>Email</div>
               <div style={fieldVal}>{userEmail || "—"}</div>
+            </div>
+            <div>
+              <div style={fieldLabel}>DNI</div>
+              <div style={fieldVal}>{stats?.dni ?? "—"}</div>
             </div>
             <div>
               <div style={fieldLabel}>Teléfono</div>
@@ -1632,6 +1738,38 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
               <div style={fieldLabel}>Calificación</div>
               <div style={fieldVal}>{stats?.calificacionPromedio != null ? `${stats.calificacionPromedio} / 5` : "Sin calificaciones aún"}</div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Verificación de identidad */}
+      <div style={{ ...card, marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading-color)", marginBottom: 4 }}>Verificación de identidad</div>
+            <div style={{ fontSize: 12, color: "var(--muted-color)" }}>
+              {dniVerified
+                ? "Tu DNI fue verificado. Tu cuenta está habilitada para operar."
+                : "Subí una foto del frente de tu DNI para verificar tu identidad. El número debe coincidir con el que ingresaste al registrarte."}
+            </div>
+            {dniMsg && (
+              <div style={{ marginTop: 8, fontSize: 12, fontWeight: 500, color: dniMsg.ok ? "#065f46" : "#b91c1c" }}>
+                {dniMsg.ok ? "✓ " : "✗ "}{dniMsg.text}
+              </div>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {dniVerified
+              ? <span style={{ fontSize: 12, padding: "6px 14px", borderRadius: 8, background: "#d1fae5", color: "#065f46", fontWeight: 600 }}>✓ DNI verificado</span>
+              : (
+                <label style={{ display: "inline-block", cursor: dniUploading ? "not-allowed" : "pointer" }}>
+                  <input type="file" accept="image/*" onChange={handleDniUpload} disabled={dniUploading} style={{ display: "none" }} />
+                  <span style={{ fontSize: 12, padding: "7px 16px", borderRadius: 8, background: dniUploading ? "#e5e7eb" : "#3a806b", color: dniUploading ? "#9ca3af" : "#fff", fontWeight: 600, pointerEvents: "none" }}>
+                    {dniUploading ? "Verificando..." : "Subir foto del DNI"}
+                  </span>
+                </label>
+              )
+            }
           </div>
         </div>
       </div>
@@ -1965,6 +2103,7 @@ export default function DadorDashboard() {
   const [navActivo, setNavActivo] = useState<NavItem>("Inicio");
   const [darkMode, setDarkMode] = useState<boolean | null>(null);
   const [modalPublicar, setModalPublicar] = useState(false);
+  const [dniVerificado, setDniVerificado] = useState<boolean | null>(null);
 
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -1973,6 +2112,10 @@ export default function DadorDashboard() {
     setDarkMode(saved);
     document.documentElement.classList.toggle("dark", saved);
     if (!localStorage.getItem("dador-onboarding-done")) setShowOnboarding(true);
+    fetch("/api/documents/verify-dni")
+      .then((r) => r.json())
+      .then((d) => setDniVerificado(d.dni_verified ?? false))
+      .catch(() => {});
   }, []);
 
   const toggleDark = () => {
@@ -2053,7 +2196,18 @@ export default function DadorDashboard() {
           >
             <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: darkMode === false ? "#374151" : "rgba(255,255,255,0.7)" }} />
           </button>
-          <button onClick={() => setModalPublicar(true)} style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: "#3a806b", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
+          <button
+            onClick={() => {
+              if (dniVerificado === false) {
+                mostrarToast("Verificá tu DNI en Mi perfil antes de publicar cargas.");
+                setNavActivo("Mi perfil");
+              } else {
+                setModalPublicar(true);
+              }
+            }}
+            title={dniVerificado === false ? "Verificá tu DNI primero" : undefined}
+            style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: dniVerificado === false ? "#9ca3af" : "#3a806b", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}
+          >
             + Publicar carga
           </button>
           <button
@@ -2077,7 +2231,14 @@ export default function DadorDashboard() {
             onDestacado={(titulo) => mostrarToast(`Carga "${titulo.split("—")[0].trim()}" destacada. Mas camioneros la veran primero.`)}
             onIniciarPago={(sel) => setModalPago(sel)}
             onRefresh={fetchCargas}
-            onPublicar={() => setModalPublicar(true)}
+            onPublicar={() => {
+              if (dniVerificado === false) {
+                mostrarToast("Verificá tu DNI en Mi perfil antes de publicar cargas.");
+                setNavActivo("Mi perfil");
+              } else {
+                setModalPublicar(true);
+              }
+            }}
           />
         )}
         {navActivo === "Mis envios" && <SeccionMisEnvios cargas={cargas} onRefresh={fetchCargas} />}

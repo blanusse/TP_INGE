@@ -51,4 +51,10 @@ export class Truck {
 
   @Column({ nullable: true })
   seguro_doc_url: string;
+
+  @Column({ default: false })
+  vtv_verified: boolean;
+
+  @Column({ default: false })
+  seguro_verified: boolean;
 }

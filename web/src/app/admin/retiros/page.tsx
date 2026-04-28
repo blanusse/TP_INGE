@@ -31,6 +31,13 @@ export default function AdminRetirosPage() {
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  function copyText(text: string, key: string) {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
+  }
 
   useEffect(() => {
     if (status === "unauthenticated") { router.replace("/login"); return; }
@@ -102,11 +109,8 @@ export default function AdminRetirosPage() {
         {pending.map((p) => (
           <div key={p.id} style={{ background: "#fff", borderRadius: 12, padding: 24, marginBottom: 14, border: "1px solid #e5e7eb", borderLeft: "4px solid #f59e0b" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 18, color: "#111827" }}>
-                  ${p.amount.toLocaleString("es-AR", { minimumFractionDigits: 2 })} ARS
-                </div>
-                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, color: "#6b7280" }}>
                   {p.driver_name ?? "—"} · {p.driver_email ?? "—"}
                 </div>
                 {p.pickup_city && (
@@ -114,27 +118,46 @@ export default function AdminRetirosPage() {
                     {p.pickup_city} → {p.dropoff_city}
                   </div>
                 )}
-                <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ background: "#f3f4f6", borderRadius: 6, padding: "3px 10px", fontSize: 12, color: "#374151", fontWeight: 500 }}>
-                    {METHOD_LABEL[p.payout_method] ?? p.payout_method}
-                  </span>
-                  <span style={{ background: "#f3f4f6", borderRadius: 6, padding: "3px 10px", fontSize: 12, color: "#374151", fontFamily: "monospace" }}>
-                    {p.payout_destination}
-                  </span>
-                </div>
-                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
                   Solicitado el {new Date(p.created_at).toLocaleString("es-AR")}
+                </div>
+
+                {/* Datos de transferencia — copiables */}
+                <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 12, color: "#6b7280", width: 60 }}>Monto</span>
+                    <span style={{ fontWeight: 700, fontSize: 18, color: "#111827" }}>
+                      ${p.amount.toLocaleString("es-AR", { minimumFractionDigits: 2 })} ARS
+                    </span>
+                    <button
+                      onClick={() => copyText(String(p.amount), `amount-${p.id}`)}
+                      style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: copied === `amount-${p.id}` ? "#d1fae5" : "#fff", color: copied === `amount-${p.id}` ? "#065f46" : "#6b7280", cursor: "pointer" }}
+                    >
+                      {copied === `amount-${p.id}` ? "✓ Copiado" : "Copiar"}
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 12, color: "#6b7280", width: 60 }}>{METHOD_LABEL[p.payout_method] ?? p.payout_method}</span>
+                    <span style={{ fontFamily: "monospace", fontSize: 14, color: "#111827", background: "#f3f4f6", borderRadius: 6, padding: "3px 10px" }}>
+                      {p.payout_destination}
+                    </span>
+                    <button
+                      onClick={() => copyText(p.payout_destination, `dest-${p.id}`)}
+                      style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: copied === `dest-${p.id}` ? "#d1fae5" : "#fff", color: copied === `dest-${p.id}` ? "#065f46" : "#6b7280", cursor: "pointer" }}
+                    >
+                      {copied === `dest-${p.id}` ? "✓ Copiado" : "Copiar"}
+                    </button>
+                  </div>
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
                 <a
-                  href="https://www.mercadopago.com.ar/activities"
+                  href="https://www.mercadopago.com.ar"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ background: "#009ee3", color: "#fff", borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
                 >
-                  <i className="fa-solid fa-arrow-up-right-from-square" style={{ marginRight: 6 }} />
-                  Abrir MercadoPago
+                  Transferir en MP →
                 </a>
                 <button
                   onClick={() => markPaid(p.id)}

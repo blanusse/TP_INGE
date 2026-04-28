@@ -27,11 +27,34 @@ export class OffersService {
   ) {}
 
   async submitOffer(userId: string, body: { load_id: string; price: number; truck_id?: string; note?: string }) {
-    const truckCount = await this.trucksRepo.count({ where: { owner_id: userId } });
-    if (truckCount === 0) throw new BadRequestException('Debés registrar al menos un camión antes de ofertar.');
-
     const user = await this.usersRepo.findOne({ where: { id: userId } });
-    if (!user?.is_verified) throw new BadRequestException('Debés tener la documentación verificada antes de ofertar.');
+    const fleetOwnerId = user?.fleet_id ?? userId;
+
+    // At least one driver (owner or fleet member) must have verified DNI
+    const [verifiedSelf, verifiedFleet] = await Promise.all([
+      this.usersRepo.count({ where: { id: fleetOwnerId, dni_verified: true } }),
+      this.usersRepo.count({ where: { fleet_id: fleetOwnerId, dni_verified: true } }),
+    ]);
+    if (verifiedSelf + verifiedFleet === 0) {
+      throw new BadRequestException('Necesitás verificar el DNI de al menos un conductor antes de ofertar.');
+    }
+
+    // Check truck verification
+    if (body.truck_id) {
+      const truck = await this.trucksRepo.findOne({ where: { id: body.truck_id } });
+      if (!truck) throw new BadRequestException('Camión no encontrado.');
+      if (!truck.vtv_verified || !truck.seguro_verified) {
+        throw new BadRequestException('El camión seleccionado debe tener VTV y seguro verificados antes de ofertar.');
+      }
+    } else {
+      const verifiedTrucks = await this.trucksRepo.count({ where: { owner_id: fleetOwnerId, vtv_verified: true, seguro_verified: true } });
+      if (verifiedTrucks === 0) {
+        throw new BadRequestException('Necesitás verificar el VTV y seguro de al menos un camión antes de ofertar.');
+      }
+    }
+
+    const truckCount = await this.trucksRepo.count({ where: { owner_id: fleetOwnerId } });
+    if (truckCount === 0) throw new BadRequestException('Debés registrar al menos un camión antes de ofertar.');
 
     const load = await this.loadsRepo.findOne({ where: { id: body.load_id } });
     if (!load || load.status !== 'available') throw new BadRequestException('La carga no está disponible.');

@@ -35,6 +35,12 @@ export class LoadsController {
     return this.loadsService.markInTransitByOffer(offerId);
   }
 
+  @Patch(':loadId')
+  @UseGuards(JwtAuthGuard)
+  updateLoad(@Request() req, @Param('loadId') loadId: string, @Body() body) {
+    return this.loadsService.updateLoad(req.user.id, loadId, body);
+  }
+
   @Delete(':loadId')
   @UseGuards(JwtAuthGuard)
   deleteLoad(@Request() req, @Param('loadId') loadId: string) {

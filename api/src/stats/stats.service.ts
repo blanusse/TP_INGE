@@ -88,6 +88,8 @@ export class StatsService {
       rutasFrecuentes,
       calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,
       memberSince: user.created_at,
+      phone: user.phone ?? null,
+      dni: user.dni ?? null,
     };
   }
 
@@ -193,7 +195,7 @@ export class StatsService {
     return {
       totalViajes,
       totalIngresos,
-      totalConductores: subDrivers.length + 1,
+      totalConductores: subDrivers.length,
       totalCamiones: fleetTrucks.length,
       mejorConductor: mejorConductor ? { name: mejorConductor.name, viajes: mejorConductor.viajes } : null,
       calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,
@@ -224,6 +226,9 @@ export class StatsService {
       enTransito,
       memberSince: user?.created_at,
       calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,
+      tipo: shipper.tipo,
+      phone: user?.phone ?? null,
+      dni: user?.dni ?? null,
       razonSocial: shipper.razon_social,
       cuit: shipper.cuit,
       cuil: shipper.cuil,

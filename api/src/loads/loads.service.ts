@@ -62,6 +62,9 @@ export class LoadsService {
     const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
     if (!shipper) throw new ForbiddenException('Solo los dadores de carga pueden publicar cargas.');
 
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user?.dni_verified) throw new ForbiddenException('Debés verificar tu DNI antes de publicar cargas.');
+
     const mappedTruckType = body.truck_type_required
       ? (TRUCK_TYPE_MAP[body.truck_type_required] ?? body.truck_type_required)
       : undefined;
@@ -115,6 +118,27 @@ export class LoadsService {
     }
 
     load.status = 'in_transit';
+    return this.loadsRepo.save(load);
+  }
+
+  async updateLoad(userId: string, loadId: string, body: Partial<Pick<Load, 'cargo_type' | 'truck_type_required' | 'weight_kg' | 'price_base' | 'ready_at' | 'description'>>) {
+    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+    if (!shipper) throw new ForbiddenException();
+
+    const load = await this.loadsRepo.findOne({ where: { id: loadId } });
+    if (!load) throw new NotFoundException('Carga no encontrada.');
+    if (load.shipper_id !== shipper.id) throw new ForbiddenException();
+    if (load.status !== 'available') throw new BadRequestException('Solo se pueden editar cargas sin ofertas aceptadas.');
+
+    if (body.cargo_type !== undefined) load.cargo_type = body.cargo_type;
+    if (body.truck_type_required !== undefined) {
+      load.truck_type_required = TRUCK_TYPE_MAP[body.truck_type_required] ?? body.truck_type_required;
+    }
+    if (body.weight_kg !== undefined) load.weight_kg = body.weight_kg;
+    if (body.price_base !== undefined) load.price_base = body.price_base;
+    if (body.ready_at !== undefined) load.ready_at = body.ready_at;
+    if (body.description !== undefined) load.description = body.description;
+
     return this.loadsRepo.save(load);
   }
 
