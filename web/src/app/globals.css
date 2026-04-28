@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 :root {
+  --bg0: #2a5e4f;
+  --border: rgba(255,255,255,0.12);
+  --green: #3a806b;
   --color-background-primary: #ffffff;
   --color-background-secondary: #f4f7f5;
   --color-background-tertiary: #f4f7f5;
@@ -39,6 +42,9 @@
 .dark {
   font-family: 'IBM Plex Sans', sans-serif;
 
+  --bg0: #0a0a0a;
+  --border: rgba(255,255,255,0.08);
+  --green: #3a806b;
   --color-background-primary: #0a0a0a;
   --color-background-secondary: #111;
   --color-background-tertiary: #000;

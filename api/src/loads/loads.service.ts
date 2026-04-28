@@ -62,6 +62,9 @@ export class LoadsService {
     const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
     if (!shipper) throw new ForbiddenException('Solo los dadores de carga pueden publicar cargas.');
 
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user?.dni_verified) throw new ForbiddenException('Debés verificar tu DNI antes de publicar cargas.');
+
     const mappedTruckType = body.truck_type_required
       ? (TRUCK_TYPE_MAP[body.truck_type_required] ?? body.truck_type_required)
       : undefined;

@@ -1,6 +1,6 @@
 import {
   Controller, Post, Get, Patch, Body, Param, Request, UseGuards,
-  ForbiddenException, UseInterceptors, UploadedFile,
+  ForbiddenException, UseInterceptors, UploadedFile, Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -47,6 +47,56 @@ export class DocumentsController {
   @Get('dni-status')
   getDniStatus(@Request() req) {
     return this.documentsService.getDniStatus(req.user.id);
+  }
+
+  @Get('driver-status')
+  getDriverStatus(@Request() req) {
+    return this.documentsService.getDriverVerificationStatus(req.user.id);
+  }
+
+  @Post('verify-license')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: uploadsDir,
+      filename: (_req, file, cb) => {
+        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+        cb(null, `license-${unique}${extname(file.originalname)}`);
+      },
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
+  async verifyLicense(@Request() req, @UploadedFile() file: Express.Multer.File) {
+    return this.documentsService.verifyLicense(req.user.id, file.path);
+  }
+
+  @Post('verify-truck-vtv/:truckId')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: uploadsDir,
+      filename: (_req, file, cb) => {
+        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+        cb(null, `vtv-${unique}${extname(file.originalname)}`);
+      },
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
+  async verifyTruckVtv(@Request() req, @Param('truckId') truckId: string, @UploadedFile() file: Express.Multer.File) {
+    return this.documentsService.verifyTruckVtv(req.user.id, truckId, file.path);
+  }
+
+  @Post('verify-truck-seguro/:truckId')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: uploadsDir,
+      filename: (_req, file, cb) => {
+        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+        cb(null, `seguro-${unique}${extname(file.originalname)}`);
+      },
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
+  async verifyTruckSeguro(@Request() req, @Param('truckId') truckId: string, @UploadedFile() file: Express.Multer.File) {
+    return this.documentsService.verifyTruckSeguro(req.user.id, truckId, file.path);
   }
 
   @Post('verify-dni')

@@ -1576,7 +1576,7 @@ function SeccionFacturacion() {
 
 // ── Sección Perfil ────────────────────────────────────────────────────────────
 
-interface DadorStats { totalCargas: number; enTransito: number; memberSince: string; calificacionPromedio: number | null; razonSocial: string | null; cuit: string | null; address: string | null; }
+interface DadorStats { totalCargas: number; enTransito: number; memberSince: string; calificacionPromedio: number | null; tipo: string | null; phone: string | null; dni: string | null; razonSocial: string | null; cuit: string | null; address: string | null; }
 
 function formatMemberSince(raw: string | null | undefined): string {
   if (!raw) return "—";
@@ -1606,7 +1606,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   React.useEffect(() => {
     fetch("/api/stats/dador")
       .then((r) => r.json())
-      .then((d) => setStats(d))
+      .then((d) => { setStats(d); if (d.phone) setTelefono(d.phone); })
       .catch(() => {});
     fetch("/api/documents/verify-dni")
       .then((r) => r.json())
@@ -1682,25 +1682,27 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
         ))}
       </div>
 
-      {/* Fila inferior: empresa, contacto, actividad */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+      {/* Fila inferior: empresa (solo si es empresa), contacto, actividad */}
+      <div style={{ display: "grid", gridTemplateColumns: stats?.tipo === "empresa" ? "1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginBottom: 20 }}>
 
-        {/* Datos de empresa */}
-        <div style={card}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading-color)", marginBottom: 16 }}>Datos de empresa</div>
-          <div style={{ display: "grid", gap: 14 }}>
-            {[
-              { label: "Razón social", val: stats?.razonSocial ?? "—" },
-              { label: "CUIT / CUIL",  val: stats?.cuit ?? "—" },
-              { label: "Dirección",    val: stats?.address ?? "—" },
-            ].map(({ label, val }) => (
-              <div key={label}>
-                <div style={fieldLabel}>{label}</div>
-                <div style={fieldVal}>{val}</div>
-              </div>
-            ))}
+        {/* Datos de empresa — solo visible si tipo === 'empresa' */}
+        {stats?.tipo === "empresa" && (
+          <div style={card}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading-color)", marginBottom: 16 }}>Datos de empresa</div>
+            <div style={{ display: "grid", gap: 14 }}>
+              {[
+                { label: "Razón social", val: stats?.razonSocial ?? "—" },
+                { label: "CUIT / CUIL",  val: stats?.cuit ?? "—" },
+                { label: "Dirección",    val: stats?.address ?? "—" },
+              ].map(({ label, val }) => (
+                <div key={label}>
+                  <div style={fieldLabel}>{label}</div>
+                  <div style={fieldVal}>{val}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Contacto */}
         <div style={card}>
@@ -1709,6 +1711,10 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             <div>
               <div style={fieldLabel}>Email</div>
               <div style={fieldVal}>{userEmail || "—"}</div>
+            </div>
+            <div>
+              <div style={fieldLabel}>DNI</div>
+              <div style={fieldVal}>{stats?.dni ?? "—"}</div>
             </div>
             <div>
               <div style={fieldLabel}>Teléfono</div>
@@ -2097,6 +2103,7 @@ export default function DadorDashboard() {
   const [navActivo, setNavActivo] = useState<NavItem>("Inicio");
   const [darkMode, setDarkMode] = useState<boolean | null>(null);
   const [modalPublicar, setModalPublicar] = useState(false);
+  const [dniVerificado, setDniVerificado] = useState<boolean | null>(null);
 
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -2105,6 +2112,10 @@ export default function DadorDashboard() {
     setDarkMode(saved);
     document.documentElement.classList.toggle("dark", saved);
     if (!localStorage.getItem("dador-onboarding-done")) setShowOnboarding(true);
+    fetch("/api/documents/verify-dni")
+      .then((r) => r.json())
+      .then((d) => setDniVerificado(d.dni_verified ?? false))
+      .catch(() => {});
   }, []);
 
   const toggleDark = () => {
@@ -2185,7 +2196,18 @@ export default function DadorDashboard() {
           >
             <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: darkMode === false ? "#374151" : "rgba(255,255,255,0.7)" }} />
           </button>
-          <button onClick={() => setModalPublicar(true)} style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: "#3a806b", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
+          <button
+            onClick={() => {
+              if (dniVerificado === false) {
+                mostrarToast("Verificá tu DNI en Mi perfil antes de publicar cargas.");
+                setNavActivo("Mi perfil");
+              } else {
+                setModalPublicar(true);
+              }
+            }}
+            title={dniVerificado === false ? "Verificá tu DNI primero" : undefined}
+            style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: dniVerificado === false ? "#9ca3af" : "#3a806b", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}
+          >
             + Publicar carga
           </button>
           <button
@@ -2209,7 +2231,14 @@ export default function DadorDashboard() {
             onDestacado={(titulo) => mostrarToast(`Carga "${titulo.split("—")[0].trim()}" destacada. Mas camioneros la veran primero.`)}
             onIniciarPago={(sel) => setModalPago(sel)}
             onRefresh={fetchCargas}
-            onPublicar={() => setModalPublicar(true)}
+            onPublicar={() => {
+              if (dniVerificado === false) {
+                mostrarToast("Verificá tu DNI en Mi perfil antes de publicar cargas.");
+                setNavActivo("Mi perfil");
+              } else {
+                setModalPublicar(true);
+              }
+            }}
           />
         )}
         {navActivo === "Mis envios" && <SeccionMisEnvios cargas={cargas} onRefresh={fetchCargas} />}

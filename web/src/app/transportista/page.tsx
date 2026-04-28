@@ -1583,6 +1583,8 @@ interface TipoCargaStat { tipo: string; pct: number; count: number; color: strin
 interface RutaStat { ruta: string; viajes: number; }
 interface TransportistaStats { viajesCompletados: number; calificacionPromedio: number | null; memberSince: string; ingresosUltimos6Meses: EarningsMes[]; tiposCarga: TipoCargaStat[]; rutasFrecuentes: RutaStat[]; totalIngresos6m: number; viajes6m: number; }
 
+interface TruckData2 { id: string; patente: string; marca: string | null; modelo: string | null; vtv_vence: string | null; seguro_vence: string | null; vtv_verified: boolean; seguro_verified: boolean; }
+
 function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) => void; userName: string; userEmail: string; }) {
   const [editando, setEditando] = useState(false);
   const [nombre, setNombre] = useState(userName);
@@ -1590,38 +1592,56 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
   const [stats, setStats] = useState<TransportistaStats | null>(null);
   const [showAsDriver, setShowAsDriver] = useState(true);
-  const [docs, setDocs] = useState<{ id: string; tipo: string; status: string; url: string; admin_note: string | null }[]>([]);
-  const [uploadingTipo, setUploadingTipo] = useState<string | null>(null);
+  const [dniVerified, setDniVerified] = useState(false);
+  const [licenseVerified, setLicenseVerified] = useState(false);
+  const [trucks, setTrucks] = useState<TruckData2[]>([]);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [msgs, setMsgs] = useState<Record<string, { ok: boolean; text: string }>>({});
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
 
-  const TIPOS_DOC = [
-    { key: "dni",    label: "DNI" },
-    { key: "vtv",    label: "VTV" },
-    { key: "seguro", label: "Seguro" },
-    { key: "carnet", label: "Carnet de conducir" },
-  ] as const;
+  const atLeastOneDriverVerified = dniVerified;
+  const atLeastOneTruckVerified = trucks.some(t => t.vtv_verified && t.seguro_verified);
+  const todosAprobados = atLeastOneDriverVerified && atLeastOneTruckVerified;
 
-  const todosAprobados = TIPOS_DOC.every((t) => docs.some((d) => d.tipo === t.key && d.status === "approved"));
-
-  const fetchDocs = () => {
-    fetch("/api/documents").then((r) => r.json()).then((d) => setDocs(Array.isArray(d) ? d : [])).catch(() => {});
+  const fetchStatus = () => {
+    fetch("/api/documents/verify-license")
+      .then(r => r.json())
+      .then(d => { setDniVerified(d.dni_verified ?? false); setLicenseVerified(d.license_verified ?? false); })
+      .catch(() => {});
+    fetch("/api/fleet/trucks")
+      .then(r => r.json())
+      .then(d => setTrucks(Array.isArray(d.trucks) ? d.trucks : []))
+      .catch(() => {});
   };
 
   useEffect(() => {
     fetch("/api/stats/camionero").then((r) => r.json()).then((d) => setStats(d)).catch(() => {});
     fetch("/api/fleet/settings").then((r) => r.json()).then((d) => { if (d.show_as_fleet_driver !== undefined) setShowAsDriver(d.show_as_fleet_driver); }).catch(() => {});
-    fetchDocs();
+    fetchStatus();
   }, []);
 
-  const handleUpload = async (tipo: string, file: File) => {
-    setUploadingTipo(tipo);
+  const setMsg = (key: string, ok: boolean, text: string) => setMsgs(prev => ({ ...prev, [key]: { ok, text } }));
+
+  const handleVerifyDoc = async (endpoint: string, key: string, file: File) => {
+    setUploading(key);
+    setMsgs(prev => { const n = { ...prev }; delete n[key]; return n; });
     const fd = new FormData();
     fd.append("file", file);
-    fd.append("tipo", tipo);
-    const res = await fetch("/api/documents/upload", { method: "POST", body: fd });
-    if (res.ok) { onToast("Documento enviado a revisión."); fetchDocs(); }
-    else { onToast("Error al subir el documento."); }
-    setUploadingTipo(null);
+    try {
+      const res = await fetch(endpoint, { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.verified) {
+        setMsg(key, true, data.message);
+        onToast(data.message);
+        fetchStatus();
+      } else {
+        setMsg(key, false, data.message ?? "No se pudo verificar el documento.");
+      }
+    } catch {
+      setMsg(key, false, "Error al subir el documento.");
+    } finally {
+      setUploading(null);
+    }
   };
 
   const toggleShowAsDriver = async (val: boolean) => {
@@ -1697,57 +1717,99 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
       {tabPerfil === "Documentos" && (
         <div style={{ padding: "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
-          <div style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
-            Subí fotos claras de cada documento. Serán revisadas por el equipo de CargaBack y verás el resultado aquí.
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 16 }}>
-            {TIPOS_DOC.map(({ key, label }) => {
-              const doc = docs.find((d) => d.tipo === key);
-              const isUploading = uploadingTipo === key;
-              const statusMap: Record<string, { label: string; color: string; bg: string }> = {
-                pending:  { label: "En revisión", color: "#b45309", bg: "#fef3c7" },
-                approved: { label: "Aprobado",    color: "#065f46", bg: "#d1fae5" },
-                rejected: { label: "Rechazado",   color: "#991b1b", bg: "#fee2e2" },
-              };
-              const st = doc ? statusMap[doc.status] : null;
+
+          {/* Documentos del conductor */}
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mis documentos</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 28 }}>
+            {[
+              { key: "dni", label: "DNI", verified: dniVerified, endpoint: "/api/documents/verify-dni", hint: "Fotografiá el frente del DNI." },
+              { key: "license", label: "Registro de conducir", verified: licenseVerified, endpoint: "/api/documents/verify-license", hint: "Fotografiá el frente del carnet." },
+            ].map(({ key, label, verified, endpoint, hint }) => {
+              const isUp = uploading === key;
+              const msg = msgs[key];
               return (
-                <div key={key} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div key={key} style={{ background: "var(--color-background-primary)", border: `0.5px solid ${verified ? "#6ee7b7" : "var(--color-border-tertiary)"}`, borderRadius: "var(--border-radius-lg)", padding: 18 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{label}</div>
-                    {st && (
-                      <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{st.label}</span>
-                    )}
+                    {verified
+                      ? <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#d1fae5", color: "#065f46", fontWeight: 600 }}>✓ Verificado</span>
+                      : <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>Sin verificar</span>
+                    }
                   </div>
-                  {doc?.status === "rejected" && doc.admin_note && (
-                    <div style={{ fontSize: 12, color: "#991b1b", marginBottom: 10, padding: "8px 10px", background: "#fee2e2", borderRadius: 6 }}>
-                      Motivo: {doc.admin_note}
-                    </div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginBottom: 10 }}>{hint}</div>
+                  {msg && <div style={{ fontSize: 12, fontWeight: 500, color: msg.ok ? "#065f46" : "#b91c1c", marginBottom: 8 }}>{msg.ok ? "✓ " : "✗ "}{msg.text}</div>}
+                  {!verified && (
+                    <label style={{ display: "block", cursor: isUp ? "not-allowed" : "pointer" }}>
+                      <input type="file" accept="image/*" style={{ display: "none" }} disabled={isUp}
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyDoc(endpoint, key, f); e.target.value = ""; }} />
+                      <div style={{ fontSize: 13, padding: "8px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUp ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-secondary)" }}>
+                        {isUp ? "Verificando..." : "+ Subir foto"}
+                      </div>
+                    </label>
                   )}
-                  {doc?.url && (
-                    <a href={doc.url} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 12, color: "var(--color-brand)", marginBottom: 10 }}>Ver documento actual</a>
-                  )}
-                  <label style={{ display: "block", cursor: isUploading ? "not-allowed" : "pointer" }}>
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      style={{ display: "none" }}
-                      disabled={isUploading}
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(key, f); e.target.value = ""; }}
-                    />
-                    <div style={{ fontSize: 13, padding: "9px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUploading ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-secondary)" }}>
-                      {isUploading ? "Subiendo..." : doc ? "Reemplazar documento" : "+ Subir documento"}
-                    </div>
-                  </label>
                 </div>
               );
             })}
           </div>
+
+          {/* Documentos por camión */}
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mis camiones</div>
+          {trucks.length === 0 && (
+            <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", marginBottom: 20 }}>No tenés camiones registrados. Agregá uno en la sección de flota.</div>
+          )}
+          {trucks.map(truck => {
+            const truckVerified = truck.vtv_verified && truck.seguro_verified;
+            return (
+              <div key={truck.id} style={{ background: "var(--color-background-primary)", border: `0.5px solid ${truckVerified ? "#6ee7b7" : "var(--color-border-tertiary)"}`, borderRadius: "var(--border-radius-lg)", padding: 18, marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{truck.patente}</div>
+                    {(truck.marca || truck.modelo) && <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>{[truck.marca, truck.modelo].filter(Boolean).join(" ")}</div>}
+                  </div>
+                  {truckVerified
+                    ? <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#d1fae5", color: "#065f46", fontWeight: 600 }}>✓ Verificado</span>
+                    : <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>Pendiente</span>
+                  }
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  {[
+                    { key: `vtv-${truck.id}`, label: "VTV", verified: truck.vtv_verified, expiry: truck.vtv_vence, endpoint: `/api/documents/verify-truck/${truck.id}/vtv` },
+                    { key: `seguro-${truck.id}`, label: "Seguro", verified: truck.seguro_verified, expiry: truck.seguro_vence, endpoint: `/api/documents/verify-truck/${truck.id}/seguro` },
+                  ].map(({ key, label, verified, expiry, endpoint }) => {
+                    const isUp = uploading === key;
+                    const msg = msgs[key];
+                    return (
+                      <div key={key} style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 14 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>{label}</div>
+                          {verified
+                            ? <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "#d1fae5", color: "#065f46", fontWeight: 600 }}>✓</span>
+                            : <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>✗</span>
+                          }
+                        </div>
+                        {expiry && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 8 }}>Vence: {new Date(expiry + "T12:00:00").toLocaleDateString("es-AR")}</div>}
+                        {msg && <div style={{ fontSize: 11, fontWeight: 500, color: msg.ok ? "#065f46" : "#b91c1c", marginBottom: 6 }}>{msg.ok ? "✓ " : "✗ "}{msg.text}</div>}
+                        <label style={{ display: "block", cursor: isUp ? "not-allowed" : "pointer" }}>
+                          <input type="file" accept="image/*" style={{ display: "none" }} disabled={isUp}
+                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyDoc(endpoint, key, f); e.target.value = ""; }} />
+                          <div style={{ fontSize: 12, padding: "7px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUp ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-primary)" }}>
+                            {isUp ? "Verificando..." : verified ? "Reemplazar" : "+ Subir foto"}
+                          </div>
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
           {todosAprobados && (
-            <div style={{ marginTop: 20, padding: "14px 20px", borderRadius: "var(--border-radius-lg)", background: "#d1fae5", border: "0.5px solid #6ee7b7", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ marginTop: 8, padding: "14px 20px", borderRadius: "var(--border-radius-lg)", background: "#d1fae5", border: "0.5px solid #6ee7b7", display: "flex", alignItems: "center", gap: 10 }}>
               <i className="fa-solid fa-circle-check" style={{ color: "#065f46", fontSize: 18 }} />
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#065f46" }}>Documentación verificada</div>
-                <div style={{ fontSize: 12, color: "#065f46", opacity: 0.8 }}>Todos tus documentos están aprobados. Los dadores de carga pueden ver tu badge de verificación.</div>
+                <div style={{ fontSize: 12, color: "#065f46", opacity: 0.8 }}>Podés ofertar cargas y asignar conductores con camiones verificados.</div>
               </div>
             </div>
           )}
