@@ -70,11 +70,14 @@ export default function TripMap({
       const map = L.map(containerRef.current!).setView(defaultCenter, 5);
       mapRef.current = map;
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution:
-          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 18,
-      }).addTo(map);
+      L.tileLayer(
+        "https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/capabaseargenmap@EPSG%3A900913@png/{z}/{x}/{-y}.png",
+        {
+          attribution:
+            '© <a href="https://www.ign.gob.ar/">IGN Argentina</a>',
+          maxZoom: 18,
+        },
+      ).addTo(map);
 
       // Marcador de origen (verde)
       if (originLat && originLng) {
