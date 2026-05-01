@@ -181,6 +181,11 @@ export default function TripMap({
         updateGasStations(lat, lng);
       };
 
+      // Cargar estaciones cerca del origen apenas abre el mapa
+      if (originLat && originLng) {
+        updateGasStations(originLat, originLng);
+      }
+
       // Carga la última posición conocida
       fetch(`/api/location/${loadId}/last`)
         .then((r) => (r.ok ? r.json() : null))
