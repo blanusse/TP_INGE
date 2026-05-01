@@ -41,6 +41,10 @@ export default function TripMap({
   const watchIdRef = useRef<number | null>(null);
   const gasLayerRef = useRef<any>(null);
   const lastGasUpdatePosRef = useRef<[number, number] | null>(null);
+  const showGasRef = useRef(false);
+  const updateGasStationsRef = useRef<((lat: number, lng: number) => void) | null>(null);
+  const currentTruckPosRef = useRef<[number, number] | null>(null);
+  const [showGasStations, setShowGasStations] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -169,6 +173,8 @@ export default function TripMap({
           .catch(() => {});
       };
 
+      updateGasStationsRef.current = updateGasStations;
+
       const moveTruck = (lat: number, lng: number) => {
         if (!truckRef.current) {
           truckRef.current = L.marker([lat, lng], { icon: truckIcon })
@@ -178,13 +184,9 @@ export default function TripMap({
           truckRef.current.setLatLng([lat, lng]);
         }
         map.panTo([lat, lng]);
-        updateGasStations(lat, lng);
+        currentTruckPosRef.current = [lat, lng];
+        if (showGasRef.current) updateGasStations(lat, lng);
       };
-
-      // Cargar estaciones cerca del origen apenas abre el mapa
-      if (originLat && originLng) {
-        updateGasStations(originLat, originLng);
-      }
 
       // Carga la última posición conocida
       fetch(`/api/location/${loadId}/last`)
@@ -215,6 +217,9 @@ export default function TripMap({
       esRef.current = null;
       gasLayerRef.current = null;
       lastGasUpdatePosRef.current = null;
+      showGasRef.current = false;
+      updateGasStationsRef.current = null;
+      currentTruckPosRef.current = null;
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -222,6 +227,31 @@ export default function TripMap({
       truckRef.current = null;
     };
   }, [loadId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const GAS_RADIUS_KM = 15;
+
+  const toggleGasStations = () => {
+    const next = !showGasStations;
+    showGasRef.current = next;
+    setShowGasStations(next);
+    if (!next) {
+      gasLayerRef.current?.remove();
+      return;
+    }
+    if (gasLayerRef.current && mapRef.current) {
+      gasLayerRef.current.addTo(mapRef.current);
+      return;
+    }
+    const query = updateGasStationsRef.current;
+    if (!query) return;
+    const pos = currentTruckPosRef.current;
+    if (pos) {
+      lastGasUpdatePosRef.current = null;
+      query(pos[0], pos[1]);
+    } else if (originLat != null && originLng != null) {
+      query(originLat, originLng);
+    }
+  };
 
   const startSharing = () => {
     if (!("geolocation" in navigator)) {
@@ -272,6 +302,38 @@ export default function TripMap({
         {lastUpdate
           ? `Última actualización: ${formatLastUpdate(lastUpdate)}`
           : "Sin ubicación registrada aún"}
+      </div>
+      <div style={{ marginTop: 8 }}>
+        <button
+          onClick={toggleGasStations}
+          style={{
+            width: "100%",
+            fontSize: 12,
+            padding: "7px 14px",
+            borderRadius: 7,
+            border: "none",
+            background: showGasStations ? "#f59e0b" : "#e5e7eb",
+            color: showGasStations ? "#fff" : "#374151",
+            cursor: "pointer",
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 22V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v15"/>
+              <path d="M14 7h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2 1 1 0 0 1 1 1v5a1 1 0 0 1-1 1 3 3 0 0 1-3-3V9"/>
+              <rect x="3" y="11" width="11" height="5" rx="1"/>
+              <line x1="3" y1="22" x2="17" y2="22"/>
+            </svg>
+            Estaciones de servicio cercanas
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.75 }}>
+            Radio {GAS_RADIUS_KM} km
+          </span>
+        </button>
       </div>
       {isDriver && (
         <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
