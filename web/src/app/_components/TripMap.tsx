@@ -70,14 +70,14 @@ export default function TripMap({
       const map = L.map(containerRef.current!).setView(defaultCenter, 5);
       mapRef.current = map;
 
-      L.tileLayer(
-        "https://wms.ign.gob.ar/geoserver/gwc/service/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=capabaseargenmap&STYLE=&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image%2Fpng",
-        {
-          attribution:
-            '© <a href="https://www.ign.gob.ar/">IGN Argentina</a>',
-          maxZoom: 17,
-        },
-      ).addTo(map);
+      L.tileLayer.wms("https://wms.ign.gob.ar/geoserver/ows", {
+        layers: "capabaseargenmap",
+        format: "image/png",
+        transparent: false,
+        version: "1.1.1",
+        attribution: '© <a href="https://www.ign.gob.ar/">IGN Argentina</a>',
+        maxZoom: 17,
+      } as L.WMSOptions).addTo(map);
 
       // Marcador de origen (verde)
       if (originLat && originLng) {
