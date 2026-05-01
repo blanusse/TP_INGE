@@ -71,11 +71,11 @@ export default function TripMap({
       mapRef.current = map;
 
       L.tileLayer(
-        "https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/capabaseargenmap@EPSG%3A900913@png/{z}/{x}/{-y}.png",
+        "https://wms.ign.gob.ar/geoserver/gwc/service/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=capabaseargenmap&STYLE=&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image%2Fpng",
         {
           attribution:
             '© <a href="https://www.ign.gob.ar/">IGN Argentina</a>',
-          maxZoom: 18,
+          maxZoom: 17,
         },
       ).addTo(map);
 
