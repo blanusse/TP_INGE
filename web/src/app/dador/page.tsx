@@ -6,6 +6,8 @@ import Link from "next/link";
 
 const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
 import { signOut, useSession } from "next-auth/react";
+import ModalPerfilPublico from "@/app/_components/ModalPerfilPublico";
+import ModalReportar from "@/app/_components/ModalReportar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBoxOpen, faClockRotateLeft, faFileInvoiceDollar, faHouse, faTruckFast, faSun, faMoon } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
@@ -18,7 +20,7 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 type NavItem = "Inicio" | "Mis cargas" | "Mis envios" | "Historial" | "Facturación" | "Mi perfil";
 type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tránsito";
 
-interface Oferta { id: number; offerId: string; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
+interface Oferta { id: number; offerId: string; driverId?: string | null; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
 interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
 interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; precio: number | null; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; origenExacto?: string | null; destinoExacto?: string | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null}
 
@@ -765,11 +767,12 @@ function ModalPago({ sel, onClose }: {
 
 // ── Modal: Calificar camionero ────────────────────────────────────────────────
 
-function ModalCalificarCamionero({ offerId, driverName, onClose }: { offerId: string; driverName: string; onClose: () => void }) {
+function ModalCalificarCamionero({ offerId, driverName, driverId, onClose }: { offerId: string; driverName: string; driverId?: string | null; onClose: () => void }) {
   const [score, setScore]       = useState(0);
   const [hover, setHover]       = useState(0);
   const [enviando, setEnviando] = useState(false);
   const [done, setDone]         = useState(false);
+  const [showReportar, setShowReportar] = useState(false);
 
   const enviar = async () => {
     if (!score) return;
@@ -829,6 +832,14 @@ function ModalCalificarCamionero({ offerId, driverName, onClose }: { offerId: st
             {enviando ? "Enviando..." : "Enviar calificación"}
           </button>
         </div>
+        {driverId && (
+          <button onClick={() => setShowReportar(true)} style={{ display: "block", margin: "14px auto 0", fontSize: 12, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>
+            Reportar comportamiento
+          </button>
+        )}
+        {showReportar && driverId && (
+          <ModalReportar reportedUserId={driverId} reportedUserName={driverName} onClose={() => setShowReportar(false)} onSuccess={() => setShowReportar(false)} />
+        )}
       </div>
     </Modal>
   );
@@ -920,10 +931,25 @@ function ChatInline({ sel, userId }: { sel: OfertaSeleccionada; userId: string }
 }
 
 function ModalChat({ sel, onClose, userId }: { sel: OfertaSeleccionada; onClose: () => void; userId: string }) {
+  const [showPerfil, setShowPerfil] = useState(false);
+  const [showReportar, setShowReportar] = useState(false);
   return (
-    <Modal title={`Chat con ${sel.oferta.nombre}`} onClose={onClose}>
-      <ChatInline sel={sel} userId={userId} />
-    </Modal>
+    <>
+      <Modal title={`Chat con ${sel.oferta.nombre}`} onClose={onClose}>
+        {sel.oferta.driverId && (
+          <div style={{ textAlign: "right", marginBottom: 8 }}>
+            <button onClick={() => setShowPerfil(true)} style={{ fontSize: 12, color: "var(--color-brand)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ver perfil</button>
+          </div>
+        )}
+        <ChatInline sel={sel} userId={userId} />
+      </Modal>
+      {showPerfil && sel.oferta.driverId && (
+        <ModalPerfilPublico userId={sel.oferta.driverId} onClose={() => setShowPerfil(false)} onReportar={() => { setShowPerfil(false); setShowReportar(true); }} />
+      )}
+      {showReportar && sel.oferta.driverId && (
+        <ModalReportar reportedUserId={sel.oferta.driverId} reportedUserName={sel.oferta.nombre} onClose={() => setShowReportar(false)} onSuccess={() => setShowReportar(false)} />
+      )}
+    </>
   );
 }
 

@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
     return {
       id: o.id,
       offerId: o.id,
+      driverId: driver?.id ?? null,
       nombre: name,
       iniciales,
       rating: o.avg_rating ? Number(o.avg_rating) : 0,
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
     price: netToGross(Number(body.price)),
     truck_id: body.truckId ?? body.truck_id,
     note: body.note,
+    assigned_driver_id: body.assignedDriverId ?? body.assigned_driver_id ?? undefined,
   };
   const res = await apiFetch("/offers", session.backendToken, {
     method: "POST",

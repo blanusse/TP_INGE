@@ -6,15 +6,17 @@ import Link from "next/link";
 
 const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
 import { signOut, useSession } from "next-auth/react";
+import ModalPerfilPublico from "@/app/_components/ModalPerfilPublico";
+import ModalReportar from "@/app/_components/ModalReportar";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Inicio" | "Buscar cargas" | "Planificar viaje" | "Mis viajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
+type NavItem = "Inicio" | "Buscar cargas" | "Planificar viaje" | "Mis ofertas" | "Mis viajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
 type DashboardMode = "individual" | "flota" | "empleado";
 
 const NAV_ITEMS_BY_MODE: Record<DashboardMode, NavItem[]> = {
-  individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis viajes", "Mi flota", "Notificaciones"],
-  flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Notificaciones"],
+  individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Mi flota", "Notificaciones"],
+  flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Notificaciones", "Mi perfil"],
   empleado:   ["Mis viajes", "Mi perfil", "Notificaciones"],
 };
 const DEFAULT_NAV: Record<DashboardMode, NavItem> = {
@@ -342,7 +344,7 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
 
   return (
     <main style={{ padding: 20, flex: 1 }}>
-      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis ofertas</div>
+      <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis ofertas</div>
       {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
       {!loading && ofertas.length === 0 && (
         <div style={{ textAlign: "center", padding: "56px 20px" }}>
@@ -384,7 +386,7 @@ function SeccionMisOfertas({ onToast }: { onToast: (m: string) => void }) {
   );
 }
 
-type TabViajes = "Ofertas" | "Próximos" | "En curso" | "Completados";
+type TabViajes = "En curso" | "Próximos" | "Completados" | "Cobros" | "Mi flota";
 
 interface Cobro { id: string; fecha: string; dador: string; ruta: string; monto: number; }
 
@@ -493,13 +495,14 @@ function TabCobros() {
   );
 }
 
-interface TripData { offerId: string; loadId: string; titulo: string; empresa: string; precio: number; fechaRetiro: string; pickupCity: string; dropoffCity: string; pickupExact: string | null; dropoffExact: string | null; pickupLat: number | null; pickupLon: number | null; dropoffLat: number | null; dropoffLon: number | null; truckType: string | null; status: string; yaCalifiqué: boolean; }
+interface TripData { offerId: string; loadId: string; titulo: string; empresa: string; empresaUserId?: string | null; precio: number; fechaRetiro: string; pickupCity: string; dropoffCity: string; pickupExact: string | null; dropoffExact: string | null; pickupLat: number | null; pickupLon: number | null; dropoffLat: number | null; dropoffLon: number | null; status: string; yaCalifiqué: boolean; driverName?: string; driverId?: string; }
 
-function ModalCalificarDador({ offerId, empresa, onClose }: { offerId: string; empresa: string; onClose: () => void }) {
+function ModalCalificarDador({ offerId, empresa, empresaUserId, onClose }: { offerId: string; empresa: string; empresaUserId?: string | null; onClose: () => void }) {
   const [score, setScore] = useState(0);
   const [hover, setHover] = useState(0);
   const [enviando, setEnviando] = useState(false);
   const [done, setDone] = useState(false);
+  const [showReportar, setShowReportar] = useState(false);
   const enviar = async () => { if (!score) return; setEnviando(true); try { await fetch("/api/ratings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offerId, score }) }); setDone(true); } finally { setEnviando(false); } };
   if (done) return (<Modal title="¡Gracias por calificar!" onClose={onClose}><div style={{ textAlign: "center", padding: "28px 20px" }}><div style={{ width: 60, height: 60, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}><i className="fa-solid fa-star" style={{ fontSize: 22, color: "var(--green)" }} /></div><div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>Calificación enviada</div><div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>Tu opinión ayuda a la comunidad de CargaBack.</div><button onClick={onClose} style={{ fontSize: 14, padding: "10px 28px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, cursor: "pointer" }}>Cerrar</button></div></Modal>);
   return (
@@ -514,6 +517,14 @@ function ModalCalificarDador({ offerId, empresa, onClose }: { offerId: string; e
           <button onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Omitir</button>
           <button onClick={enviar} disabled={!score || enviando} style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: score ? "var(--color-brand)" : "var(--color-background-secondary)", color: score ? "#fff" : "var(--color-text-tertiary)", cursor: score ? "pointer" : "not-allowed", fontWeight: 600 }}>{enviando ? "Enviando..." : "Enviar calificación"}</button>
         </div>
+        {empresaUserId && (
+          <button onClick={() => setShowReportar(true)} style={{ display: "block", margin: "14px auto 0", fontSize: 12, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>
+            Reportar comportamiento
+          </button>
+        )}
+        {showReportar && empresaUserId && (
+          <ModalReportar reportedUserId={empresaUserId} reportedUserName={empresa} onClose={() => setShowReportar(false)} onSuccess={() => setShowReportar(false)} />
+        )}
       </div>
     </Modal>
   );
@@ -550,66 +561,107 @@ function Calendario({ eventos }: { eventos: { fecha: string; tipo: "salida" | "l
   );
 }
 
-function SeccionMisViajes({ userId, onToast }: { userId: string; onToast: (m: string) => void }) {
+const STATUS_LABEL: Record<string, { label: string; color: string }> = {
+  in_transit: { label: "En tránsito", color: "var(--green)" },
+  matched:    { label: "Confirmado",  color: "#3b82f6" },
+  delivered:  { label: "Entregado",   color: "#16a34a" },
+  available:  { label: "Disponible",  color: "#9ca3af" },
+};
+
+function TabViajesFlota({ fleetTrips }: { fleetTrips: { enCurso: TripData[]; proximos: TripData[]; completados: TripData[] } }) {
+  const todos = [...fleetTrips.enCurso, ...fleetTrips.proximos, ...fleetTrips.completados];
+
+  if (todos.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "48px 20px" }}>
+        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          <i className="fa-solid fa-users" style={{ fontSize: 22, color: "var(--green)" }} />
+        </div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6 }}>Sin viajes de flota todavía</div>
+        <div style={{ fontSize: 13, color: "var(--text2)" }}>Cuando asignés cargas a tus conductores, aparecerán aquí.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden" }}>
+      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid var(--color-border-tertiary)", fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>
+        Todos los viajes de tu flota
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <thead>
+          <tr style={{ background: "var(--color-background-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
+            {["Conductor", "Ruta", "Retiro", "Precio", "Estado"].map((h) => (
+              <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase" as const }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {todos.map((t, i) => {
+            const partes = t.titulo.split(" — "); const ruta = partes[1] ?? t.titulo;
+            const st = STATUS_LABEL[t.status] ?? { label: t.status, color: "var(--color-text-tertiary)" };
+            return (
+              <tr key={t.offerId} style={{ borderBottom: i < todos.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                <td style={{ padding: "12px 16px", fontWeight: 500, color: "var(--color-text-primary)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--green-muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--green)", flexShrink: 0 }}>
+                      {(t.driverName ?? "?").charAt(0).toUpperCase()}
+                    </div>
+                    {t.driverName ?? "Conductor"}
+                  </div>
+                </td>
+                <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{ruta}</td>
+                <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)", whiteSpace: "nowrap" as const }}>{t.fechaRetiro}</td>
+                <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--color-brand-dark)", whiteSpace: "nowrap" as const }}>${t.precio.toLocaleString("es-AR")}</td>
+                <td style={{ padding: "12px 16px" }}>
+                  <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, background: `${st.color}22`, color: st.color, fontWeight: 500 }}>{st.label}</span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SeccionMisViajes({ userId, mode }: { userId: string; mode?: DashboardMode }) {
   const [tab, setTab] = useState<TabViajes>("En curso");
   const [trips, setTrips] = useState<{ enCurso: TripData[]; proximos: TripData[]; completados: TripData[] }>({ enCurso: [], proximos: [], completados: [] });
-  const [loadingTrips, setLoadingTrips] = useState(true);
-  const [ofertas, setOfertas] = useState<MiOferta[]>([]);
-  const [loadingOfertas, setLoadingOfertas] = useState(true);
-  const [accionando, setAccionando] = useState<string | null>(null);
-  const [modalCalificar, setModalCalificar] = useState<{ offerId: string; empresa: string } | null>(null);
+  const [fleetTrips, setFleetTrips] = useState<{ enCurso: TripData[]; proximos: TripData[]; completados: TripData[] }>({ enCurso: [], proximos: [], completados: [] });
+  const [loading, setLoading] = useState(true);
+  const [loadingFleet, setLoadingFleet] = useState(false);
+  const [modalCalificar, setModalCalificar] = useState<{ offerId: string; empresa: string; empresaUserId?: string | null } | null>(null);
   const [calificados, setCalificados] = useState<Set<string>>(new Set());
   const [tripSeleccionado, setTripSeleccionado] = useState<TripData | null>(null);
 
-  const fetchTrips = () => {
-    setLoadingTrips(true);
+  useEffect(() => {
     fetch("/api/trips/mine").then((r) => r.json()).then((d) => {
       setTrips({ enCurso: d.enCurso ?? [], proximos: d.proximos ?? [], completados: d.completados ?? [] });
       const alreadyRated = new Set<string>((d.completados ?? []).filter((t: TripData) => t.yaCalifiqué).map((t: TripData) => t.offerId));
       setCalificados(alreadyRated);
-    }).catch(() => {}).finally(() => setLoadingTrips(false));
-  };
+    }).catch(() => {}).finally(() => setLoading(false));
 
-  const fetchOfertas = () => {
-    setLoadingOfertas(true);
-    fetch("/api/offers/mine").then((r) => r.json()).then((d) => { if (d.offers) setOfertas(d.offers); }).catch(() => {}).finally(() => setLoadingOfertas(false));
-  };
-
-  useEffect(() => { fetchTrips(); fetchOfertas(); }, []);
+    if (mode === "flota") {
+      setLoadingFleet(true);
+      fetch("/api/trips/fleet").then((r) => r.json()).then((d) => {
+        setFleetTrips({ enCurso: d.enCurso ?? [], proximos: d.proximos ?? [], completados: d.completados ?? [] });
+      }).catch(() => {}).finally(() => setLoadingFleet(false));
+    }
+  }, [mode]);
 
   if (tripSeleccionado) return <VistaTripDetalle t={tripSeleccionado} userId={userId} onVolver={() => setTripSeleccionado(null)} />;
 
-  const accion = async (offerId: string, action: string) => {
-    setAccionando(offerId + action);
-    try {
-      const res = await fetch(`/api/offers/${offerId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
-      if (res.ok) {
-        if (action === "withdraw") onToast("Oferta retirada.");
-        else if (action === "accept_counter") onToast("Contraoferta aceptada. ¡El viaje está confirmado!");
-        else if (action === "reject_counter") onToast("Contraoferta rechazada.");
-        fetchOfertas(); fetchTrips();
-      }
-    } finally { setAccionando(null); }
-  };
-
-  const estadoLabel: Record<string, string> = { pending: "Pendiente", countered: "Contraoferta recibida", accepted: "Aceptada", rejected: "Rechazada" };
-  const estadoStyle: Record<string, { bg: string; color: string }> = {
-    pending: { bg: "var(--green-glow)", color: "var(--green)" },
-    countered: { bg: "rgba(37,99,235,0.15)", color: "#3b82f6" },
-    accepted: { bg: "rgba(22,163,74,0.15)", color: "#16a34a" },
-    rejected: { bg: "rgba(220,38,38,0.15)", color: "#dc2626" },
-  };
-
-  const ofertasActivas = ofertas.filter(o => o.estado === "pending" || o.estado === "countered");
+  const tabData = { "En curso": trips.enCurso, "Próximos": trips.proximos, "Completados": trips.completados, "Cobros": [] as TripData[], "Mi flota": [] as TripData[] };
+  const current = tabData[tab] ?? [];
 
   const TripCard = ({ t }: { t: TripData }) => {
     const partes = t.titulo.split(" — "); const tipoCarga = partes[0]; const ruta = partes[1] ?? t.titulo; const [or, dest] = ruta.split(" → ");
     const completado = t.status === "delivered"; const yaCalif = calificados.has(t.offerId);
     const retiroExacto = t.pickupExact && t.pickupExact !== t.pickupCity ? t.pickupExact : null;
     const entregaExacta = t.dropoffExact && t.dropoffExact !== t.dropoffCity ? t.dropoffExact : null;
-    const accentColor = completado ? "#16a34a" : tab === "En curso" ? "var(--green)" : "#3b82f6";
     return (
-      <div onClick={() => setTripSeleccionado(t)} style={{ background: "var(--bg0)", border: `1px solid var(--border)`, borderLeft: `3px solid ${accentColor}`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10, cursor: "pointer" }}>
+      <div onClick={() => setTripSeleccionado(t)} style={{ background: "var(--bg0)", border: `1px solid var(--border)`, borderLeft: `3px solid ${completado ? "#16a34a" : tab === "En curso" ? "var(--green)" : "#3b82f6"}`, borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10, cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
@@ -622,134 +674,58 @@ function SeccionMisViajes({ userId, onToast }: { userId: string; onToast: (m: st
           <div style={{ textAlign: "right" }}><div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-brand-dark)" }}>${t.precio.toLocaleString("es-AR")}</div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Retiro: {t.fechaRetiro}</div></div>
         </div>
         {(retiroExacto || entregaExacta) && (<div style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 8, display: "flex", flexDirection: "column", gap: 4 }}>{retiroExacto && <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}><i className="fa-solid fa-location-dot" style={{ marginRight: 4, color: "var(--green)" }} /><strong>Retiro:</strong> {retiroExacto}</div>}{entregaExacta && <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}><i className="fa-solid fa-location-dot" style={{ marginRight: 4, color: "var(--green)" }} /><strong>Entrega:</strong> {entregaExacta}</div>}</div>)}
-        {completado && (<div onClick={(e) => e.stopPropagation()} style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "flex-end" }}>{yaCalif ? (<span style={{ fontSize: 12, color: "var(--text3)", padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}><i className="fa-solid fa-circle-check" style={{ color: "var(--green)" }} />Ya calificaste este viaje</span>) : (<button onClick={() => setModalCalificar({ offerId: t.offerId, empresa: t.empresa })} style={{ fontSize: 12, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, cursor: "pointer" }}><i className="fa-solid fa-star" style={{ marginRight: 5 }} />Calificar dador</button>)}</div>)}
+        {completado && (<div onClick={(e) => e.stopPropagation()} style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "flex-end" }}>{yaCalif ? (<span style={{ fontSize: 12, color: "var(--text3)", padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}><i className="fa-solid fa-circle-check" style={{ color: "var(--green)" }} />Ya calificaste este viaje</span>) : (<button onClick={() => setModalCalificar({ offerId: t.offerId, empresa: t.empresa, empresaUserId: t.empresaUserId })} style={{ fontSize: 12, padding: "7px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, cursor: "pointer" }}><i className="fa-solid fa-star" style={{ marginRight: 5 }} />Calificar dador</button>)}</div>)}
       </div>
     );
   };
 
-  const tabs: { t: TabViajes; faIcon: string; count: number; desc: string }[] = [
-    { t: "Ofertas",     faIcon: "fa-handshake",      count: ofertasActivas.length,     desc: "Pendientes y contraofertas" },
-    { t: "Próximos",    faIcon: "fa-calendar-check", count: trips.proximos.length,     desc: "Confirmados" },
-    { t: "En curso",    faIcon: "fa-truck-moving",   count: trips.enCurso.length,      desc: "Viaje activo ahora" },
-    { t: "Completados", faIcon: "fa-flag-checkered", count: trips.completados.length,  desc: "Historial y cobros" },
-  ];
-
-  const tripsByTab: Record<TabViajes, TripData[]> = {
-    "Ofertas":     [],
-    "Próximos":    trips.proximos,
-    "En curso":    trips.enCurso,
-    "Completados": trips.completados,
-  };
-
   return (
     <main style={{ padding: "20px 24px", flex: 1 }}>
-      {modalCalificar && <ModalCalificarDador offerId={modalCalificar.offerId} empresa={modalCalificar.empresa} onClose={() => { setCalificados((prev) => new Set([...prev, modalCalificar.offerId])); setModalCalificar(null); }} />}
-      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis viajes</div>
-
-      {/* KPI tabs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
-        {tabs.map(({ t, faIcon, count, desc }) => {
-          const active = tab === t;
-          return (
-            <button key={t} onClick={() => setTab(t)} style={{ border: `1px solid ${active ? "var(--green)" : "var(--border)"}`, borderRadius: "var(--border-radius-lg)", background: "var(--bg0)", padding: "18px 20px", cursor: "pointer", textAlign: "left" as const, boxShadow: active ? "0 0 0 3px var(--green-glow)" : "none" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 8, background: active ? "var(--green-muted)" : "var(--bg2)", border: `1px solid ${active ? "var(--green-dim)" : "var(--border)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <i className={`fa-solid ${faIcon}`} style={{ fontSize: 16, color: active ? "var(--green)" : "var(--text3)" }} />
-                </div>
-                <span style={{ fontSize: 28, fontWeight: 600, color: "var(--text1)", lineHeight: 1 }}>{count}</span>
+      {modalCalificar && <ModalCalificarDador offerId={modalCalificar.offerId} empresa={modalCalificar.empresa} empresaUserId={modalCalificar.empresaUserId} onClose={() => { setCalificados((prev) => new Set([...prev, modalCalificar.offerId])); setModalCalificar(null); }} />}
+      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis viajes</div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${mode === "flota" ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
+        {([
+        { t: "En curso" as TabViajes, faIcon: "fa-truck-moving", count: trips.enCurso.length, desc: "Viaje activo ahora" },
+        { t: "Próximos" as TabViajes, faIcon: "fa-calendar-check", count: trips.proximos.length, desc: "Confirmados" },
+        { t: "Completados" as TabViajes, faIcon: "fa-flag-checkered", count: trips.completados.length, desc: "Historial" },
+        { t: "Cobros" as TabViajes, faIcon: "fa-receipt", count: trips.completados.length, desc: "Historial de cobros" },
+        ...(mode === "flota" ? [{ t: "Mi flota" as TabViajes, faIcon: "fa-users", count: fleetTrips.enCurso.length + fleetTrips.proximos.length, desc: "Viajes de tu flota" }] : []),
+      ]).map(({ t, faIcon, count, desc }) => {
+        const active = tab === t;
+        return (
+          <button key={t} onClick={() => setTab(t)} style={{ border: `1px solid ${active ? "var(--green)" : "var(--border)"}`, borderRadius: "var(--border-radius-lg)", background: "var(--bg0)", padding: "18px 20px", cursor: "pointer", textAlign: "left" as const, boxShadow: active ? "0 0 0 3px var(--green-glow)" : "none" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 8, background: active ? "var(--green-muted)" : "var(--bg2)", border: `1px solid ${active ? "var(--green-dim)" : "var(--border)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <i className={`fa-solid ${faIcon}`} style={{ fontSize: 16, color: active ? "var(--green)" : "var(--text3)" }} />
               </div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text1)", marginBottom: 3 }}>{t}</div>
-              <div style={{ fontSize: 12, color: "var(--text3)" }}>{desc}</div>
-            </button>
-          );
-        })}
+              <span style={{ fontSize: 28, fontWeight: 600, color: "var(--text1)", lineHeight: 1 }}>{count}</span>
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text1)", marginBottom: 3 }}>{t}</div>
+            <div style={{ fontSize: 12, color: "var(--text3)" }}>{desc}</div>
+          </button>
+        );
+      })}
       </div>
-
-      {/* Tab: Ofertas */}
-      {tab === "Ofertas" && (
-        <>
-          {loadingOfertas && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
-          {!loadingOfertas && ofertas.length === 0 && (
-            <div style={{ textAlign: "center", padding: "56px 20px" }}>
-              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><i className="fa-solid fa-handshake" style={{ fontSize: 22, color: "var(--green)" }} /></div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6 }}>Sin ofertas todavía</div>
-              <div style={{ fontSize: 13, color: "var(--text2)" }}>Buscá cargas disponibles y enviá tu primera oferta.</div>
-            </div>
-          )}
-          {!loadingOfertas && ofertas.map((o) => (
-            <div key={o.id} style={{ background: "var(--bg0)", border: o.estado === "countered" ? "1px solid #3b82f6" : "1px solid var(--border)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                <div><div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{o.titulo}</div><div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{o.empresa} · {o.fecha}</div></div>
-                <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, background: estadoStyle[o.estado]?.bg, color: estadoStyle[o.estado]?.color }}>{estadoLabel[o.estado]}</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 10 }}>
-                <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Precio base del dador</div><div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{o.precioBase ? `$${o.precioBase.toLocaleString("es-AR")}` : "—"}</div></div>
-                <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Tu oferta</div><div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-brand-dark)" }}>{o.miOferta != null ? `$${o.miOferta.toLocaleString("es-AR")}` : "—"}</div></div>
-              </div>
-              {o.estado === "countered" && o.counterPrice != null && (
-                <div style={{ marginTop: 12, padding: "12px 14px", background: "rgba(37,99,235,0.1)", borderRadius: "var(--border-radius-md)", border: "1px solid rgba(37,99,235,0.3)" }}>
-                  <div style={{ fontSize: 12, color: "#3b82f6", fontWeight: 600, marginBottom: 8 }}>El dador propuso un nuevo precio: <span style={{ fontSize: 15 }}>${o.counterPrice.toLocaleString("es-AR")}</span></div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => accion(o.id, "accept_counter")} disabled={accionando === o.id + "accept_counter"} style={{ flex: 1, padding: "8px 0", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: accionando === o.id + "accept_counter" ? 0.6 : 1 }}>Aceptar contraoferta</button>
-                    <button onClick={() => accion(o.id, "reject_counter")} disabled={accionando === o.id + "reject_counter"} style={{ flex: 1, padding: "8px 0", borderRadius: "var(--border-radius-md)", border: "1px solid rgba(220,38,38,0.4)", background: "rgba(220,38,38,0.1)", color: "#dc2626", fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: accionando === o.id + "reject_counter" ? 0.6 : 1 }}>Rechazar</button>
-                  </div>
-                </div>
-              )}
-              {o.nota && <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 10, padding: "8px 10px", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)" }}>&ldquo;{o.nota}&rdquo;</div>}
-              {(o.estado === "pending" || o.estado === "countered") && (
-                <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
-                  <button onClick={() => accion(o.id, "withdraw")} disabled={accionando === o.id + "withdraw"} style={{ fontSize: 12, padding: "5px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "none", color: "var(--color-text-tertiary)", cursor: "pointer", opacity: accionando === o.id + "withdraw" ? 0.5 : 1 }}>Retirar oferta</button>
-                </div>
-              )}
-            </div>
-          ))}
-        </>
+      {tab === "Cobros" && <TabCobros />}
+      {tab === "Mi flota" && (
+        loadingFleet
+          ? <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando viajes de tu flota...</div>
+          : <TabViajesFlota fleetTrips={fleetTrips} />
       )}
-
-      {/* Tabs: Próximos / En curso */}
-      {(tab === "Próximos" || tab === "En curso") && (
-        <>
-          {loadingTrips && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
-          {!loadingTrips && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
-              <div>
-                {tripsByTab[tab].length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "48px 20px" }}>
-                    <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><i className="fa-solid fa-route" style={{ fontSize: 22, color: "var(--green)" }} /></div>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6 }}>Sin viajes en esta categoría</div>
-                    <div style={{ fontSize: 13, color: "var(--text2)" }}>Los viajes aceptados van a aparecer acá.</div>
-                  </div>
-                ) : tripsByTab[tab].map((t) => <TripCard key={t.offerId} t={t} />)}
+      {loading && tab !== "Cobros" && tab !== "Mi flota" && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+      {!loading && tab !== "Cobros" && tab !== "Mi flota" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
+          <div>{current.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "48px 20px" }}>
+              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <i className="fa-solid fa-route" style={{ fontSize: 22, color: "var(--green)" }} />
               </div>
-              <Calendario eventos={[]} />
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6, lineHeight: 1.7 }}>Sin viajes en esta categoría</div>
+              <div style={{ fontSize: 13, color: "var(--text2)" }}>Los viajes aceptados van a aparecer acá.</div>
             </div>
-          )}
-        </>
-      )}
-
-      {/* Tab: Completados + Cobros */}
-      {tab === "Completados" && (
-        <>
-          {loadingTrips && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
-          {!loadingTrips && (
-            <>
-              {trips.completados.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "48px 20px" }}>
-                  <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><i className="fa-solid fa-flag-checkered" style={{ fontSize: 22, color: "var(--green)" }} /></div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6 }}>Sin viajes completados</div>
-                  <div style={{ fontSize: 13, color: "var(--text2)" }}>Los viajes entregados van a aparecer acá.</div>
-                </div>
-              ) : trips.completados.map((t) => <TripCard key={t.offerId} t={t} />)}
-
-              <div style={{ marginTop: 28, paddingTop: 24, borderTop: "0.5px solid var(--color-border-tertiary)" }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                  <i className="fa-solid fa-receipt" style={{ color: "var(--green)", fontSize: 14 }} /> Historial de cobros
-                </div>
-                <TabCobros />
-              </div>
-            </>
-          )}
-        </>
+          ) : (current.map((t) => <TripCard key={t.offerId} t={t} />))}</div>
+          <Calendario eventos={[]} />
+        </div>
       )}
     </main>
   );
@@ -767,6 +743,8 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const [showPerfil, setShowPerfil] = useState(false);
+  const [showReportar, setShowReportar] = useState(false);
 
   // ── Confirmación de entrega ───────────────────────────────────────────────
   const [codigoInput, setCodigoInput] = useState("");
@@ -894,7 +872,6 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
             originLng={t.pickupLon}
             destLat={t.dropoffLat}
             destLng={t.dropoffLon}
-            truckType={t.truckType}
             height={300}
             isDriver
           />
@@ -1026,9 +1003,20 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
         </div>
       )}
 
+      {/* Modales de perfil y reporte */}
+      {showPerfil && t.empresaUserId && (
+        <ModalPerfilPublico userId={t.empresaUserId} onClose={() => setShowPerfil(false)} onReportar={() => { setShowPerfil(false); setShowReportar(true); }} />
+      )}
+      {showReportar && t.empresaUserId && (
+        <ModalReportar reportedUserId={t.empresaUserId} reportedUserName={t.empresa} onClose={() => setShowReportar(false)} onSuccess={() => {}} />
+      )}
+
       {/* Chat inline */}
       <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 14 }}>Chat con {t.empresa}</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span>Chat con {t.empresa}</span>
+          {t.empresaUserId && <button onClick={() => setShowPerfil(true)} style={{ fontSize: 12, color: "var(--color-brand)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ver perfil</button>}
+        </div>
         <div ref={listRef} style={{ height: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 12, paddingRight: 4 }}>
           {mensajes.length === 0 && <div style={{ textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13, marginTop: 80 }}>Sin mensajes todavía.</div>}
           {mensajes.map((m) => { const esYo = m.senderId === userId; return (<div key={m.id} style={{ display: "flex", justifyContent: esYo ? "flex-end" : "flex-start" }}><div style={{ maxWidth: "75%", padding: "9px 13px", borderRadius: esYo ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: esYo ? "var(--color-brand)" : "var(--color-background-secondary)", color: esYo ? "#fff" : "var(--color-text-primary)", fontSize: 13, lineHeight: 1.5 }}>{m.texto}<div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{m.hora}</div></div></div>); })}
@@ -1108,7 +1096,7 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.message ?? data.error ?? "Error al agregar el camión."); return; }
+      if (!res.ok) { setError(data.error ?? "Error al agregar el camión."); return; }
       onAdded(data.truck);
       onClose();
     } finally { setLoading(false); }
@@ -1226,7 +1214,7 @@ function ModalEditarCamion({ truck, onClose, onSaved }: { truck: TruckData; onCl
     try {
       const res = await fetch(`/api/fleet/trucks/${truck.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patente: patente.toUpperCase(), patente_remolque: patenteRemolque || undefined, marca, modelo, año: año || undefined, truck_type: tipo, capacity_kg: capacidad || undefined, vtv_vence: vtvVence || undefined, seguro_poliza: seguroPoliza || undefined, seguro_vence: seguroVence || undefined }) });
       const data = await res.json();
-      if (!res.ok) { setError(data.message ?? data.error ?? "Error al guardar los cambios."); return; }
+      if (!res.ok) { setError(data.error ?? "Error al guardar los cambios."); return; }
       onSaved(data.truck);
       onClose();
     } finally { setLoading(false); }
@@ -1281,7 +1269,7 @@ function ModalEditarConductor({ driver, onClose, onSaved }: { driver: Driver; on
     try {
       const res = await fetch(`/api/fleet/drivers/${driver.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, phone: phone || undefined, dni: dni || undefined }) });
       const data = await res.json();
-      if (!res.ok) { setError(data.message ?? data.error ?? "Error al guardar los cambios."); return; }
+      if (!res.ok) { setError(data.error ?? "Error al guardar los cambios."); return; }
       onSaved({ ...driver, ...data.driver });
       onClose();
     } finally { setLoading(false); }
@@ -1350,12 +1338,9 @@ function ModalConfirmarEliminar({ mensaje, onConfirmar, onCancelar }: { mensaje:
 interface FleetStats {
   totalViajes: number;
   totalIngresos: number;
-  totalConductores: number;
-  totalCamiones: number;
   mejorConductor: { name: string; viajes: number } | null;
   calificacionPromedio: string | null;
   perConductor: { id: string; name: string; viajes: number; ingresos: number }[];
-  perTruck: { id: string; viajes: number; ingresos: number }[];
 }
 
 function TabEstadisticas({ drivers }: { drivers: Driver[] }) {
@@ -1471,9 +1456,7 @@ function TabEstadisticas({ drivers }: { drivers: Driver[] }) {
   );
 }
 
-function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: DashboardMode }) {
-  const tabsDisponibles: ("Camiones" | "Conductores" | "Estadísticas")[] =
-    mode === "individual" ? ["Camiones"] : ["Camiones", "Conductores", "Estadísticas"];
+function SeccionMiFlota({ ownerId }: { ownerId: string }) {
   const [tabFlota, setTabFlota] = useState<"Camiones" | "Conductores" | "Estadísticas">("Camiones");
   const [trucks, setTrucks] = useState<TruckData[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -1488,7 +1471,6 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
   const [emailInvitar, setEmailInvitar] = useState("");
   const [invitando, setInvitando] = useState(false);
   const [invitacionMsg, setInvitacionMsg] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
-  const [fleetStats, setFleetStats] = useState<FleetStats | null>(null);
 
   const enviarInvitacion = async () => {
     if (!emailInvitar.trim()) return;
@@ -1503,10 +1485,7 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
   useEffect(() => {
     fetch("/api/fleet/trucks").then((r) => r.json()).then((d) => { if (d.trucks) setTrucks(d.trucks); }).catch(() => {}).finally(() => setLoadingTrucks(false));
     fetch("/api/fleet/drivers").then((r) => r.json()).then((d) => { if (d.drivers) setDrivers(d.drivers); }).catch(() => {}).finally(() => setLoadingDrivers(false));
-    if (mode === "flota") {
-      fetch("/api/fleet/stats").then((r) => r.json()).then((d) => { if (d.totalViajes !== undefined) setFleetStats(d); }).catch(() => {});
-    }
-  }, [mode]);
+  }, []);
 
   return (
     <main style={{ padding: "20px 24px", flex: 1, maxWidth: 900, margin: "0 auto", width: "100%" }}>
@@ -1531,7 +1510,7 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)" }}>Mi flota</div>
-        {tabFlota !== "Estadísticas" && (tabFlota === "Camiones" || mode !== "empleado") && (
+        {tabFlota !== "Estadísticas" && (
           <button
             onClick={() => tabFlota === "Camiones" ? setModalCamion(true) : setModalConductor(true)}
             style={{ fontSize: 13, padding: "8px 18px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
@@ -1540,34 +1519,12 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
         )}
       </div>
 
-      {/* KPI resumen — solo modo flota */}
-      {mode === "flota" && fleetStats && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
-          {[
-            { label: "Viajes totales", value: String(fleetStats.totalViajes), icon: "fa-solid fa-route" },
-            { label: "Ingresos totales", value: `$${fleetStats.totalIngresos.toLocaleString("es-AR")}`, icon: "fa-solid fa-dollar-sign" },
-            { label: "Conductores", value: String(fleetStats.totalConductores ?? drivers.length), icon: "fa-solid fa-id-card" },
-            { label: "Camiones", value: String(fleetStats.totalCamiones ?? trucks.length), icon: "fa-solid fa-truck-front" },
-          ].map(({ label, value, icon }) => (
-            <div key={label} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, padding: "16px 18px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <i className={icon} style={{ fontSize: 13, color: "var(--color-brand)" }} />
-                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--color-text-primary)", lineHeight: 1 }}>{value}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Tabs */}
-      {tabsDisponibles.length > 1 && (
-        <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 2, marginBottom: 20 }}>
-          {tabsDisponibles.map((t) => (
-            <button key={t} onClick={() => setTabFlota(t)} style={{ fontSize: 14, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", background: tabFlota === t ? "var(--color-background-primary)" : "transparent", color: tabFlota === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabFlota === t ? 600 : 400, boxShadow: tabFlota === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>{t}</button>
-          ))}
-        </div>
-      )}
+      <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 2, marginBottom: 20 }}>
+        {(["Camiones", "Conductores", "Estadísticas"] as const).map((t) => (
+          <button key={t} onClick={() => setTabFlota(t)} style={{ fontSize: 14, padding: "8px 20px", borderRadius: 6, border: "none", cursor: "pointer", background: tabFlota === t ? "var(--color-background-primary)" : "transparent", color: tabFlota === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabFlota === t ? 600 : 400, boxShadow: tabFlota === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>{t}</button>
+        ))}
+      </div>
 
       {/* Camiones */}
       {tabFlota === "Camiones" && (
@@ -1579,7 +1536,8 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
                 <i className="fa-solid fa-truck-front" style={{ fontSize: 22, color: "var(--green)" }} />
               </div>
               <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 6, lineHeight: 1.7 }}>Sin camiones registrados</div>
-              <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.7 }}>Agregá tus camiones para poder recibir y aceptar cargas.</div>
+              <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 20, lineHeight: 1.7 }}>Agregá tus camiones para poder recibir y aceptar cargas.</div>
+              <button onClick={() => setModalCamion(true)} style={{ fontSize: 13, padding: "7px 18px", borderRadius: 6, border: "none", background: "var(--green)", color: "#fff", cursor: "pointer", fontWeight: 500 }}>+ Agregar primer camión</button>
             </div>
           )}
           {!loadingTrucks && trucks.length > 0 && (
@@ -1599,16 +1557,6 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
                       <div key={label}><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div><div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{val}</div></div>
                     ))}
                   </div>
-                  {mode === "flota" && fleetStats && (() => {
-                    const ts = fleetStats.perTruck?.find((p) => p.id === t.id);
-                    if (!ts) return null;
-                    return (
-                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: "0.5px solid var(--color-border-tertiary)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                        <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Viajes realizados</div><div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)" }}>{ts.viajes}</div></div>
-                        <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>Ingresos</div><div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-brand)" }}>${ts.ingresos.toLocaleString("es-AR")}</div></div>
-                      </div>
-                    );
-                  })()}
                 </div>
               ))}
             </div>
@@ -1694,68 +1642,47 @@ type TabPerfil = "Perfil" | "Documentos" | "Estadísticas";
 interface EarningsMes { mes: string; monto: number; }
 interface TipoCargaStat { tipo: string; pct: number; count: number; color: string; cantidad?: number; }
 interface RutaStat { ruta: string; viajes: number; }
-interface TransportistaStats { viajesCompletados: number; calificacionPromedio: number | null; memberSince: string; ingresosUltimos6Meses: EarningsMes[]; tiposCarga: TipoCargaStat[]; rutasFrecuentes: RutaStat[]; totalIngresos6m: number; viajes6m: number; phone?: string | null; dni?: string | null; }
-
-interface TruckData2 { id: string; patente: string; marca: string | null; modelo: string | null; vtv_vence: string | null; seguro_vence: string | null; vtv_verified: boolean; seguro_verified: boolean; }
+interface TransportistaStats { viajesCompletados: number; calificacionPromedio: number | null; memberSince: string; ingresosUltimos6Meses: EarningsMes[]; tiposCarga: TipoCargaStat[]; rutasFrecuentes: RutaStat[]; totalIngresos6m: number; viajes6m: number; }
 
 function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) => void; userName: string; userEmail: string; }) {
   const [editando, setEditando] = useState(false);
   const [nombre, setNombre] = useState(userName);
   const [telefono, setTelefono] = useState("");
-  const [dni, setDni] = useState<string | null>(null);
   const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
   const [stats, setStats] = useState<TransportistaStats | null>(null);
   const [showAsDriver, setShowAsDriver] = useState(true);
-  const [dniVerified, setDniVerified] = useState(false);
-  const [licenseVerified, setLicenseVerified] = useState(false);
-  const [trucks, setTrucks] = useState<TruckData2[]>([]);
-  const [uploading, setUploading] = useState<string | null>(null);
-  const [msgs, setMsgs] = useState<Record<string, { ok: boolean; text: string }>>({});
+  const [docs, setDocs] = useState<{ id: string; tipo: string; status: string; url: string; admin_note: string | null }[]>([]);
+  const [uploadingTipo, setUploadingTipo] = useState<string | null>(null);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
 
-  const atLeastOneDriverVerified = dniVerified;
-  const atLeastOneTruckVerified = trucks.some(t => t.vtv_verified && t.seguro_verified);
-  const todosAprobados = atLeastOneDriverVerified && atLeastOneTruckVerified;
+  const TIPOS_DOC = [
+    { key: "dni",    label: "DNI" },
+    { key: "vtv",    label: "VTV" },
+    { key: "seguro", label: "Seguro" },
+    { key: "carnet", label: "Carnet de conducir" },
+  ] as const;
 
-  const fetchStatus = () => {
-    fetch("/api/documents/verify-license")
-      .then(r => r.json())
-      .then(d => { setDniVerified(d.dni_verified ?? false); setLicenseVerified(d.license_verified ?? false); })
-      .catch(() => {});
-    fetch("/api/fleet/trucks")
-      .then(r => r.json())
-      .then(d => setTrucks(Array.isArray(d.trucks) ? d.trucks : []))
-      .catch(() => {});
+  const todosAprobados = TIPOS_DOC.every((t) => docs.some((d) => d.tipo === t.key && d.status === "approved"));
+
+  const fetchDocs = () => {
+    fetch("/api/documents").then((r) => r.json()).then((d) => setDocs(Array.isArray(d) ? d : [])).catch(() => {});
   };
 
   useEffect(() => {
-    fetch("/api/stats/camionero").then((r) => r.json()).then((d) => { setStats(d); if (d.phone) setTelefono(d.phone); if (d.dni) setDni(d.dni); }).catch(() => {});
+    fetch("/api/stats/camionero").then((r) => r.json()).then((d) => setStats(d)).catch(() => {});
     fetch("/api/fleet/settings").then((r) => r.json()).then((d) => { if (d.show_as_fleet_driver !== undefined) setShowAsDriver(d.show_as_fleet_driver); }).catch(() => {});
-    fetchStatus();
+    fetchDocs();
   }, []);
 
-  const setMsg = (key: string, ok: boolean, text: string) => setMsgs(prev => ({ ...prev, [key]: { ok, text } }));
-
-  const handleVerifyDoc = async (endpoint: string, key: string, file: File) => {
-    setUploading(key);
-    setMsgs(prev => { const n = { ...prev }; delete n[key]; return n; });
+  const handleUpload = async (tipo: string, file: File) => {
+    setUploadingTipo(tipo);
     const fd = new FormData();
     fd.append("file", file);
-    try {
-      const res = await fetch(endpoint, { method: "POST", body: fd });
-      const data = await res.json();
-      if (data.verified) {
-        setMsg(key, true, data.message);
-        onToast(data.message);
-        fetchStatus();
-      } else {
-        setMsg(key, false, data.message ?? "No se pudo verificar el documento.");
-      }
-    } catch {
-      setMsg(key, false, "Error al subir el documento.");
-    } finally {
-      setUploading(null);
-    }
+    fd.append("tipo", tipo);
+    const res = await fetch("/api/documents/upload", { method: "POST", body: fd });
+    if (res.ok) { onToast("Documento enviado a revisión."); fetchDocs(); }
+    else { onToast("Error al subir el documento."); }
+    setUploadingTipo(null);
   };
 
   const toggleShowAsDriver = async (val: boolean) => {
@@ -1765,7 +1692,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
   return (
     <main style={{ flex: 1, background: "var(--bg1)" }}>
-      <div style={{ background: "var(--color-brand-dark)", padding: "32px 40px 48px", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ background: "var(--bg0)", padding: "32px 40px 48px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 24, maxWidth: 800 }}>
           <div style={{ width: 84, height: 84, borderRadius: "50%", background: "var(--color-brand)", border: "3px solid rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{initials}</div>
           <div style={{ flex: 1 }}>
@@ -1806,7 +1733,6 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Teléfono</div>{editando ? <input value={telefono} onChange={(e) => setTelefono(e.target.value)} style={{ fontSize: 14, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "7px 10px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", width: "100%", boxSizing: "border-box" as const }} /> : <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{telefono || "—"}</div>}</div>
               <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Email</div><div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{userEmail || "—"}</div></div>
-              <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>DNI</div><div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{dni || "—"}</div></div>
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1832,99 +1758,57 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
       {tabPerfil === "Documentos" && (
         <div style={{ padding: "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
-
-          {/* Documentos del conductor */}
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mis documentos</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 28 }}>
-            {[
-              { key: "dni", label: "DNI", verified: dniVerified, endpoint: "/api/documents/verify-dni", hint: "Fotografiá el frente del DNI." },
-              { key: "license", label: "Registro de conducir", verified: licenseVerified, endpoint: "/api/documents/verify-license", hint: "Fotografiá el frente del carnet." },
-            ].map(({ key, label, verified, endpoint, hint }) => {
-              const isUp = uploading === key;
-              const msg = msgs[key];
+          <div style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
+            Subí fotos claras de cada documento. Serán revisadas por el equipo de CargaBack y verás el resultado aquí.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 16 }}>
+            {TIPOS_DOC.map(({ key, label }) => {
+              const doc = docs.find((d) => d.tipo === key);
+              const isUploading = uploadingTipo === key;
+              const statusMap: Record<string, { label: string; color: string; bg: string }> = {
+                pending:  { label: "En revisión", color: "#b45309", bg: "#fef3c7" },
+                approved: { label: "Aprobado",    color: "#065f46", bg: "#d1fae5" },
+                rejected: { label: "Rechazado",   color: "#991b1b", bg: "#fee2e2" },
+              };
+              const st = doc ? statusMap[doc.status] : null;
               return (
-                <div key={key} style={{ background: "var(--color-background-primary)", border: `0.5px solid ${verified ? "#6ee7b7" : "var(--color-border-tertiary)"}`, borderRadius: "var(--border-radius-lg)", padding: 18 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div key={key} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{label}</div>
-                    {verified
-                      ? <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#d1fae5", color: "#065f46", fontWeight: 600 }}>✓ Verificado</span>
-                      : <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>Sin verificar</span>
-                    }
+                    {st && (
+                      <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{st.label}</span>
+                    )}
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginBottom: 10 }}>{hint}</div>
-                  {msg && <div style={{ fontSize: 12, fontWeight: 500, color: msg.ok ? "#065f46" : "#b91c1c", marginBottom: 8 }}>{msg.ok ? "✓ " : "✗ "}{msg.text}</div>}
-                  {!verified && (
-                    <label style={{ display: "block", cursor: isUp ? "not-allowed" : "pointer" }}>
-                      <input type="file" accept="image/*" style={{ display: "none" }} disabled={isUp}
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyDoc(endpoint, key, f); e.target.value = ""; }} />
-                      <div style={{ fontSize: 13, padding: "8px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUp ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-secondary)" }}>
-                        {isUp ? "Verificando..." : "+ Subir foto"}
-                      </div>
-                    </label>
+                  {doc?.status === "rejected" && doc.admin_note && (
+                    <div style={{ fontSize: 12, color: "#991b1b", marginBottom: 10, padding: "8px 10px", background: "#fee2e2", borderRadius: 6 }}>
+                      Motivo: {doc.admin_note}
+                    </div>
                   )}
+                  {doc?.url && (
+                    <a href={doc.url} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 12, color: "var(--color-brand)", marginBottom: 10 }}>Ver documento actual</a>
+                  )}
+                  <label style={{ display: "block", cursor: isUploading ? "not-allowed" : "pointer" }}>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      style={{ display: "none" }}
+                      disabled={isUploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(key, f); e.target.value = ""; }}
+                    />
+                    <div style={{ fontSize: 13, padding: "9px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUploading ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-secondary)" }}>
+                      {isUploading ? "Subiendo..." : doc ? "Reemplazar documento" : "+ Subir documento"}
+                    </div>
+                  </label>
                 </div>
               );
             })}
           </div>
-
-          {/* Documentos por camión */}
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mis camiones</div>
-          {trucks.length === 0 && (
-            <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", marginBottom: 20 }}>No tenés camiones registrados. Agregá uno en la sección de flota.</div>
-          )}
-          {trucks.map(truck => {
-            const truckVerified = truck.vtv_verified && truck.seguro_verified;
-            return (
-              <div key={truck.id} style={{ background: "var(--color-background-primary)", border: `0.5px solid ${truckVerified ? "#6ee7b7" : "var(--color-border-tertiary)"}`, borderRadius: "var(--border-radius-lg)", padding: 18, marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{truck.patente}</div>
-                    {(truck.marca || truck.modelo) && <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>{[truck.marca, truck.modelo].filter(Boolean).join(" ")}</div>}
-                  </div>
-                  {truckVerified
-                    ? <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#d1fae5", color: "#065f46", fontWeight: 600 }}>✓ Verificado</span>
-                    : <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>Pendiente</span>
-                  }
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  {[
-                    { key: `vtv-${truck.id}`, label: "VTV", verified: truck.vtv_verified, expiry: truck.vtv_vence, endpoint: `/api/documents/verify-truck/${truck.id}/vtv` },
-                    { key: `seguro-${truck.id}`, label: "Seguro", verified: truck.seguro_verified, expiry: truck.seguro_vence, endpoint: `/api/documents/verify-truck/${truck.id}/seguro` },
-                  ].map(({ key, label, verified, expiry, endpoint }) => {
-                    const isUp = uploading === key;
-                    const msg = msgs[key];
-                    return (
-                      <div key={key} style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 14 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>{label}</div>
-                          {verified
-                            ? <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "#d1fae5", color: "#065f46", fontWeight: 600 }}>✓</span>
-                            : <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>✗</span>
-                          }
-                        </div>
-                        {expiry && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 8 }}>Vence: {new Date(expiry + "T12:00:00").toLocaleDateString("es-AR")}</div>}
-                        {msg && <div style={{ fontSize: 11, fontWeight: 500, color: msg.ok ? "#065f46" : "#b91c1c", marginBottom: 6 }}>{msg.ok ? "✓ " : "✗ "}{msg.text}</div>}
-                        <label style={{ display: "block", cursor: isUp ? "not-allowed" : "pointer" }}>
-                          <input type="file" accept="image/*" style={{ display: "none" }} disabled={isUp}
-                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyDoc(endpoint, key, f); e.target.value = ""; }} />
-                          <div style={{ fontSize: 12, padding: "7px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUp ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-primary)" }}>
-                            {isUp ? "Verificando..." : verified ? "Reemplazar" : "+ Subir foto"}
-                          </div>
-                        </label>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-
           {todosAprobados && (
-            <div style={{ marginTop: 8, padding: "14px 20px", borderRadius: "var(--border-radius-lg)", background: "#d1fae5", border: "0.5px solid #6ee7b7", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ marginTop: 20, padding: "14px 20px", borderRadius: "var(--border-radius-lg)", background: "#d1fae5", border: "0.5px solid #6ee7b7", display: "flex", alignItems: "center", gap: 10 }}>
               <i className="fa-solid fa-circle-check" style={{ color: "#065f46", fontSize: 18 }} />
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#065f46" }}>Documentación verificada</div>
-                <div style={{ fontSize: 12, color: "#065f46", opacity: 0.8 }}>Podés ofertar cargas y asignar conductores con camiones verificados.</div>
+                <div style={{ fontSize: 12, color: "#065f46", opacity: 0.8 }}>Todos tus documentos están aprobados. Los dadores de carga pueden ver tu badge de verificación.</div>
               </div>
             </div>
           )}
@@ -1963,20 +1847,25 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
 // ── Modal Ofertar ─────────────────────────────────────────────────────────────
 
-function ModalOfertar({ info, onClose, onEnviar, trucks }: { info: ModalOfertaState; onClose: () => void; onEnviar: (cargaId: string | number) => void; trucks: TruckData[] }) {
+function ModalOfertar({ info, onClose, onEnviar, trucks, drivers, mode }: { info: ModalOfertaState; onClose: () => void; onEnviar: (cargaId: string | number) => void; trucks: TruckData[]; drivers?: Driver[]; mode?: DashboardMode }) {
   const [precio, setPrecio] = useState(info.precioBase.toString());
   const [truckId, setTruckId] = useState(trucks[0]?.id ?? "");
+  const [assignedDriverId, setAssignedDriverId] = useState(drivers?.[0]?.id ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const diferencia = parseInt(precio || "0") - info.precioBase;
   const diff = isNaN(diferencia) ? 0 : diferencia;
+  const esFlota = mode === "flota" && drivers && drivers.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setError(null);
+    if (esFlota && !assignedDriverId) { setError("Seleccioná un conductor de tu flota."); setLoading(false); return; }
     try {
-      const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loadId: info.cargaId, price: precio, truckId: truckId || undefined }) });
+      const body: Record<string, unknown> = { loadId: info.cargaId, price: precio, truckId: truckId || undefined };
+      if (esFlota && assignedDriverId) body.assignedDriverId = assignedDriverId;
+      const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (!res.ok) { setError(data.message ?? data.error ?? "Error al enviar la oferta."); return; }
+      if (!res.ok) { setError(data.error ?? data.message ?? "Error al enviar la oferta."); return; }
       onEnviar(info.cargaId); onClose();
     } finally { setLoading(false); }
   };
@@ -1989,6 +1878,17 @@ function ModalOfertar({ info, onClose, onEnviar, trucks }: { info: ModalOfertaSt
         <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 6 }}>Precio base del dador: <span style={{ fontWeight: 500, color: "var(--color-text-primary)" }}>${info.precioBase.toLocaleString("es-AR")}</span></div>
       </div>
       <form onSubmit={handleSubmit}>
+        {esFlota && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Conductor asignado<span style={{ color: "#ef4444", marginLeft: 2 }}>*</span></label>
+            <select value={assignedDriverId} onChange={(e) => setAssignedDriverId(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" as const }}>
+              <option value="">— Seleccioná un conductor —</option>
+              {drivers?.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}{d.dni ? ` (DNI ${d.dni})` : ""}</option>
+              ))}
+            </select>
+          </div>
+        )}
         {trucks.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Camión a enviar<span style={{ color: "#ef4444", marginLeft: 2 }}>*</span></label>
@@ -2092,7 +1992,7 @@ function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; 
           <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 18 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>Ofertas activas</div>
-              <button onClick={() => onNavegar("Mis viajes")} style={{ fontSize: 11, color: "var(--color-brand)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ver todas</button>
+              <button onClick={() => onNavegar("Mis ofertas")} style={{ fontSize: 11, color: "var(--color-brand)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Ver todas</button>
             </div>
             {ofertas.length === 0 && <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", textAlign: "center", padding: "20px 0" }}>Sin ofertas activas</div>}
             {ofertas.slice(0, 4).map(o => {
@@ -2172,8 +2072,9 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
     if (typeof window !== "undefined") return localStorage.getItem("gasoil-precio") ?? "";
     return "";
   });
+  const [cargasDisponibles, setCargasDisponibles] = useState<CargaCard[]>([]);
   const [loadingCargas, setLoadingCargas] = useState(false);
-  const [searchResult, setSearchResult] = useState<{ paradas: Parada[]; tramos: TramoEstado[]; loads: CargaCard[] } | null>(null);
+  const [buscado, setBuscado] = useState(false);
 
   const addParada = () => {
     setParadas(prev => [...prev, { id: `p${Date.now()}`, ciudad: "", fecha: "" }]);
@@ -2195,30 +2096,26 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
 
   const buscarCargas = async () => {
     setLoadingCargas(true);
+    setBuscado(true);
     if (gasoilPrecio && typeof window !== "undefined") localStorage.setItem("gasoil-precio", gasoilPrecio);
-    const snapParadas = paradas.map(p => ({ ...p }));
-    const snapTramos = [...tramos];
     try {
       const r = await fetch("/api/loads/available");
       const d = await r.json();
-      const loads: CargaCard[] = d.loads ? d.loads.map(dbLoadToCard) : [];
-      setSearchResult({ paradas: snapParadas, tramos: snapTramos, loads });
-    } catch {
-      setSearchResult({ paradas: snapParadas, tramos: snapTramos, loads: [] });
-    }
+      if (d.loads) setCargasDisponibles(d.loads.map(dbLoadToCard));
+    } catch {}
     finally { setLoadingCargas(false); }
   };
 
   const selectedTruck = trucks.find(t => t.id === camionId);
   const canSearch = paradas[0].ciudad.trim() !== "" && paradas[paradas.length - 1].ciudad.trim() !== "";
 
-  const cargasPorTramo: { idx: number; cargas: CargaCard[] }[] = !searchResult ? [] : searchResult.tramos
+  const cargasPorTramo: { idx: number; cargas: CargaCard[] }[] = tramos
     .map((estado, i) => {
       if (estado !== "busco_carga") return null;
-      const desde = searchResult.paradas[i].ciudad.trim().toLowerCase();
-      const hasta = searchResult.paradas[i + 1]?.ciudad.trim().toLowerCase() ?? "";
+      const desde = paradas[i].ciudad.trim().toLowerCase();
+      const hasta = paradas[i + 1]?.ciudad.trim().toLowerCase() ?? "";
       if (!desde || !hasta) return { idx: i, cargas: [] };
-      const matches = searchResult.loads.filter(c => {
+      const matches = cargasDisponibles.filter(c => {
         const parts = c.titulo.split(" — ");
         const ruta = parts[1] ?? c.titulo;
         const [or, dest] = ruta.split(" → ");
@@ -2306,7 +2203,7 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
           </div>
 
           <div>
-            {!searchResult && !loadingCargas && (
+            {!buscado && (
               <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 48, textAlign: "center" }}>
                 <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(29,158,117,0.08)", border: "1px solid rgba(29,158,117,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                   <i className="fa-solid fa-route" style={{ fontSize: 20, color: "var(--color-brand-dark)" }} />
@@ -2316,23 +2213,23 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
               </div>
             )}
 
-            {loadingCargas && (
+            {buscado && loadingCargas && (
               <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 40, textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13 }}>
                 Buscando cargas disponibles...
               </div>
             )}
 
-            {searchResult && !loadingCargas && cargasPorTramo.length === 0 && (
+            {buscado && !loadingCargas && cargasPorTramo.length === 0 && (
               <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 32, textAlign: "center" }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>Sin tramos de búsqueda</div>
                 <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Marcá al menos un tramo como "Busco carga" para ver resultados.</div>
               </div>
             )}
 
-            {searchResult && !loadingCargas && cargasPorTramo.map(({ idx, cargas }) => (
+            {buscado && !loadingCargas && cargasPorTramo.map(({ idx, cargas }) => (
               <div key={idx} style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 8 }}>
-                  Tramo {idx + 1} — {searchResult.paradas[idx].ciudad || "..."} → {searchResult.paradas[idx + 1]?.ciudad || "..."}
+                  Tramo {idx + 1} — {paradas[idx].ciudad || "..."} → {paradas[idx + 1]?.ciudad || "..."}
                 </div>
                 {cargas.length === 0 ? (
                   <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 20, textAlign: "center" }}>
@@ -2491,20 +2388,9 @@ function OnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void; onNa
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function TransportistaDashboard({ mode: modeProp = "individual" }: { mode?: DashboardMode }) {
+export default function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode }) {
   const { data: session } = useSession();
-
-  const effectiveMode: DashboardMode = session?.user?.isFleetOwner
-    ? "flota"
-    : (session?.user?.fleetId ? "empleado" : modeProp);
-
-  const [navActivo, setNavActivo] = useState<NavItem>(DEFAULT_NAV[modeProp]);
-
-  // Once session loads, update to the correct default nav for the real mode
-  useEffect(() => {
-    if (session) setNavActivo(prev => prev === DEFAULT_NAV[modeProp] ? DEFAULT_NAV[effectiveMode] : prev);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.isFleetOwner, session?.user?.fleetId]);
+  const [navActivo, setNavActivo] = useState<NavItem>(DEFAULT_NAV[mode]);
   const [modalOferta, setModalOferta] = useState<ModalOfertaState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
@@ -2543,11 +2429,12 @@ export default function TransportistaDashboard({ mode: modeProp = "individual" }
 
   const mostrarToast = (msg: string) => setToast(msg);
 
-  const navItems = NAV_ITEMS_BY_MODE[effectiveMode];
+  const navItems = NAV_ITEMS_BY_MODE[mode];
   const NAV_ICONS: Record<NavItem, string> = {
     "Inicio": "fa-solid fa-house",
     "Buscar cargas": "fa-solid fa-magnifying-glass",
     "Planificar viaje": "fa-solid fa-map-location-dot",
+    "Mis ofertas": "fa-solid fa-handshake",
     "Mis viajes": "fa-solid fa-route",
     "Notificaciones": "fa-solid fa-bell",
     "Mi flota": "fa-solid fa-truck-front",
@@ -2557,16 +2444,16 @@ export default function TransportistaDashboard({ mode: modeProp = "individual" }
   return (
     <>
       <div className={`transportista-${theme}`} style={{ background: "var(--bg1)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 64, background: "var(--bg0)", backdropFilter: "blur(8px)", position: "sticky", top: 0, zIndex: 10, borderBottom: "1px solid var(--border)" }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 56, background: "var(--bg0)", backdropFilter: "blur(8px)", position: "sticky", top: 0, zIndex: 10, borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
-          <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: "var(--text1)", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>Carga<span style={{ color: "var(--green)" }}>Back</span></Link>
+          <Link href="/" style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>Carga<span style={{ color: "var(--green)" }}>Back</span></Link>
           <nav style={{ display: "flex", height: "100%" }}>
             {navItems.map((item) => {
-              const badge = item === "Mis viajes" ? ofertasBadge : 0;
+              const badge = item === "Mis ofertas" ? ofertasBadge : 0;
               const active = navActivo === item;
               return (
-                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 20px", background: "transparent", border: "none", borderBottom: active ? "2.5px solid var(--green)" : "2.5px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 15, display: "flex", alignItems: "center", gap: 8, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
-                  <i className={NAV_ICONS[item]} style={{ fontSize: 14 }} />
+                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
+                  <i className={NAV_ICONS[item]} style={{ fontSize: 12 }} />
                   {item}
                   {badge > 0 && <span style={{ position: "absolute", top: 10, right: 6, width: 15, height: 15, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{badge > 9 ? "9+" : badge}</span>}
                 </button>
@@ -2587,13 +2474,14 @@ export default function TransportistaDashboard({ mode: modeProp = "individual" }
         {navActivo === "Inicio" && <SeccionInicio trucks={trucks} userName={userName} onNavegar={setNavActivo} />}
         {navActivo === "Buscar cargas" && <SeccionBuscar onOfertar={(c) => setModalOferta(c)} onAlerta={() => mostrarToast("¡Alerta guardada! Te avisamos cuando aparezca una carga que te interese.")} excluirIds={ofertadasIds} trucks={trucks} drivers={rootDrivers} onNoTruck={() => mostrarToast("Necesitás registrar al menos un camión en Mi flota para poder ofertar.")} onNoDriver={() => mostrarToast("Necesitás registrar al menos un camionero en Mi flota para poder ofertar.")} />}
         {navActivo === "Planificar viaje" && <SeccionPlanificar trucks={trucks} />}
-        {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} onToast={mostrarToast} />}
+        {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
+        {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} mode={mode} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
-        {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} mode={effectiveMode} />}
+        {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>
 
-      {modalOferta && <ModalOfertar info={modalOferta} trucks={trucks} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}
+      {modalOferta && <ModalOfertar info={modalOferta} trucks={trucks} drivers={rootDrivers} mode={mode} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}
       {toast && <Toast mensaje={toast} onClose={() => setToast(null)} />}
     </div>
     {showOnboarding && (

@@ -26,9 +26,19 @@ export class OffersService {
     private mailService: MailService,
   ) {}
 
-  async submitOffer(userId: string, body: { load_id: string; price: number; truck_id?: string; note?: string }) {
+  async submitOffer(userId: string, body: { load_id: string; price: number; truck_id?: string; note?: string; assigned_driver_id?: string }) {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     const fleetOwnerId = user?.fleet_id ?? userId;
+
+    // Si se especifica un conductor asignado, validar que el dueño de flota tiene permisos
+    if (body.assigned_driver_id) {
+      if (!user?.is_fleet_owner) throw new ForbiddenException('Solo los dueños de flota pueden asignar conductores.');
+      const assignedDriver = await this.usersRepo.findOne({ where: { id: body.assigned_driver_id } });
+      if (!assignedDriver) throw new BadRequestException('El conductor asignado no existe.');
+      if (assignedDriver.fleet_id !== userId && assignedDriver.id !== userId) {
+        throw new ForbiddenException('El conductor no pertenece a tu flota.');
+      }
+    }
 
     // At least one driver (owner or fleet member) must have verified DNI
     const [verifiedSelf, verifiedFleet] = await Promise.all([
@@ -71,6 +81,7 @@ export class OffersService {
       price: body.price,
       note: body.note,
       status: 'pending',
+      assigned_driver_id: body.assigned_driver_id ?? undefined,
     });
     const saved = await this.offersRepo.save(offer);
 
@@ -132,13 +143,16 @@ export class OffersService {
 
   async getMyOffers(userId: string) {
     const offers = await this.offersRepo.find({
-      where: { driver_id: userId },
+      where: [
+        { driver_id: userId },
+        { assigned_driver_id: userId },
+      ],
       order: { created_at: 'DESC' },
     });
 
     const loadIds = [...new Set(offers.map((o) => o.load_id))];
     const loads = loadIds.length
-      ? await this.loadsRepo.find({ where: { id: In(loadIds) } })
+      ? await this.loadsRepo.find({ where: { id: In(loadIds) }, relations: ['shipper'] })
       : [];
     const loadMap = Object.fromEntries(loads.map((l) => [l.id, l]));
 
@@ -280,5 +294,44 @@ export class OffersService {
     }
 
     return saved;
+  }
+
+  async getFleetOffers(userId: string) {
+    // Obtener todos los conductores de la flota (fleet_id = userId)
+    const fleetDrivers = await this.usersRepo.find({
+      where: { fleet_id: userId },
+      select: ['id', 'name'],
+    });
+    const fleetDriverIds = fleetDrivers.map((d) => d.id);
+    const allIds = [userId, ...fleetDriverIds];
+
+    // Traer todas las ofertas donde driver_id o assigned_driver_id pertenecen a la flota
+    const offers = await this.offersRepo.find({
+      where: [
+        { driver_id: In(allIds) },
+        { assigned_driver_id: In(allIds) },
+      ],
+      order: { created_at: 'DESC' },
+    });
+
+    const loadIds = [...new Set(offers.map((o) => o.load_id))];
+    const loads = loadIds.length ? await this.loadsRepo.find({ where: { id: In(loadIds) } }) : [];
+    const loadMap = Object.fromEntries(loads.map((l) => [l.id, l]));
+
+    // Mapa de conductores de la flota (para nombre)
+    const ownerUser = await this.usersRepo.findOne({ where: { id: userId }, select: ['id', 'name'] });
+    const driverMap: Record<string, string> = Object.fromEntries(fleetDrivers.map((d) => [d.id, d.name]));
+    if (ownerUser) driverMap[ownerUser.id] = ownerUser.name;
+
+    return offers.map((offer) => {
+      // El conductor "efectivo" es el asignado si existe, sino el driver_id
+      const effectiveDriverId = offer.assigned_driver_id ?? offer.driver_id;
+      return {
+        ...offer,
+        load: loadMap[offer.load_id],
+        driverName: driverMap[effectiveDriverId] ?? 'Conductor',
+        effectiveDriverId,
+      };
+    });
   }
 }

@@ -289,6 +289,34 @@ export class MailService {
     await this.send({ to: opts.email, subject: `${opts.ownerName} te invita a su flota en CargaBack`, html });
   }
 
+  async sendNuevoReporte(opts: { reporterName: string; reportedName: string; reason: string; description: string }) {
+    const adminEmail = this.config.get<string>('ADMIN_EMAIL') ?? 'admin@cargaback.com';
+    const reasonLabels: Record<string, string> = {
+      fraud: 'Fraude / estafa',
+      non_delivery: 'Incumplimiento de entrega',
+      harassment: 'Acoso / lenguaje inapropiado',
+      fake_data: 'Datos falsos',
+      other: 'Otro',
+    };
+    const rows = [
+      { label: 'Reportante', value: opts.reporterName },
+      { label: 'Reportado', value: opts.reportedName },
+      { label: 'Motivo', value: reasonLabels[opts.reason] ?? opts.reason },
+      { label: 'Descripción', value: opts.description },
+    ];
+    const ctaUrl = `${this.config.get('FRONTEND_URL') ?? 'http://localhost:3000'}/admin`;
+    await this.send({
+      to: adminEmail,
+      subject: `Nuevo reporte: ${opts.reporterName} → ${opts.reportedName}`,
+      html: this.buildHtml(
+        'se recibió un nuevo reporte de usuario.',
+        'Admin',
+        rows,
+        ctaUrl,
+      ),
+    });
+  }
+
   private async send(opts: { to: string; subject: string; html: string }) {
     try {
       await this.transporter.sendMail({

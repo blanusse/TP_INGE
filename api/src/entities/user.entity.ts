@@ -4,6 +4,7 @@ import {
 } from 'typeorm';
 
 export type UserRole = 'transportista' | 'shipper' | 'admin';
+export type AccountStatus = 'active' | 'suspended' | 'banned';
 
 @Entity('users')
 export class User {
@@ -59,6 +60,9 @@ export class User {
   @Column({ nullable: true, type: 'varchar' })
   mp_user_id: string | null;
 
+
+  @Column({ type: 'varchar', default: 'active' })
+  account_status: 'active' | 'suspended' | 'banned';
 
   @CreateDateColumn()
   created_at: Date;

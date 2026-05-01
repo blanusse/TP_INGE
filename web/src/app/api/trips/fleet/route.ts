@@ -9,20 +9,17 @@ export async function GET() {
   const session = await auth();
   if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
-  const res = await apiFetch("/offers/mine", session.backendToken);
+  const res = await apiFetch("/offers/fleet", session.backendToken);
   const offers = await res.json();
 
   if (!Array.isArray(offers)) return NextResponse.json(offers, { status: res.status });
-
-  const now = new Date();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const toViaje = (o: any) => ({
     offerId: o.id,
     loadId: o.load_id,
     titulo: `${o.load?.cargo_type ?? "Transporte"} \u2014 ${o.load?.pickup_city ?? ""} \u2192 ${o.load?.dropoff_city ?? ""}`,
-    empresa: o.load?.shipper?.razon_social ?? "Dador de carga",
-    empresaUserId: o.load?.shipper?.user_id ?? null,
+    empresa: "Dador de carga",
     precio: grossToNet(Number(o.price)),
     fechaRetiro: o.load?.ready_at
       ? new Date(o.load.ready_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
@@ -35,28 +32,22 @@ export async function GET() {
     pickupLon: o.load?.pickup_lon ? Number(o.load.pickup_lon) : null,
     dropoffLat: o.load?.dropoff_lat ? Number(o.load.dropoff_lat) : null,
     dropoffLon: o.load?.dropoff_lon ? Number(o.load.dropoff_lon) : null,
-    truckType: o.load?.truck_type_required ?? null,
     status: o.load?.status ?? "unknown",
+    driverName: o.driverName ?? "Conductor",
+    driverId: o.effectiveDriverId ?? o.driver_id,
     yaCalifiqué: false,
   });
 
-  const enCurso = offers
-    .filter((o: any) =>
-      o.status === "accepted" && o.load?.status === "in_transit" &&
-      (!o.load.ready_at || new Date(o.load.ready_at) <= now)
-    )
-    .map(toViaje);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const accepted = offers.filter((o: any) => o.status === "accepted");
 
-  const proximos = offers
-    .filter((o: any) =>
-      o.status === "accepted" &&
-      (o.load?.status === "matched" || (o.load?.status === "in_transit" && o.load.ready_at && new Date(o.load.ready_at) > now))
-    )
-    .map(toViaje);
-
-  const completados = offers
-    .filter((o: any) => o.status === "accepted" && o.load?.status === "delivered")
-    .map(toViaje);
+  const now = new Date();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const enCurso = accepted.filter((o: any) => o.load?.status === "in_transit" && (!o.load.ready_at || new Date(o.load.ready_at) <= now)).map(toViaje);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const proximos = accepted.filter((o: any) => o.load?.status === "matched" || (o.load?.status === "in_transit" && o.load.ready_at && new Date(o.load.ready_at) > now)).map(toViaje);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const completados = accepted.filter((o: any) => o.load?.status === "delivered").map(toViaje);
 
   return NextResponse.json({ enCurso, proximos, completados });
 }

@@ -13,6 +13,7 @@ import { StatsModule } from './stats/stats.module';
 import { PaymentsModule } from './payments/payments.module';
 import { LocationModule } from './location/location.module';
 import { DocumentsModule } from './documents/documents.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { DocumentsModule } from './documents/documents.module';
     PaymentsModule,
     LocationModule,
     DocumentsModule,
+    ReportsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -126,7 +126,7 @@ export class AuthService {
     const password_hash = await bcrypt.hash(dto.password, 12);
     const dbRole = dto.role === 'dador' ? 'shipper' : 'transportista';
 
-    const userPayload: DeepPartial<User> = {
+    const userPayload: any = {
       email,
       name: dto.name.trim(),
       password_hash,
@@ -145,7 +145,7 @@ export class AuthService {
       userPayload.fleet_id = fleetInvitation.fleet_owner_id;
     }
 
-    const user = this.usersRepo.create(userPayload);
+    const user = this.usersRepo.create(userPayload as Partial<User>);
     await this.usersRepo.save(user);
 
     // Si es empleado, marcar la invitación como aceptada y al owner como fleet owner
@@ -191,6 +191,14 @@ export class AuthService {
         code: 'EMAIL_NOT_VERIFIED',
         message: 'Verificá tu email antes de iniciar sesión.',
       });
+    }
+
+    // Verificar estado de la cuenta
+    if (user.account_status === 'suspended') {
+      throw new ForbiddenException('Tu cuenta está suspendida temporalmente. Contactá a soporte para más información.');
+    }
+    if (user.account_status === 'banned') {
+      throw new ForbiddenException('Tu cuenta fue deshabilitada permanentemente.');
     }
 
     const payload = { sub: user.id, role: user.role };
