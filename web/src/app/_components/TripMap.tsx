@@ -39,6 +39,8 @@ export default function TripMap({
   const truckRef = useRef<any>(null);
   const esRef = useRef<EventSource | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const gasLayerRef = useRef<any>(null);
+  const lastGasUpdatePosRef = useRef<[number, number] | null>(null);
   const [sharing, setSharing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -125,6 +127,48 @@ export default function TripMap({
         iconAnchor: [17, 17],
       });
 
+      const GAS_RADIUS_M = 15000;
+      const GAS_UPDATE_DIST = 0.045; // ~5 km en grados
+
+      const gasIcon = L.divIcon({
+        className: "",
+        html: `<div style="width:26px;height:26px;background:#f59e0b;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35)"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v15"/><path d="M14 7h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2 1 1 0 0 1 1 1v5a1 1 0 0 1-1 1 3 3 0 0 1-3-3V9"/><rect x="3" y="11" width="11" height="5" rx="1"/><line x1="3" y1="22" x2="17" y2="22"/></svg></div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+      });
+
+      const updateGasStations = (lat: number, lng: number) => {
+        if (lastGasUpdatePosRef.current) {
+          const [prevLat, prevLng] = lastGasUpdatePosRef.current;
+          const d = Math.sqrt((lat - prevLat) ** 2 + (lng - prevLng) ** 2);
+          if (d < GAS_UPDATE_DIST) return;
+        }
+        lastGasUpdatePosRef.current = [lat, lng];
+
+        const query = `[out:json][timeout:15];(node[amenity=fuel](around:${GAS_RADIUS_M},${lat},${lng});way[amenity=fuel](around:${GAS_RADIUS_M},${lat},${lng}););out center;`;
+
+        fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => {
+            if (!data || !mapRef.current) return;
+            if (!gasLayerRef.current) {
+              gasLayerRef.current = L.layerGroup().addTo(map);
+            } else {
+              gasLayerRef.current.clearLayers();
+            }
+            (data.elements ?? []).forEach((el: any) => {
+              const elLat = el.lat ?? el.center?.lat;
+              const elLng = el.lon ?? el.center?.lon;
+              if (!elLat || !elLng) return;
+              const name = el.tags?.name ?? el.tags?.brand ?? "Estación de servicio";
+              L.marker([elLat, elLng], { icon: gasIcon })
+                .bindPopup(`<strong>${name}</strong>`)
+                .addTo(gasLayerRef.current);
+            });
+          })
+          .catch(() => {});
+      };
+
       const moveTruck = (lat: number, lng: number) => {
         if (!truckRef.current) {
           truckRef.current = L.marker([lat, lng], { icon: truckIcon })
@@ -134,6 +178,7 @@ export default function TripMap({
           truckRef.current.setLatLng([lat, lng]);
         }
         map.panTo([lat, lng]);
+        updateGasStations(lat, lng);
       };
 
       // Carga la última posición conocida
@@ -163,6 +208,8 @@ export default function TripMap({
       cancelled = true;
       esRef.current?.close();
       esRef.current = null;
+      gasLayerRef.current = null;
+      lastGasUpdatePosRef.current = null;
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
