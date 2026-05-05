@@ -80,6 +80,41 @@ export class DniVisionService {
     return this.hasKeywords(text, keywords, 2);
   }
 
+  /** Returns true only if the image looks like an Argentine cédula verde (vehicle title) */
+  isCedulaVerdeDocument(text: string): boolean {
+    const keywords = [
+      'CEDULA', 'CÉDULA', 'VERDE',
+      'TITULAR', 'DOMINIO', 'PATENTE',
+      'DNRPA', 'REGISTRO', 'AUTOMOTOR',
+      'MARCA', 'MODELO', 'AÑO',
+    ];
+    return this.hasKeywords(text, keywords, 2);
+  }
+
+  /** Returns true only if the image looks like an Argentine cédula azul (driver authorization) */
+  isCedulaAzulDocument(text: string): boolean {
+    const keywords = [
+      'CEDULA', 'CÉDULA', 'AZUL',
+      'AUTORIZA', 'AUTORIZACIÓN', 'AUTORIZACION',
+      'CONDUCTOR', 'CONDUCIR',
+      'DOMINIO', 'PATENTE',
+      'DNRPA', 'AUTOMOTOR',
+    ];
+    return this.hasKeywords(text, keywords, 2);
+  }
+
+  /** Returns true only if the image looks like an Argentine RUCTT certificate */
+  isRucttDocument(text: string): boolean {
+    const keywords = [
+      'RUCTT', 'REGISTRO UNICO', 'REGISTRO ÚNICO',
+      'TRANSPORTE', 'CARGAS', 'CNRT',
+      'HABILITACION', 'HABILITACIÓN',
+      'NUMERO DE REGISTRO', 'NÚMERO DE REGISTRO',
+      'CARGA', 'NACIONAL',
+    ];
+    return this.hasKeywords(text, keywords, 2);
+  }
+
   /** Returns true only if the image looks like a vehicle insurance document */
   isSeguroDocument(text: string): boolean {
     const keywords = [

@@ -1059,8 +1059,8 @@ function SeccionNotificaciones() {
 
 // ── Mi Flota ──────────────────────────────────────────────────────────────────
 
-interface Driver { id: string; name: string; email: string; phone?: string; dni?: string; }
-interface TruckData { id: string; patente: string; marca?: string; modelo?: string; año?: number; truck_type?: string; capacity_kg?: number; vtv_vence?: string; seguro_poliza?: string; seguro_vence?: string; consumo_l_100km?: number; }
+interface Driver { id: string; name: string; email: string; phone?: string; dni?: string; is_verified?: boolean; dni_verified?: boolean; license_verified?: boolean; }
+interface TruckData { id: string; patente: string; marca?: string; modelo?: string; año?: number; truck_type?: string; capacity_kg?: number; vtv_vence?: string; seguro_poliza?: string; seguro_vence?: string; consumo_l_100km?: number; vtv_verified?: boolean; seguro_verified?: boolean; cedula_verde_verified?: boolean; }
 
 const TIPO_CAMION = ["camion", "semi", "acoplado", "frigorifico", "cisterna", "batea", "otros"] as const;
 const REQUIERE_REMOLQUE = new Set(["semi", "acoplado", "batea"]);
@@ -1073,9 +1073,6 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
   const [año, setAño] = useState("");
   const [tipo, setTipo] = useState("");
   const [capacidad, setCapacidad] = useState("");
-  const [vtvVence, setVtvVence] = useState("");
-  const [seguroPoliza, setSeguroPoliza] = useState("");
-  const [seguroVence, setSeguroVence] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1090,8 +1087,6 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
     if (añoNum !== null && (añoNum < 1960 || añoNum > new Date().getFullYear() + 1)) {
       setError(`El año debe estar entre 1960 y ${new Date().getFullYear() + 1}.`); return;
     }
-    if (vtvVence && new Date(vtvVence) < new Date()) { setError("La VTV ya está vencida."); return; }
-    if (seguroVence && new Date(seguroVence) < new Date()) { setError("El seguro ya está vencido."); return; }
     if (!tipo) { setError("Seleccioná el tipo de camión."); return; }
     if (REQUIERE_REMOLQUE.has(tipo) && !patenteRemolque.trim()) { setError(`Los ${tipo}s necesitan la patente del remolque.`); return; }
     setLoading(true);
@@ -1103,8 +1098,6 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
           patente: patenteNorm, patente_remolque: patenteRemolque || undefined,
           marca, modelo, año: añoNum || undefined, truck_type: tipo,
           capacity_kg: capacidad || undefined,
-          vtv_vence: vtvVence || undefined,
-          seguro_poliza: seguroPoliza || undefined, seguro_vence: seguroVence || undefined,
         }),
       });
       const data = await res.json();
@@ -1134,11 +1127,9 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
           <FormCampo label="Patente del remolque / acoplado" value={patenteRemolque} onChange={(v) => setPatenteRemolque(v.toUpperCase())} placeholder="AB123CD" required />
         )}
         <FormCampo label="Capacidad (kg)" value={capacidad} onChange={setCapacidad} placeholder="20000" type="number" />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
-          <FormCampo label="VTV — vencimiento" value={vtvVence} onChange={setVtvVence} type="date" />
-          <FormCampo label="N° póliza de seguro" value={seguroPoliza} onChange={setSeguroPoliza} placeholder="POL-123456" />
+        <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginBottom: 12, padding: "8px 12px", background: "var(--color-background-secondary)", borderRadius: 8, border: "0.5px solid var(--color-border-tertiary)" }}>
+          <i className="fa-solid fa-circle-info" style={{ marginRight: 6 }} />Los documentos (VTV, seguro, cédula verde) se verifican desde la sección de documentos una vez agregado el camión.
         </div>
-        <FormCampo label="Seguro — vencimiento" value={seguroVence} onChange={setSeguroVence} type="date" />
         {error &&<div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Cancelar</button>
@@ -1210,9 +1201,6 @@ function ModalEditarCamion({ truck, onClose, onSaved }: { truck: TruckData; onCl
   const [año, setAño] = useState(truck.año ? String(truck.año) : "");
   const [tipo, setTipo] = useState(truck.truck_type ?? "");
   const [capacidad, setCapacidad] = useState(truck.capacity_kg ? String(truck.capacity_kg) : "");
-  const [vtvVence, setVtvVence] = useState(truck.vtv_vence ?? "");
-  const [seguroPoliza, setSeguroPoliza] = useState(truck.seguro_poliza ?? "");
-  const [seguroVence, setSeguroVence] = useState(truck.seguro_vence ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1224,7 +1212,7 @@ function ModalEditarCamion({ truck, onClose, onSaved }: { truck: TruckData; onCl
     if (REQUIERE_REMOLQUE.has(tipo) && !patenteRemolque.trim()) { setError(`Los ${tipo}s necesitan la patente del remolque.`); return; }
     setLoading(true);
     try {
-      const res = await fetch(`/api/fleet/trucks/${truck.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patente: patente.toUpperCase(), patente_remolque: patenteRemolque || undefined, marca, modelo, año: año || undefined, truck_type: tipo, capacity_kg: capacidad || undefined, vtv_vence: vtvVence || undefined, seguro_poliza: seguroPoliza || undefined, seguro_vence: seguroVence || undefined }) });
+      const res = await fetch(`/api/fleet/trucks/${truck.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patente: patente.toUpperCase(), patente_remolque: patenteRemolque || undefined, marca, modelo, año: año || undefined, truck_type: tipo, capacity_kg: capacidad || undefined }) });
       const data = await res.json();
       if (!res.ok) { setError(data.message ?? data.error ?? "Error al guardar los cambios."); return; }
       onSaved(data.truck);
@@ -1252,11 +1240,6 @@ function ModalEditarCamion({ truck, onClose, onSaved }: { truck: TruckData; onCl
           <FormCampo label="Patente del remolque / acoplado" value={patenteRemolque} onChange={(v) => setPatenteRemolque(v.toUpperCase())} placeholder="AB123CD" required />
         )}
         <FormCampo label="Capacidad (kg)" value={capacidad} onChange={setCapacidad} placeholder="20000" type="number" />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
-          <FormCampo label="VTV — vencimiento" value={vtvVence} onChange={setVtvVence} type="date" />
-          <FormCampo label="N° póliza de seguro" value={seguroPoliza} onChange={setSeguroPoliza} placeholder="POL-123456" />
-        </div>
-        <FormCampo label="Seguro — vencimiento" value={seguroVence} onChange={setSeguroVence} type="date" />
         {error && <div style={{ fontSize: 13, color: "#dc2626", background: "rgba(220,38,38,0.1)", border: "0.5px solid rgba(220,38,38,0.35)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "9px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Cancelar</button>
@@ -1489,6 +1472,46 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
   const [invitando, setInvitando] = useState(false);
   const [invitacionMsg, setInvitacionMsg] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
   const [fleetStats, setFleetStats] = useState<FleetStats | null>(null);
+  const [ructtVerifiedFlota, setRucttVerifiedFlota] = useState(false);
+  const [uploadingRuctt, setUploadingRuctt] = useState(false);
+  const [ructtMsg, setRucttMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [truckUploading, setTruckUploading] = useState<Record<string, boolean>>({});
+  const [truckMsgs, setTruckMsgs] = useState<Record<string, { ok: boolean; text: string }>>({});
+
+  const handleVerifyTruckDoc = async (truckId: string, key: string, endpoint: string, field: "vtv_verified" | "seguro_verified" | "cedula_verde_verified", file: File) => {
+    setTruckUploading(prev => ({ ...prev, [key]: true }));
+    setTruckMsgs(prev => { const n = { ...prev }; delete n[key]; return n; });
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch(endpoint, { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.verified) {
+        setTrucks(prev => prev.map(t => t.id === truckId ? { ...t, [field]: true } : t));
+        setTruckMsgs(prev => ({ ...prev, [key]: { ok: true, text: data.message } }));
+      } else {
+        setTruckMsgs(prev => ({ ...prev, [key]: { ok: false, text: data.message ?? "No se pudo verificar." } }));
+      }
+    } catch {
+      setTruckMsgs(prev => ({ ...prev, [key]: { ok: false, text: "Error al subir el documento." } }));
+    } finally {
+      setTruckUploading(prev => { const n = { ...prev }; delete n[key]; return n; });
+    }
+  };
+
+  const handleVerifyRuctt = async (file: File) => {
+    setUploadingRuctt(true);
+    setRucttMsg(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/documents/verify-ructt", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.verified) { setRucttVerifiedFlota(true); setRucttMsg({ ok: true, text: data.message }); }
+      else { setRucttMsg({ ok: false, text: data.message ?? "No se pudo verificar el documento." }); }
+    } catch { setRucttMsg({ ok: false, text: "Error al subir el documento." }); }
+    finally { setUploadingRuctt(false); }
+  };
 
   const enviarInvitacion = async () => {
     if (!emailInvitar.trim()) return;
@@ -1505,6 +1528,7 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
     fetch("/api/fleet/drivers").then((r) => r.json()).then((d) => { if (d.drivers) setDrivers(d.drivers); }).catch(() => {}).finally(() => setLoadingDrivers(false));
     if (mode === "flota") {
       fetch("/api/fleet/stats").then((r) => r.json()).then((d) => { if (d.totalViajes !== undefined) setFleetStats(d); }).catch(() => {});
+      fetch("/api/documents/verify-license").then(r => r.json()).then(d => setRucttVerifiedFlota(d.ructt_verified ?? false)).catch(() => {});
     }
   }, [mode]);
 
@@ -1539,6 +1563,32 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
           </button>
         )}
       </div>
+
+      {/* Habilitación RUCTT — solo modo flota */}
+      {mode === "flota" && (
+        <div style={{ background: "var(--color-background-primary)", border: `0.5px solid ${ructtVerifiedFlota ? "#6ee7b7" : "var(--color-border-tertiary)"}`, borderRadius: "var(--border-radius-lg)", padding: 18, marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>Habilitación RUCTT</div>
+              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 2 }}>Registro Único de Camiones y Transporte de Cargas (CNRT)</div>
+            </div>
+            {ructtVerifiedFlota
+              ? <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#d1fae5", color: "#065f46", fontWeight: 600 }}>✓ Verificado</span>
+              : <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>Sin verificar</span>
+            }
+          </div>
+          {ructtMsg && <div style={{ fontSize: 12, fontWeight: 500, color: ructtMsg.ok ? "#065f46" : "#b91c1c", marginBottom: 8 }}>{ructtMsg.ok ? "✓ " : "✗ "}{ructtMsg.text}</div>}
+          {!ructtVerifiedFlota && (
+            <label style={{ display: "block", cursor: uploadingRuctt ? "not-allowed" : "pointer", maxWidth: 240 }}>
+              <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingRuctt}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyRuctt(f); e.target.value = ""; }} />
+              <div style={{ fontSize: 13, padding: "8px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: uploadingRuctt ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-secondary)" }}>
+                {uploadingRuctt ? "Verificando..." : "+ Subir certificado RUCTT"}
+              </div>
+            </label>
+          )}
+        </div>
+      )}
 
       {/* KPI resumen — solo modo flota */}
       {mode === "flota" && fleetStats && (
@@ -1609,6 +1659,39 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
                       </div>
                     );
                   })()}
+                  {mode === "flota" && (
+                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: "0.5px solid var(--color-border-tertiary)" }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 8 }}>Documentos del vehículo</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                        {([
+                          { key: `cedula-verde-${t.id}`, label: "Cédula verde", verified: t.cedula_verde_verified ?? false, endpoint: `/api/documents/verify-truck/${t.id}/cedula-verde`, field: "cedula_verde_verified" as const },
+                          { key: `vtv-${t.id}`, label: "VTV", verified: t.vtv_verified ?? false, endpoint: `/api/documents/verify-truck/${t.id}/vtv`, field: "vtv_verified" as const },
+                          { key: `seguro-${t.id}`, label: "Seguro", verified: t.seguro_verified ?? false, endpoint: `/api/documents/verify-truck/${t.id}/seguro`, field: "seguro_verified" as const },
+                        ] as { key: string; label: string; verified: boolean; endpoint: string; field: "vtv_verified" | "seguro_verified" | "cedula_verde_verified" }[]).map(({ key, label, verified, endpoint, field }) => {
+                          const isUp = truckUploading[key];
+                          const msg = truckMsgs[key];
+                          return (
+                            <div key={key} style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 10 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)" }}>{label}</div>
+                                {verified
+                                  ? <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "#d1fae5", color: "#065f46", fontWeight: 600 }}>✓</span>
+                                  : <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>✗</span>}
+                              </div>
+                              {msg && <div style={{ fontSize: 10, color: msg.ok ? "#065f46" : "#b91c1c", marginBottom: 4 }}>{msg.ok ? "✓ " : "✗ "}{msg.text}</div>}
+                              <label style={{ display: "block", cursor: isUp ? "not-allowed" : "pointer" }}>
+                                <input type="file" accept="image/*" style={{ display: "none" }} disabled={!!isUp}
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyTruckDoc(t.id, key, endpoint, field, f); e.target.value = ""; }} />
+                                <div style={{ fontSize: 11, padding: "5px 8px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUp ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-primary)" }}>
+                                  {isUp ? "Verificando..." : verified ? "Reemplazar" : "+ Subir foto"}
+                                </div>
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1658,7 +1741,7 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--color-background-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
-                    {["Nombre", "DNI", "Email", "Teléfono", ""].map((h) => (<th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase" }}>{h}</th>))}
+                    {["Nombre", "DNI", "Email", "Teléfono", "Verificación", ""].map((h) => (<th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase" }}>{h}</th>))}
                   </tr>
                 </thead>
                 <tbody>
@@ -1673,6 +1756,18 @@ function SeccionMiFlota({ ownerId, mode = "flota" }: { ownerId: string; mode?: D
                       <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.dni ?? "—"}</td>
                       <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.email}</td>
                       <td style={{ padding: "12px 16px", color: "var(--color-text-secondary)" }}>{d.phone ?? "—"}</td>
+                      <td style={{ padding: "12px 16px" }}>
+                        {d.is_verified
+                          ? <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#d1fae5", color: "#065f46", fontWeight: 600, whiteSpace: "nowrap" }}>✓ Habilitado</span>
+                          : <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                              <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600, whiteSpace: "nowrap", display: "inline-block" }}>Pendiente</span>
+                              <div style={{ display: "flex", gap: 4, marginTop: 2 }}>
+                                <span title="DNI" style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: d.dni_verified ? "#d1fae5" : "#fee2e2", color: d.dni_verified ? "#065f46" : "#991b1b", fontWeight: 600 }}>DNI {d.dni_verified ? "✓" : "✗"}</span>
+                                <span title="Carnet" style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: d.license_verified ? "#d1fae5" : "#fee2e2", color: d.license_verified ? "#065f46" : "#991b1b", fontWeight: 600 }}>Carnet {d.license_verified ? "✓" : "✗"}</span>
+                              </div>
+                            </div>
+                        }
+                      </td>
                       <td style={{ padding: "12px 16px" }}>{d.id !== ownerId && <MenuAcciones onEditar={() => setEditandoConductor(d)} onEliminar={() => setEliminandoConductor(d)} labelEliminar="Desvincular" />}</td>
                     </tr>
                   ))}
@@ -1696,9 +1791,9 @@ interface TipoCargaStat { tipo: string; pct: number; count: number; color: strin
 interface RutaStat { ruta: string; viajes: number; }
 interface TransportistaStats { viajesCompletados: number; calificacionPromedio: number | null; memberSince: string; ingresosUltimos6Meses: EarningsMes[]; tiposCarga: TipoCargaStat[]; rutasFrecuentes: RutaStat[]; totalIngresos6m: number; viajes6m: number; phone?: string | null; dni?: string | null; }
 
-interface TruckData2 { id: string; patente: string; marca: string | null; modelo: string | null; vtv_vence: string | null; seguro_vence: string | null; vtv_verified: boolean; seguro_verified: boolean; }
+interface TruckData2 { id: string; patente: string; marca: string | null; modelo: string | null; vtv_vence: string | null; seguro_vence: string | null; vtv_verified: boolean; seguro_verified: boolean; cedula_verde_verified: boolean; }
 
-function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) => void; userName: string; userEmail: string; }) {
+function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { onToast: (m: string) => void; userName: string; userEmail: string; mode?: DashboardMode }) {
   const [editando, setEditando] = useState(false);
   const [nombre, setNombre] = useState(userName);
   const [telefono, setTelefono] = useState("");
@@ -1708,19 +1803,23 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const [showAsDriver, setShowAsDriver] = useState(true);
   const [dniVerified, setDniVerified] = useState(false);
   const [licenseVerified, setLicenseVerified] = useState(false);
+  const [ructtVerified, setRucttVerified] = useState(false);
+  const [cedulaAzulVerified, setCedulaAzulVerified] = useState(false);
   const [trucks, setTrucks] = useState<TruckData2[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Record<string, { ok: boolean; text: string }>>({});
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
 
-  const atLeastOneDriverVerified = dniVerified;
-  const atLeastOneTruckVerified = trucks.some(t => t.vtv_verified && t.seguro_verified);
-  const todosAprobados = atLeastOneDriverVerified && atLeastOneTruckVerified;
+  const atLeastOneDriverVerified = dniVerified && licenseVerified;
+  const atLeastOneTruckVerified = trucks.some(t => t.vtv_verified && t.seguro_verified && t.cedula_verde_verified);
+  const todosAprobados = mode === "empleado"
+    ? atLeastOneDriverVerified && cedulaAzulVerified
+    : atLeastOneDriverVerified && ructtVerified && atLeastOneTruckVerified;
 
   const fetchStatus = () => {
     fetch("/api/documents/verify-license")
       .then(r => r.json())
-      .then(d => { setDniVerified(d.dni_verified ?? false); setLicenseVerified(d.license_verified ?? false); })
+      .then(d => { setDniVerified(d.dni_verified ?? false); setLicenseVerified(d.license_verified ?? false); setRucttVerified(d.ructt_verified ?? false); setCedulaAzulVerified(d.cedula_azul_verified ?? false); })
       .catch(() => {});
     fetch("/api/fleet/trucks")
       .then(r => r.json())
@@ -1795,7 +1894,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
 
       <div style={{ padding: "22px 40px 0", maxWidth: 840, margin: "0 auto" }}>
         <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 3, gap: 2 }}>
-          {(["Perfil", "Documentos", "Estadísticas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
+          {(["Perfil", ...(mode !== "flota" ? ["Documentos"] : []), "Estadísticas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
         </div>
       </div>
 
@@ -1830,7 +1929,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
         </div>
       )}
 
-      {tabPerfil === "Documentos" && (
+      {tabPerfil === "Documentos" && mode !== "flota" && (
         <div style={{ padding: "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
 
           {/* Documentos del conductor */}
@@ -1838,7 +1937,9 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 28 }}>
             {[
               { key: "dni", label: "DNI", verified: dniVerified, endpoint: "/api/documents/verify-dni", hint: "Fotografiá el frente del DNI." },
-              { key: "license", label: "Registro de conducir", verified: licenseVerified, endpoint: "/api/documents/verify-license", hint: "Fotografiá el frente del carnet." },
+              { key: "license", label: "Registro de conducir", verified: licenseVerified, endpoint: "/api/documents/verify-license", hint: "Fotografiá el frente del carnet (categoría D o E)." },
+              ...(mode === "empleado" ? [{ key: "cedula-azul", label: "Cédula azul", verified: cedulaAzulVerified, endpoint: "/api/documents/verify-cedula-azul", hint: "Autorización del titular del vehículo para que lo conduzcas." }] : []),
+              ...(mode !== "empleado" ? [{ key: "ructt", label: "Habilitación RUCTT", verified: ructtVerified, endpoint: "/api/documents/verify-ructt", hint: "Fotografiá el certificado RUCTT emitido por la CNRT." }] : []),
             ].map(({ key, label, verified, endpoint, hint }) => {
               const isUp = uploading === key;
               const msg = msgs[key];
@@ -1867,13 +1968,13 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             })}
           </div>
 
-          {/* Documentos por camión */}
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mis camiones</div>
-          {trucks.length === 0 && (
+          {/* Documentos por camión — solo para dueños de camiones, no empleados */}
+          {mode !== "empleado" && <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mis camiones</div>}
+          {mode !== "empleado" && trucks.length === 0 && (
             <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", marginBottom: 20 }}>No tenés camiones registrados. Agregá uno en la sección de flota.</div>
           )}
-          {trucks.map(truck => {
-            const truckVerified = truck.vtv_verified && truck.seguro_verified;
+          {mode !== "empleado" && trucks.map(truck => {
+            const truckVerified = truck.vtv_verified && truck.seguro_verified && truck.cedula_verde_verified;
             return (
               <div key={truck.id} style={{ background: "var(--color-background-primary)", border: `0.5px solid ${truckVerified ? "#6ee7b7" : "var(--color-border-tertiary)"}`, borderRadius: "var(--border-radius-lg)", padding: 18, marginBottom: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -1888,6 +1989,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   {[
+                    { key: `cedula-verde-${truck.id}`, label: "Cédula verde", verified: truck.cedula_verde_verified, expiry: undefined, endpoint: `/api/documents/verify-truck/${truck.id}/cedula-verde` },
                     { key: `vtv-${truck.id}`, label: "VTV", verified: truck.vtv_verified, expiry: truck.vtv_vence, endpoint: `/api/documents/verify-truck/${truck.id}/vtv` },
                     { key: `seguro-${truck.id}`, label: "Seguro", verified: truck.seguro_verified, expiry: truck.seguro_vence, endpoint: `/api/documents/verify-truck/${truck.id}/seguro` },
                   ].map(({ key, label, verified, expiry, endpoint }) => {
@@ -2590,7 +2692,7 @@ export default function TransportistaDashboard({ mode: modeProp = "individual" }
         {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} onToast={mostrarToast} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones />}
         {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} mode={effectiveMode} />}
-        {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
+        {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} mode={effectiveMode} />}
       </div>
 
       {modalOferta && <ModalOfertar info={modalOferta} trucks={trucks} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}

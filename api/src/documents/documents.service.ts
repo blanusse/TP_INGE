@@ -177,10 +177,62 @@ export class DocumentsService {
     return { verified: true, message: msg, expiry: expiry?.toISOString().split('T')[0] };
   }
 
-  async getDriverVerificationStatus(userId: string): Promise<{ dni_verified: boolean; license_verified: boolean; dni_photo_url: string | null }> {
+  async verifyCedulaVerde(userId: string, truckId: string, filePath: string): Promise<{ verified: boolean; message: string }> {
+    const truck = await this.trucksRepo.findOne({ where: { id: truckId } });
+    if (!truck) throw new NotFoundException('Camión no encontrado');
+    if (truck.owner_id !== userId) throw new ForbiddenException();
+
+    const text = await this.visionService.extractTextFromFile(filePath);
+
+    if (!this.visionService.isCedulaVerdeDocument(text)) {
+      return { verified: false, message: 'El documento no parece ser una cédula verde. Fotografiá la cédula verde del vehículo emitida por el DNRPA.' };
+    }
+
+    const plateFound = this.visionService.plateFoundInText(text, truck.patente);
+    if (!plateFound) {
+      return { verified: false, message: `La patente en el documento no coincide con la registrada (${truck.patente}). Revisá que la foto sea legible.` };
+    }
+
+    await this.trucksRepo.update({ id: truckId }, { cedula_verde_verified: true });
+    return { verified: true, message: 'Cédula verde verificada correctamente.' };
+  }
+
+  async verifyCedulaAzul(userId: string, filePath: string): Promise<{ verified: boolean; message: string }> {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Usuario no encontrado');
-    return { dni_verified: user.dni_verified, license_verified: user.license_verified, dni_photo_url: user.dni_photo_url };
+
+    const text = await this.visionService.extractTextFromFile(filePath);
+
+    if (!this.visionService.isCedulaAzulDocument(text)) {
+      return { verified: false, message: 'El documento no parece ser una cédula azul. Fotografiá la autorización emitida por el titular del vehículo.' };
+    }
+
+    if (user.dni && !this.visionService.dniFoundInText(text, user.dni)) {
+      return { verified: false, message: 'El DNI en la cédula azul no coincide con el tuyo. Verificá que la autorización esté a tu nombre.' };
+    }
+
+    await this.usersRepo.update({ id: userId }, { cedula_azul_verified: true });
+    return { verified: true, message: 'Cédula azul verificada correctamente.' };
+  }
+
+  async verifyRuctt(userId: string, filePath: string): Promise<{ verified: boolean; message: string }> {
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    const text = await this.visionService.extractTextFromFile(filePath);
+
+    if (!this.visionService.isRucttDocument(text)) {
+      return { verified: false, message: 'El documento no parece ser un certificado RUCTT válido. Asegurate de fotografiar la habilitación emitida por la CNRT.' };
+    }
+
+    await this.usersRepo.update({ id: userId }, { ructt_verified: true });
+    return { verified: true, message: 'Habilitación RUCTT verificada correctamente.' };
+  }
+
+  async getDriverVerificationStatus(userId: string): Promise<{ dni_verified: boolean; license_verified: boolean; ructt_verified: boolean; cedula_azul_verified: boolean; dni_photo_url: string | null }> {
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    return { dni_verified: user.dni_verified, license_verified: user.license_verified, ructt_verified: user.ructt_verified, cedula_azul_verified: user.cedula_azul_verified, dni_photo_url: user.dni_photo_url };
   }
 
   async updateStatus(

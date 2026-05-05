@@ -114,6 +114,51 @@ export class DocumentsController {
     return this.documentsService.verifyDni(req.user.id, file.path);
   }
 
+  @Post('verify-truck-cedula-verde/:truckId')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: uploadsDir,
+      filename: (_req, file, cb) => {
+        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+        cb(null, `cedula-verde-${unique}${extname(file.originalname)}`);
+      },
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
+  async verifyCedulaVerde(@Request() req, @Param('truckId') truckId: string, @UploadedFile() file: Express.Multer.File) {
+    return this.documentsService.verifyCedulaVerde(req.user.id, truckId, file.path);
+  }
+
+  @Post('verify-cedula-azul')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: uploadsDir,
+      filename: (_req, file, cb) => {
+        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+        cb(null, `cedula-azul-${unique}${extname(file.originalname)}`);
+      },
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
+  async verifyCedulaAzul(@Request() req, @UploadedFile() file: Express.Multer.File) {
+    return this.documentsService.verifyCedulaAzul(req.user.id, file.path);
+  }
+
+  @Post('verify-ructt')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: uploadsDir,
+      filename: (_req, file, cb) => {
+        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+        cb(null, `ructt-${unique}${extname(file.originalname)}`);
+      },
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
+  async verifyRuctt(@Request() req, @UploadedFile() file: Express.Multer.File) {
+    return this.documentsService.verifyRuctt(req.user.id, file.path);
+  }
+
   @Get('pending')
   getPending(@Request() req) {
     if (req.user.role !== 'admin') throw new ForbiddenException();
