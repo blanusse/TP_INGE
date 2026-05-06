@@ -10,10 +10,10 @@ export class DniVisionService {
     const imageBase64 = readFileSync(filePath).toString('base64');
 
     const response = await fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+      'https://vision.googleapis.com/v1/images:annotate',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
         body: JSON.stringify({
           requests: [{
             image: { content: imageBase64 },
