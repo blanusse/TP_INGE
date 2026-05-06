@@ -57,4 +57,7 @@ export class Truck {
 
   @Column({ default: false })
   seguro_verified: boolean;
+
+  @Column({ default: false })
+  cedula_verde_verified: boolean;
 }

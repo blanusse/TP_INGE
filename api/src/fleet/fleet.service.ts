@@ -197,11 +197,11 @@ export class FleetService {
     const [fleetDrivers, owner] = await Promise.all([
       this.usersRepo.find({
         where: { fleet_id: userId },
-        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at'],
+        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at', 'is_verified', 'dni_verified', 'license_verified'],
       }),
       this.usersRepo.findOne({
         where: { id: userId },
-        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at', 'show_as_fleet_driver'],
+        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at', 'show_as_fleet_driver', 'is_verified', 'dni_verified', 'license_verified'],
       }),
     ]);
 
