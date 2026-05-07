@@ -2341,6 +2341,15 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
   const [ofertasBadge, setOfertasBadge] = useState(0);
   const [trucks, setTrucks] = useState<TruckData[]>([]);
   const [rootDrivers, setRootDrivers] = useState<Driver[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     fetch("/api/offers/mine").then((r) => r.json()).then((d) => {
@@ -2370,7 +2379,7 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 56, background: "var(--bg0)", backdropFilter: "blur(8px)", position: "sticky", top: 0, zIndex: 10, borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
           <Link href="/" style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>Carga<span style={{ color: "var(--green)" }}>Back</span></Link>
-          <nav style={{ display: "flex", height: "100%" }}>
+          <nav style={{ display: isMobile ? "none" : "flex", height: "100%" }}>
             {navItems.map((item) => {
               const badge = item === "Mis ofertas" ? ofertasBadge : 0;
               const active = navActivo === item;
@@ -2383,6 +2392,11 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
               );
             })}
           </nav>
+          {isMobile && (
+            <button onClick={() => setMobileMenuOpen((m) => !m)} style={{ background: "transparent", border: "none", cursor: "pointer", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
+              <i className={mobileMenuOpen ? "fa-solid fa-xmark" : "fa-solid fa-bars"} style={{ fontSize: 18, color: "var(--text1)" }} />
+            </button>
+          )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button onClick={toggleTheme} title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"} style={{ width: 30, height: 30, borderRadius: 6, background: "var(--bg2)", border: "1px solid var(--border2)", color: "var(--text1)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -2392,6 +2406,23 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
           <button onClick={() => setNavActivo("Mi perfil")} title="Ver mi perfil" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "var(--green)", cursor: "pointer" }}>{initials}</button>
         </div>
       </header>
+
+      {/* Mobile nav dropdown */}
+      {isMobile && mobileMenuOpen && (
+        <div style={{ position: "fixed", top: 56, left: 0, right: 0, zIndex: 9, background: "var(--bg0)", borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>
+          {navItems.map((item) => {
+            const active = navActivo === item;
+            const badge = item === "Mis ofertas" ? ofertasBadge : 0;
+            return (
+              <button key={item} onClick={() => { setNavActivo(item); setMobileMenuOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 24px", background: active ? "rgba(58,128,107,0.1)" : "transparent", border: "none", cursor: "pointer", color: active ? "var(--green)" : "var(--text2)", fontSize: 15, fontWeight: active ? 600 : 400, fontFamily: "inherit" }}>
+                <i className={NAV_ICONS[item]} style={{ fontSize: 14, width: 16 }} />
+                {item}
+                {badge > 0 && <span style={{ marginLeft: 6, minWidth: 18, height: 18, borderRadius: 9, background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>{badge > 9 ? "9+" : badge}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--bg1)" }}>
         {navActivo === "Inicio" && <SeccionInicio trucks={trucks} userName={userName} onNavegar={setNavActivo} />}
