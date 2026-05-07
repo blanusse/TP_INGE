@@ -1847,6 +1847,14 @@ function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userN
   const [stats, setStats] = useState<DadorStats | null>(null);
   const [ofertas, setOfertas] = useState<OfertaReciente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -1867,10 +1875,10 @@ function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userN
   const enTransito = cargas.filter((c) => c.status === "in_transit");
 
   const kpis = [
-    { label: "Gasto este mes", value: stats?.gastoEsteMes != null ? `$${stats.gastoEsteMes.toLocaleString("es-AR")}` : "$0", icon: "fa-solid fa-dollar-sign", color: "#16a34a" },
-    { label: "Cargas activas", value: cargas.filter((c) => c.status === "available" || c.status === "in_transit").length, icon: "fa-solid fa-box", color: "#3b82f6" },
-    { label: "Tiempo prom. asignación", value: stats?.tiempoPromedioAsignacion != null ? `${stats.tiempoPromedioAsignacion}h` : "—", icon: "fa-solid fa-clock", color: "#f59e0b" },
-    { label: "Ofertas pendientes", value: pendientes, icon: "fa-solid fa-handshake", color: "#8b5cf6" },
+    { label: "Gasto este mes", value: stats?.gastoEsteMes != null ? `$${stats.gastoEsteMes.toLocaleString("es-AR")}` : "$0", icon: "fa-solid fa-dollar-sign", color: "#16a34a", hideOnMobile: false },
+    { label: "Cargas activas", value: cargas.filter((c) => c.status === "available" || c.status === "in_transit").length, icon: "fa-solid fa-box", color: "#3b82f6", hideOnMobile: false },
+    { label: "Tiempo prom. asignación", value: stats?.tiempoPromedioAsignacion != null ? `${stats.tiempoPromedioAsignacion}h` : "—", icon: "fa-solid fa-clock", color: "#f59e0b", hideOnMobile: true },
+    { label: "Ofertas pendientes", value: pendientes, icon: "fa-solid fa-handshake", color: "#8b5cf6", hideOnMobile: false },
   ];
 
   const statusLabel: Record<string, { text: string; bg: string; color: string }> = {
@@ -1911,8 +1919,8 @@ function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userN
         <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-secondary)", fontSize: 13 }}>Cargando...</div>
       ) : (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
-            {kpis.map((k, i) => (
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+            {kpis.filter((k) => !isMobile || !k.hideOnMobile).map((k, i) => (
               <div key={i} style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-primary)", borderRadius: 10, padding: "16px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 28, height: 28, borderRadius: 7, background: `${k.color}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -2156,6 +2164,15 @@ export default function DadorDashboard() {
   const [toast, setToast] = useState<string | null>(null);
   const [cargas, setCargas] = useState<Carga[]>([]);
   const [loadingCargas, setLoadingCargas] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const userName  = session?.user?.name  ?? "Usuario";
   const userEmail = session?.user?.email ?? "";
@@ -2189,7 +2206,7 @@ export default function DadorDashboard() {
           <Link href="/" style={{ fontSize: 18, fontWeight: 700, color: darkMode === false ? "#0f1f19" : "#fff", textDecoration: "none", fontFamily: "var(--font-ibm-plex), sans-serif", flexShrink: 0 }}>
             Carga<span style={{ color: "#3a806b" }}>Back</span>
           </Link>
-          <nav style={{ display: "flex", height: 64 }}>
+          <nav style={{ display: isMobile ? "none" : "flex", height: 64 }}>
             {NAV_ITEMS.map(({ item, icon }) => {
               const activo = navActivo === item;
               const badge = item === "Mis cargas" ? cargas.reduce((s, c) => s + c.ofertas, 0) : 0;
@@ -2212,6 +2229,11 @@ export default function DadorDashboard() {
               );
             })}
           </nav>
+          {isMobile && (
+            <button onClick={() => setMobileMenuOpen((m) => !m)} style={{ background: "transparent", border: "none", cursor: "pointer", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
+              <i className={mobileMenuOpen ? "fa-solid fa-xmark" : "fa-solid fa-bars"} style={{ fontSize: 18, color: darkMode === false ? "#374151" : "rgba(255,255,255,0.8)" }} />
+            </button>
+          )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
@@ -2245,6 +2267,23 @@ export default function DadorDashboard() {
           </button>
         </div>
       </header>
+
+      {/* Mobile nav dropdown */}
+      {isMobile && mobileMenuOpen && (
+        <div style={{ position: "fixed", top: 64, left: 0, right: 0, zIndex: 9, background: darkMode === false ? "#ffffff" : "rgba(10,10,10,0.97)", borderBottom: "1px solid " + (darkMode === false ? "#e5e7eb" : "rgba(255,255,255,0.1)"), paddingBottom: 8 }}>
+          {NAV_ITEMS.map(({ item, icon }) => {
+            const activo = navActivo === item;
+            const badge = item === "Mis cargas" ? cargas.reduce((s, c) => s + c.ofertas, 0) : 0;
+            return (
+              <button key={item} onClick={() => { setNavActivo(item); setMobileMenuOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 24px", background: activo ? "rgba(58,128,107,0.1)" : "transparent", border: "none", cursor: "pointer", color: activo ? "#3a806b" : darkMode === false ? "#374151" : "rgba(255,255,255,0.75)", fontSize: 15, fontWeight: activo ? 600 : 400, fontFamily: "var(--font-ibm-plex), sans-serif" }}>
+                <FontAwesomeIcon icon={icon} style={{ width: 16, height: 16 }} />
+                {item}
+                {badge > 0 && <span style={{ marginLeft: 6, minWidth: 18, height: 18, borderRadius: 9, background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>{badge > 9 ? "9+" : badge}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Contenido */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--page-bg)" }}>

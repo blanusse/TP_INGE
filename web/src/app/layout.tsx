@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Bebas_Neue, IBM_Plex_Sans } from "next/font/google";
 import { Providers } from "./providers";
+import { ServiceWorkerInit } from "./_components/ServiceWorkerInit";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,10 +21,23 @@ const ibmPlexSans = IBM_Plex_Sans({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#3a806b",
+};
+
 export const metadata: Metadata = {
   title: "CargaBack — Bolsa de Cargas Digital",
   description:
     "Conectamos camioneros con dadores de carga. Eliminá el viaje vacío de vuelta.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "CargaBack",
+  },
+  formatDetection: { telephone: false },
 };
 
 export default function RootLayout({
@@ -38,6 +52,7 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
       </head>
       <body className="min-h-full">
+        <ServiceWorkerInit />
         <Providers>{children}</Providers>
       </body>
     </html>
