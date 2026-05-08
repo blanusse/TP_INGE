@@ -223,9 +223,28 @@ html:has(.transportista-light) body {
     text-align: center !important;
   }
 
-  /* Canvas zoomed in on CargaBack text (drawn at H*0.38 in the canvas) */
-  .hero-canvas-clip {
+  /* Buttons: third — above the canvas */
+  .hero-btns {
     order: 3;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 8px 16px 16px !important;
+    gap: 8px !important;
+  }
+  .hero-btns a {
+    flex: 1 !important;
+    text-align: center !important;
+    font-size: 13px !important;
+    padding: 11px 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Canvas zoomed in on CargaBack text (drawn at H*0.38 in the canvas): fourth */
+  .hero-canvas-clip {
+    order: 4;
     overflow: hidden;
     height: 180px;
     width: 100%;
@@ -236,15 +255,6 @@ html:has(.transportista-light) body {
     transform-origin: center 38% !important;
     width: 100% !important;
     height: auto !important;
-  }
-
-  /* Buttons: fourth */
-  .hero-btns {
-    order: 4;
-    flex-direction: column !important;
-    align-items: center !important;
-    padding: 12px 20px 28px !important;
-    gap: 10px !important;
   }
 
   /* Dissolve hero-text so children become direct flex items of hero-wrapper */
