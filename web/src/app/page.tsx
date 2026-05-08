@@ -18,7 +18,9 @@ export default async function Home() {
 
         {/* Canvas as full-width background */}
         <div className="hero-wrapper" style={{ position: "relative", width: "100%" }}>
-          <ParticleHero />
+          <div className="hero-canvas-clip">
+            <ParticleHero />
+          </div>
 
           {/* Badge — top */}
           <div className="hero-badge" style={{ position: "absolute", top: 32, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
@@ -29,15 +31,15 @@ export default async function Home() {
 
           {/* Text + buttons — bottom 20% del canvas */}
           <div className="hero-text" style={{ position: "absolute", bottom: 0, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", padding: "0 48px 56px" }}>
-            <p style={{ fontSize: 19, color: "rgba(255,255,255,0.75)", maxWidth: 560, margin: "0 auto 16px", lineHeight: 1.65 }}>
+            <p className="hero-desc" style={{ fontSize: 19, color: "rgba(255,255,255,0.75)", maxWidth: 560, margin: "0 auto 16px", lineHeight: 1.65 }}>
               Conectamos camioneros con dadores de carga en toda Argentina. Sin intermediarios, sin viajes vacíos, sin burocracia.
             </p>
 
-            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-              <Link href="/login?modo=registro" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "#000", color: "#fff", fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", border: "0.5px solid rgba(255,255,255,0.3)" }}>
+            <div className="hero-btns" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+              <Link href="/login?modo=registro" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "#3a806b", color: "#fff", fontWeight: 700, textDecoration: "none" }}>
                 Registrarse gratis →
               </Link>
-              <Link href="/login?modo=login" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 600, textDecoration: "none", border: "0.5px solid rgba(255,255,255,0.25)" }}>
+              <Link href="/login?modo=login" style={{ fontSize: 15, padding: "13px 32px", borderRadius: "var(--border-radius-md)", background: "#fff", color: "#000", fontWeight: 600, textDecoration: "none" }}>
                 Ya tengo cuenta
               </Link>
             </div>
