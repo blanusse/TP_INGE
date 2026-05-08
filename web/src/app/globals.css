@@ -199,18 +199,59 @@ html:has(.transportista-light) body {
 
 /* ── Landing page mobile ─────────────────────────────────────────────────── */
 @media (max-width: 767px) {
-  .hero-wrapper canvas {
-    height: 55vw !important;
+  /* Hero: convert overlay layout to flex column */
+  .hero-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
   }
+
+  /* Badge: first */
   .hero-badge {
-    top: 12px !important;
+    position: static !important;
+    order: 1;
+    display: flex !important;
+    justify-content: center !important;
+    padding: 20px 0 8px !important;
   }
+
+  /* Description: second */
+  .hero-desc {
+    order: 2;
+    font-size: 14px !important;
+    margin: 0 20px 4px !important;
+    max-width: 100% !important;
+    text-align: center !important;
+  }
+
+  /* Canvas zoomed in on CargaBack text (drawn at H*0.38 in the canvas) */
+  .hero-canvas-clip {
+    order: 3;
+    overflow: hidden;
+    height: 180px;
+    width: 100%;
+    flex-shrink: 0;
+  }
+  .hero-canvas-clip canvas {
+    transform: scale(2.8) !important;
+    transform-origin: center 38% !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Buttons: fourth */
+  .hero-btns {
+    order: 4;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 12px 20px 28px !important;
+    gap: 10px !important;
+  }
+
+  /* Dissolve hero-text so children become direct flex items of hero-wrapper */
   .hero-text {
-    padding: 0 16px 20px !important;
-  }
-  .hero-text p {
-    font-size: 13px !important;
-    margin-bottom: 12px !important;
+    display: contents !important;
+    position: static !important;
+    padding: 0 !important;
   }
 
   .section-stats {
