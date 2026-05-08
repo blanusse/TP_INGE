@@ -1572,7 +1572,8 @@ function SeccionFacturacion() {
       )}
 
       {!loading && facturas.length > 0 && (
-        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden" }}>
+        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"] }}>
+          <div style={{ minWidth: 520 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr 2fr 1.2fr 90px 52px", gap: 0, borderBottom: "0.5px solid var(--color-border-tertiary)", padding: "10px 16px" }}>
             {["N°", "Fecha", "Concepto", "Monto", "Estado", ""].map((h) => (
               <div key={h} style={{ fontSize: 11, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</div>
@@ -1594,6 +1595,7 @@ function SeccionFacturacion() {
               </button>
             </div>
           ))}
+          </div>
         </div>
       )}
     </main>
@@ -1627,6 +1629,14 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const [dniVerified, setDniVerified] = useState<boolean | null>(null);
   const [dniUploading, setDniUploading] = useState(false);
   const [dniMsg, setDniMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
 
   React.useEffect(() => {
@@ -1670,7 +1680,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const fieldVal: React.CSSProperties = { fontSize: 14, fontWeight: 500, color: "var(--heading-color)" };
 
   return (
-    <main style={{ padding: "36px 40px", flex: 1, fontFamily: "var(--font-ibm-plex), sans-serif" }}>
+    <main style={{ padding: isMobile ? "16px 12px" : "36px 40px", flex: 1, fontFamily: "var(--font-ibm-plex), sans-serif" }}>
 
       {/* Título */}
       <div style={{ marginBottom: 8 }}>
@@ -1679,7 +1689,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
       <hr style={{ border: "none", borderTop: "1px solid var(--divider-color)", margin: "20px 0 24px" }} />
 
       {/* Fila superior: avatar + stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
 
         {/* Avatar card */}
         <div style={{ ...card, gridColumn: "1 / 2", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 10, padding: 24 }}>
@@ -1709,7 +1719,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
       </div>
 
       {/* Fila inferior: empresa (solo si es empresa), contacto, actividad */}
-      <div style={{ display: "grid", gridTemplateColumns: stats?.tipo === "empresa" ? "1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : (stats?.tipo === "empresa" ? "1fr 1fr 1fr" : "1fr 1fr"), gap: 12, marginBottom: 20 }}>
 
         {/* Datos de empresa — solo visible si tipo === 'empresa' */}
         {stats?.tipo === "empresa" && (
@@ -1892,7 +1902,7 @@ function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userN
   const maxMonto = Math.max(...meses.map((m) => m.monto), 1);
 
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%" }}>
+    <main style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "16px 12px" : "28px 24px", width: "100%" }}>
       {/* Saludo */}
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", margin: 0, fontFamily: "var(--font-ibm-plex), sans-serif" }}>
@@ -1934,7 +1944,7 @@ function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userN
           </div>
 
           {/* Dos paneles */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 24 }}>
             {/* Ofertas recientes */}
             <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-primary)", borderRadius: 10, padding: 18 }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: "0 0 14px" }}>Ofertas recientes</h3>
