@@ -17,18 +17,18 @@ export default async function Home() {
       <section style={{ background: "#000", color: "#fff", textAlign: "center", position: "relative", overflow: "hidden" }}>
 
         {/* Canvas as full-width background */}
-        <div style={{ position: "relative", width: "100%" }}>
+        <div className="hero-wrapper" style={{ position: "relative", width: "100%" }}>
           <ParticleHero />
 
           {/* Badge — top */}
-          <div style={{ position: "absolute", top: 32, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+          <div className="hero-badge" style={{ position: "absolute", top: 32, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
             <div style={{ display: "inline-block", fontSize: 12, fontWeight: 600, color: "#fff", background: "rgba(255,255,255,0.12)", border: "0.5px solid rgba(255,255,255,0.3)", padding: "5px 14px", borderRadius: 20, letterSpacing: 0.5, textTransform: "uppercase" }}>
               Bolsa de cargas digital · Argentina
             </div>
           </div>
 
           {/* Text + buttons — bottom 20% del canvas */}
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", padding: "0 48px 56px" }}>
+          <div className="hero-text" style={{ position: "absolute", bottom: 0, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", padding: "0 48px 56px" }}>
             <p style={{ fontSize: 19, color: "rgba(255,255,255,0.75)", maxWidth: 560, margin: "0 auto 16px", lineHeight: 1.65 }}>
               Conectamos camioneros con dadores de carga en toda Argentina. Sin intermediarios, sin viajes vacíos, sin burocracia.
             </p>
@@ -46,8 +46,8 @@ export default async function Home() {
       </section>
 
       {/* ── Stats ────────────────────────────────────────────────────────────── */}
-      <section style={{ background: "#3a806b", borderBottom: "none", padding: "36px 48px" }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24, textAlign: "center" }}>
+      <section className="section-stats" style={{ background: "#3a806b", borderBottom: "none", padding: "36px 48px" }}>
+        <div className="stats-grid" style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24, textAlign: "center" }}>
           {[
             { valor: "3.400+",  label: "Camioneros registrados" },
             { valor: "1.200+",  label: "Cargas por mes" },
@@ -63,14 +63,14 @@ export default async function Home() {
       </section>
 
       {/* ── Cómo funciona ──────────────────────────────────────────────────── */}
-      <section id="como-funciona" style={{ padding: "96px 48px", maxWidth: 1000, margin: "0 auto" }}>
+      <section id="como-funciona" className="section-como-funciona" style={{ padding: "96px 48px", maxWidth: 1000, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#3a806b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Proceso simple</div>
           <h2 style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1, marginBottom: 14 }}>Cómo funciona CargaBack</h2>
           <p style={{ fontSize: 16, color: "rgba(255,255,255,0.7)", maxWidth: 500, margin: "0 auto" }}>Tres pasos para que tu camión nunca vuelva vacío.</p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+        <div className="steps-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
           {[
             { n: "01", titulo: "Publicá o registrá tu ruta", desc: "El camionero carga su viaje: origen, destino y fecha de salida. El dador publica su carga con todos los requisitos." },
             { n: "02", titulo: "El algoritmo hace el match", desc: "CargaBack cruza rutas, tipos de camión, certificaciones requeridas y disponibilidad para sugerir el mejor match posible." },
@@ -86,14 +86,14 @@ export default async function Home() {
       </section>
 
       {/* ── Para quién ───────────────────────────────────────────────────────── */}
-      <section id="para-quien" style={{ background: "var(--color-background-secondary)", padding: "96px 48px" }}>
+      <section id="para-quien" className="section-para-quien" style={{ background: "var(--color-background-secondary)", padding: "96px 48px" }}>
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#3a806b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Para cada perfil</div>
             <h2 style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1, color: "#000" }}>Diseñado para vos</h2>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
+          <div className="perfiles-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
             {[
               {
                 icono: (<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>),
@@ -163,12 +163,12 @@ export default async function Home() {
       </section>
 
       {/* ── Por qué CargaBack ─────────────────────────────────────────────────── */}
-      <section style={{ padding: "96px 48px", maxWidth: 1000, margin: "0 auto" }}>
+      <section className="section-por-que" style={{ padding: "96px 48px", maxWidth: 1000, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#3a806b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Nuestras ventajas</div>
           <h2 style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1 }}>Por qué elegir CargaBack</h2>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+        <div className="ventajas-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
           {[
             { icono: (<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>), titulo: "Match en minutos", desc: "Nuestro algoritmo cruza rutas y requisitos en tiempo real. En promedio, un camionero encuentra carga en 12 minutos." },
             { icono: (<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>), titulo: "Seguridad y verificación", desc: "Cada usuario pasa por verificación de identidad, habilitaciones y antecedentes antes de operar en la plataforma." },
@@ -187,10 +187,10 @@ export default async function Home() {
       </section>
 
       {/* ── Testimonios ──────────────────────────────────────────────────────── */}
-      <section style={{ background: "var(--color-background-secondary)", padding: "80px 48px" }}>
+      <section className="section-testimonios" style={{ background: "var(--color-background-secondary)", padding: "80px 48px" }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <h2 style={{ fontSize: 32, fontWeight: 800, textAlign: "center", marginBottom: 48, letterSpacing: -0.5, color: "#000" }}>Lo que dicen nuestros usuarios</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+          <div className="testimonios-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
             {[
               { nombre: "Carlos M.", rol: "Camionero · Rosario", texto: "Antes volvía vacío de Buenos Aires siempre. Ahora en 20 minutos encuentro carga para el regreso. Cambió todo." },
               { nombre: "Laura P.", rol: "Dadora de carga · CABA", texto: "Tardaba días en conseguir un camionero confiable. Con CargaBack tengo ofertas en horas y puedo ver el historial de cada uno." },
@@ -207,7 +207,7 @@ export default async function Home() {
       </section>
 
       {/* ── CTA final ────────────────────────────────────────────────────────── */}
-      <section style={{ background: "linear-gradient(135deg, #162e27, #3a806b)", padding: "96px 48px", textAlign: "center", color: "#fff" }}>
+      <section className="section-cta" style={{ background: "linear-gradient(135deg, #162e27, #3a806b)", padding: "96px 48px", textAlign: "center", color: "#fff" }}>
         <h2 style={{ fontSize: 42, fontWeight: 800, letterSpacing: -1, marginBottom: 16 }}>Empezá hoy. Es gratis.</h2>
         <p style={{ fontSize: 17, color: "rgba(255,255,255,0.7)", maxWidth: 480, margin: "0 auto 40px", lineHeight: 1.6 }}>
           Miles de camioneros y dadores de carga ya están operando en CargaBack. Unite a la red logística más grande de Argentina.
@@ -223,12 +223,12 @@ export default async function Home() {
       </section>
 
       {/* ── Contacto ─────────────────────────────────────────────────────────── */}
-      <section id="contacto" style={{ padding: "80px 48px", maxWidth: 1000, margin: "0 auto" }}>
+      <section id="contacto" className="section-contacto" style={{ padding: "80px 48px", maxWidth: 1000, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 48 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#3a806b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Estamos para ayudarte</div>
           <h2 style={{ fontSize: 34, fontWeight: 800, letterSpacing: -0.5 }}>Contacto</h2>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+        <div className="contacto-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
           {[
             { icono: (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>), titulo: "Email", linea1: "hola@cargaback.com.ar", linea2: "Respondemos en menos de 24hs" },
             { icono: (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3a806b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.65 3.41 2 2 0 0 1 3.62 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6.18 6.18l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>), titulo: "Teléfono", linea1: "+54 11 5555-0100", linea2: "Lunes a viernes 8 a 18hs" },
@@ -245,9 +245,9 @@ export default async function Home() {
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────────────────── */}
-      <footer style={{ background: "linear-gradient(135deg, #162e27, #3a806b)", borderTop: "none", padding: "40px 48px" }}>
+      <footer className="footer-main" style={{ background: "linear-gradient(135deg, #162e27, #3a806b)", borderTop: "none", padding: "40px 48px" }}>
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 32, marginBottom: 40 }}>
+          <div className="footer-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 32, marginBottom: 40 }}>
             <div>
               <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: "#fff" }}>Carga<span style={{ color: "rgba(255,255,255,0.6)" }}>Back</span></div>
               <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.6, maxWidth: 280 }}>
@@ -278,7 +278,7 @@ export default async function Home() {
               ))}
             </div>
           </div>
-          <div style={{ borderTop: "0.5px solid rgba(255,255,255,0.2)", paddingTop: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="footer-bottom" style={{ borderTop: "0.5px solid rgba(255,255,255,0.2)", paddingTop: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>© 2026 CargaBack. Todos los derechos reservados.</span>
             <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Argentina · Chile · Perú · Bolivia</span>
           </div>

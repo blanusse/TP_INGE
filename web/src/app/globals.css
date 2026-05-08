@@ -197,6 +197,92 @@ html:has(.transportista-light) body {
   color-scheme: dark;
 }
 
+/* ── Landing page mobile ─────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .hero-wrapper canvas {
+    height: 55vw !important;
+  }
+  .hero-badge {
+    top: 12px !important;
+  }
+  .hero-text {
+    padding: 0 16px 20px !important;
+  }
+  .hero-text p {
+    font-size: 13px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .section-stats {
+    padding: 24px 16px !important;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+  }
+
+  .section-como-funciona {
+    padding: 48px 16px !important;
+  }
+  .steps-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .section-para-quien {
+    padding: 48px 16px !important;
+  }
+  .perfiles-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .section-por-que {
+    padding: 48px 16px !important;
+  }
+  .ventajas-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
+
+  .section-testimonios {
+    padding: 48px 16px !important;
+  }
+  .testimonios-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .section-cta {
+    padding: 48px 16px !important;
+  }
+  .section-cta h2 {
+    font-size: 28px !important;
+    letter-spacing: -0.5px !important;
+  }
+  .section-cta p {
+    font-size: 15px !important;
+  }
+
+  .section-contacto {
+    padding: 48px 16px !important;
+  }
+  .contacto-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .footer-main {
+    padding: 24px 16px !important;
+  }
+  .footer-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 20px !important;
+    margin-bottom: 24px !important;
+  }
+  .footer-bottom {
+    flex-direction: column !important;
+    gap: 6px !important;
+    text-align: center !important;
+  }
+}
+
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
 .transportista-dark ::-webkit-scrollbar,
 .transportista-light ::-webkit-scrollbar { width: 6px; height: 6px; }
