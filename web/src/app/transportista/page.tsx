@@ -140,6 +140,15 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoT
   const [loadingDB, setLoadingDB] = useState(true);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 21;
+  const [isMobile, setIsMobile] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     fetch("/api/loads/available").then((r) => r.json()).then((d) => { if (d.loads) setCargasDB(d.loads.map(dbLoadToCard)); }).catch(() => {}).finally(() => setLoadingDB(false));
@@ -175,8 +184,20 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoT
   const cargasPagina = cargas.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", flex: 1 }}>
-      <aside style={{ background: "var(--bg0)", borderRight: "1px solid var(--border)", padding: "16px 16px", overflowY: "auto", maxHeight: "calc(100vh - 56px)" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+      {isMobile && (
+        <div style={{ padding: "8px 12px", background: "var(--bg0)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={() => setShowFilters((f) => !f)} style={{ fontSize: 13, padding: "7px 14px", borderRadius: 6, border: "1px solid var(--border2)", background: showFilters ? "var(--green-muted)" : "var(--bg2)", color: showFilters ? "var(--green)" : "var(--text2)", cursor: "pointer", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+            <i className="fa-solid fa-sliders" />
+            {showFilters ? "Ocultar filtros" : "Filtros"}
+            {hayFiltros && <span style={{ background: "var(--green)", color: "#fff", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>!</span>}
+          </button>
+          {hayFiltros && <button onClick={limpiarFiltros} style={{ fontSize: 12, color: "var(--text2)", background: "none", border: "1px solid var(--border2)", borderRadius: 5, cursor: "pointer", padding: "4px 8px" }}>Limpiar</button>}
+          <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text3)" }}>{loadingDB ? "Cargando..." : `${cargas.length} cargas`}</span>
+        </div>
+      )}
+      <div style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "260px 1fr", flex: 1 }}>
+      <aside style={{ background: "var(--bg0)", borderRight: isMobile ? "none" : "1px solid var(--border)", borderBottom: isMobile && showFilters ? "1px solid var(--border)" : "none", padding: "16px 16px", overflowY: "auto", maxHeight: isMobile ? "none" : "calc(100vh - 56px)", display: isMobile && !showFilters ? "none" : undefined }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid var(--border)" }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text1)" }}>
             <i className="fa-solid fa-sliders" style={{ marginRight: 7, color: "var(--green)" }} />Filtros
@@ -288,7 +309,7 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoT
                 <span style={{ fontSize: 17, fontWeight: 600, color: "var(--text1)" }}>{dest}</span>
               </div>
               <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 10 }}>{c.empresa} · {c.hace}</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 6, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
                 {[["Peso", c.peso], ["Camión", c.camion], ["Retiro", c.retiro], ["Distancia", c.distancia]].map(([label, val]) => (
                   <div key={label}><div style={{ fontSize: 10, color: "var(--text3)", marginBottom: 2, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>{label}</div><div style={{ fontSize: 12, color: "var(--text1)" }}>{val}</div></div>
                 ))}
@@ -317,6 +338,7 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoT
           </div>
         )}
       </main>
+      </div>
     </div>
   );
 }
@@ -634,6 +656,14 @@ function SeccionMisViajes({ userId, mode }: { userId: string; mode?: DashboardMo
   const [modalCalificar, setModalCalificar] = useState<{ offerId: string; empresa: string; empresaUserId?: string | null } | null>(null);
   const [calificados, setCalificados] = useState<Set<string>>(new Set());
   const [tripSeleccionado, setTripSeleccionado] = useState<TripData | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     fetch("/api/trips/mine").then((r) => r.json()).then((d) => {
@@ -680,10 +710,10 @@ function SeccionMisViajes({ userId, mode }: { userId: string; mode?: DashboardMo
   };
 
   return (
-    <main style={{ padding: "20px 24px", flex: 1 }}>
+    <main style={{ padding: isMobile ? "12px 12px" : "20px 24px", flex: 1 }}>
       {modalCalificar && <ModalCalificarDador offerId={modalCalificar.offerId} empresa={modalCalificar.empresa} empresaUserId={modalCalificar.empresaUserId} onClose={() => { setCalificados((prev) => new Set([...prev, modalCalificar.offerId])); setModalCalificar(null); }} />}
       <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 16 }}>Mis viajes</div>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${mode === "flota" ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : `repeat(${mode === "flota" ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
         {([
         { t: "En curso" as TabViajes, faIcon: "fa-truck-moving", count: trips.enCurso.length, desc: "Viaje activo ahora" },
         { t: "Próximos" as TabViajes, faIcon: "fa-calendar-check", count: trips.proximos.length, desc: "Confirmados" },
@@ -714,7 +744,7 @@ function SeccionMisViajes({ userId, mode }: { userId: string; mode?: DashboardMo
       )}
       {loading && tab !== "Cobros" && tab !== "Mi flota" && <div style={{ padding: "32px", textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
       {!loading && tab !== "Cobros" && tab !== "Mi flota" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 280px", gap: 20, alignItems: "start" }}>
           <div>{current.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 20px" }}>
               <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
@@ -724,7 +754,7 @@ function SeccionMisViajes({ userId, mode }: { userId: string; mode?: DashboardMo
               <div style={{ fontSize: 13, color: "var(--text2)" }}>Los viajes aceptados van a aparecer acá.</div>
             </div>
           ) : (current.map((t) => <TripCard key={t.offerId} t={t} />))}</div>
-          <Calendario eventos={[]} />
+          {!isMobile && <Calendario eventos={[]} />}
         </div>
       )}
     </main>
@@ -1446,6 +1476,14 @@ function SeccionMiFlota({ ownerId, mode = "individual" }: { ownerId: string; mod
   const [tabFlota, setTabFlota] = useState<"Camiones" | "Conductores" | "Estadísticas">("Camiones");
   const [trucks, setTrucks] = useState<TruckData[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
   const [loadingTrucks, setLoadingTrucks] = useState(true);
   const [loadingDrivers, setLoadingDrivers] = useState(true);
   const [modalCamion, setModalCamion] = useState(false);
@@ -1578,7 +1616,7 @@ function SeccionMiFlota({ ownerId, mode = "individual" }: { ownerId: string; mod
 
       {/* KPI resumen — solo modo flota */}
       {mode === "flota" && fleetStats && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
           {[
             { label: "Viajes totales", value: String(fleetStats.totalViajes), icon: "fa-solid fa-route" },
             { label: "Ingresos totales", value: `$${fleetStats.totalIngresos.toLocaleString("es-AR")}`, icon: "fa-solid fa-dollar-sign" },
@@ -1723,8 +1761,8 @@ function SeccionMiFlota({ ownerId, mode = "individual" }: { ownerId: string; mod
             </div>
           )}
           {!loadingDrivers && drivers.length > 0 && (
-            <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"] }}>
+              <table style={{ width: "100%", minWidth: 520, borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--color-background-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
                     {["Nombre", "DNI", "Email", "Teléfono", "Verificación", ""].map((h) => (<th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase" }}>{h}</th>))}
@@ -1784,6 +1822,14 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
   const [nombre, setNombre] = useState(userName);
   const [telefono, setTelefono] = useState("");
   const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
   const [stats, setStats] = useState<TransportistaStats | null>(null);
   const [showAsDriver, setShowAsDriver] = useState(true);
   const [dniVerified, setDniVerified] = useState(false);
@@ -1846,8 +1892,8 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
 
   return (
     <main style={{ flex: 1, background: "var(--bg1)" }}>
-      <div style={{ background: "var(--bg0)", padding: "32px 40px 48px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 24, maxWidth: 800 }}>
+      <div style={{ background: "var(--bg0)", padding: isMobile ? "20px 16px 36px" : "32px 40px 48px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: isMobile ? "flex-start" : "flex-end", gap: isMobile ? 14 : 24, maxWidth: 800, flexWrap: "wrap" }}>
           <div style={{ width: 84, height: 84, borderRadius: "50%", background: "var(--color-brand)", border: "3px solid rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{initials}</div>
           <div style={{ flex: 1 }}>
             {editando ? <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ fontSize: 24, fontWeight: 700, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "var(--border-radius-md)", padding: "4px 10px", color: "#fff", outline: "none", width: "100%", maxWidth: 300 }} /> : <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.2 }}>{nombre}</div>}
@@ -1864,8 +1910,8 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
         </div>
       </div>
 
-      <div style={{ padding: "0 40px", marginTop: -28, maxWidth: 840, margin: "-28px auto 0" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
+      <div style={{ padding: isMobile ? "0 12px" : "0 40px", marginTop: -28, maxWidth: 840, margin: "-28px auto 0" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
           {[
             { val: stats?.calificacionPromedio != null ? <>{stats.calificacionPromedio} <span style={{ color: "#f59e0b" }}>★</span></> : "—", label: stats?.calificacionPromedio != null ? "Calificación promedio" : "Calificación promedio", sub: stats?.calificacionPromedio == null ? "Sin calificaciones" : undefined },
             { val: stats ? String(stats.viajesCompletados) : "—", label: "Viajes completados" },
@@ -1874,14 +1920,14 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
         </div>
       </div>
 
-      <div style={{ padding: "22px 40px 0", maxWidth: 840, margin: "0 auto" }}>
+      <div style={{ padding: isMobile ? "16px 12px 0" : "22px 40px 0", maxWidth: 840, margin: "0 auto" }}>
         <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 3, gap: 2 }}>
           {(["Perfil", ...(mode !== "flota" ? ["Documentos"] : []), "Estadísticas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
         </div>
       </div>
 
       {tabPerfil === "Perfil" && (
-        <div style={{ padding: "20px 40px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 840, margin: "0 auto" }}>
+        <div style={{ padding: isMobile ? "16px 12px" : "20px 40px", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, maxWidth: 840, margin: "0 auto" }}>
           <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 24 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><i className="fa-solid fa-clipboard-list" style={{ color: "var(--green)" }} /> Contacto</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1911,7 +1957,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
       )}
 
       {tabPerfil === "Documentos" && mode !== "flota" && (
-        <div style={{ padding: "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
+        <div style={{ padding: isMobile ? "16px 12px 24px" : "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
 
           {/* Documentos del conductor */}
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mis documentos</div>
@@ -2019,14 +2065,14 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
       )}
 
       {tabPerfil === "Estadísticas" && (
-        <div style={{ padding: "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
+        <div style={{ padding: isMobile ? "16px 12px 24px" : "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
           {!stats && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando estadísticas...</div>}
           {stats && (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
                 {[{ val: stats.totalIngresos6m > 0 ? `$${stats.totalIngresos6m.toLocaleString("es-AR")}` : "Sin datos", label: "Ingresos últimos 6 meses", color: "#16a34a" }, { val: stats.viajes6m > 0 ? `${stats.viajes6m} viaje${stats.viajes6m !== 1 ? "s" : ""}` : "Sin datos", label: "Viajes últimos 6 meses", color: "#8b5cf6" }, { val: stats.viajes6m > 0 ? `$${Math.round(stats.totalIngresos6m / stats.viajes6m).toLocaleString("es-AR")}` : "—", label: "Ingreso promedio / viaje", color: "var(--green)" }].map(({ val, label, color }) => (<div key={label} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "16px 18px" }}><div style={{ fontSize: 18, fontWeight: 700, color, marginBottom: 4 }}>{val}</div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", lineHeight: 1.4 }}>{label}</div></div>))}
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
                 <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 18 }}>Ingresos mensuales</div>
                   {stats.ingresosUltimos6Meses.every((e) => e.monto === 0) ? (<div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-text-tertiary)", fontSize: 13 }}>Todavía no hay ingresos registrados.</div>) : (() => { const maxE = Math.max(...stats.ingresosUltimos6Meses.map((e) => e.monto), 1); return (<div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 110 }}>{stats.ingresosUltimos6Meses.map((e) => { const hPct = (e.monto / maxE) * 100; const isMax = e.monto === maxE && e.monto > 0; return (<div key={e.mes} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%", justifyContent: "flex-end" }}>{e.monto > 0 && <div style={{ fontSize: 10, color: isMax ? "var(--color-brand-dark)" : "var(--color-text-tertiary)", fontWeight: isMax ? 700 : 400 }}>${(e.monto / 1000).toFixed(0)}k</div>}<div style={{ width: "100%", height: `${Math.max(hPct, 2)}%`, background: isMax ? "var(--color-brand)" : e.monto > 0 ? "var(--color-brand-light)" : "var(--color-background-secondary)", borderRadius: "4px 4px 0 0" }} /><div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{e.mes}</div></div>); })}</div>); })()}
@@ -2127,6 +2173,14 @@ function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; 
   const [stats, setStats] = useState<InicioStats | null>(null);
   const [ofertas, setOfertas] = useState<InicioOferta[]>([]);
   const [proximoViaje, setProximoViaje] = useState<ProximoViaje | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     fetch("/api/stats/camionero").then(r => r.json()).then(d => setStats(d)).catch(() => {});
@@ -2161,7 +2215,7 @@ function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; 
 
   return (
     <main style={{ flex: 1, overflowY: "auto", background: "var(--color-background-tertiary)" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "16px 12px" : "28px 24px" }}>
 
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--color-text-primary)", marginBottom: 3 }}>Buen día, {primerNombre}</div>
@@ -2176,7 +2230,7 @@ function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; 
           </div>
         ))}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
           {[
             { label: "Ingresos — este mes", value: stats ? (isNaN(stats.totalIngresos6m) || stats.totalIngresos6m == null ? "Sin datos" : `$${Math.round(stats.totalIngresos6m / 6).toLocaleString("es-AR")}`) : "—", color: "var(--color-brand)", delta: null },
             { label: "Viajes — últimos 6 meses", value: stats ? String(stats.viajes6m ?? 0) : "0", color: "var(--color-text-primary)", delta: null },
@@ -2191,7 +2245,7 @@ function SeccionInicio({ trucks, userName, onNavegar }: { trucks: { id: string; 
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 20 }}>
           <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 18 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>Ofertas activas</div>

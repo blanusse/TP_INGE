@@ -89,7 +89,12 @@ body {
   color: var(--color-text-primary);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
-  zoom: 1.15;
+}
+
+@media (min-width: 768px) {
+  body {
+    zoom: 1.15;
+  }
 }
 
 /* ── Transportista themes ────────────────────────────────────────────────── */
