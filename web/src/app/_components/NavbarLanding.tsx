@@ -74,8 +74,8 @@ export function NavbarLanding() {
             )}
           </div>
 
-          <Link href="/login?modo=registro" style={{ fontSize: 13, padding: "7px 14px", borderRadius: 8, background: "#3a806b", color: "#fff", textDecoration: "none", fontWeight: 600, flexShrink: 0 }}>
-            Registrarse
+          <Link href="/login?modo=login" style={{ fontSize: 13, padding: "7px 14px", borderRadius: 8, background: "transparent", color: "#fff", textDecoration: "none", fontWeight: 500, flexShrink: 0, border: "0.5px solid rgba(255,255,255,0.35)" }}>
+            Iniciar sesión
           </Link>
         </div>
       ) : (
