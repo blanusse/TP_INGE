@@ -199,40 +199,40 @@ html:has(.transportista-light) body {
 
 /* ── Landing page mobile ─────────────────────────────────────────────────── */
 @media (max-width: 767px) {
-  /* Hero: convert overlay layout to flex column */
-  .hero-wrapper {
-    display: flex !important;
-    flex-direction: column !important;
+  /* Hero: overlay approach — canvas fills section, content overlaid on top */
+  /* Scale canvas 2x from top so Argentina map fills the 280px clip height */
+  .hero-canvas-clip {
+    overflow: hidden;
+    height: 280px;
+  }
+  .hero-canvas-clip canvas {
+    transform: scale(2.0) !important;
+    transform-origin: center top !important;
+    width: 100% !important;
+    height: auto !important;
   }
 
-  /* Badge: first */
+  /* Badge stays at top of canvas */
   .hero-badge {
-    position: static !important;
-    order: 1;
-    display: flex !important;
-    justify-content: center !important;
-    padding: 20px 0 8px !important;
+    top: 16px !important;
   }
 
-  /* Description: second */
+  /* Description + buttons overlaid at bottom of canvas */
+  .hero-text {
+    padding: 0 16px 16px !important;
+  }
   .hero-desc {
-    order: 2;
     font-size: 14px !important;
-    margin: 0 20px 4px !important;
+    margin-bottom: 10px !important;
     max-width: 100% !important;
-    text-align: center !important;
   }
 
-  /* Buttons: third — above the canvas */
+  /* Buttons side by side, full width */
   .hero-btns {
-    order: 3;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
-    align-items: stretch !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-    padding: 8px 16px 16px !important;
     gap: 8px !important;
+    width: 100% !important;
   }
   .hero-btns a {
     flex: 1 !important;
@@ -240,28 +240,6 @@ html:has(.transportista-light) body {
     font-size: 13px !important;
     padding: 11px 8px !important;
     box-sizing: border-box !important;
-  }
-
-  /* Canvas zoomed in on CargaBack text (drawn at H*0.38 in the canvas): fourth */
-  .hero-canvas-clip {
-    order: 4;
-    overflow: hidden;
-    height: 180px;
-    width: 100%;
-    flex-shrink: 0;
-  }
-  .hero-canvas-clip canvas {
-    transform: scale(2.8) !important;
-    transform-origin: center 38% !important;
-    width: 100% !important;
-    height: auto !important;
-  }
-
-  /* Dissolve hero-text so children become direct flex items of hero-wrapper */
-  .hero-text {
-    display: contents !important;
-    position: static !important;
-    padding: 0 !important;
   }
 
   .section-stats {
