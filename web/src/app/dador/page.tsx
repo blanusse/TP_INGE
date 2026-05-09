@@ -355,8 +355,8 @@ function ModalPublicar({ onClose, onPublicar, cargaEditar }: { onClose: () => vo
     e.preventDefault();
     if (!editando && !origenMeta) { setError("El origen debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
     if (!editando && !destinoMeta) { setError("El destino debe ser una dirección específica. Escribí y seleccioná una opción del listado."); return; }
-    if (form.precio && Number(form.precio) < 0) { setError("El precio no puede ser negativo."); return; }
-    if (form.peso && Number(form.peso) < 0) { setError("El peso no puede ser negativo."); return; }
+    if (form.precio && Number(form.precio) <= 0) { setError("El precio debe ser mayor a 0."); return; }
+    if (form.peso && Number(form.peso) <= 0) { setError("El peso debe ser mayor a 0."); return; }
     setLoading(true);
     setError(null);
     try {
@@ -367,7 +367,7 @@ function ModalPublicar({ onClose, onPublicar, cargaEditar }: { onClose: () => vo
           body: JSON.stringify({ loadId: cargaEditar!.id, ...form }),
         });
         const data = await res.json();
-        if (!res.ok) { setError(data.error ?? "Error al guardar."); return; }
+        if (!res.ok) { setError(data.message ?? data.error ?? "Error al guardar."); return; }
         onPublicar(loadToCard(data.load));
       } else {
         const res = await fetch("/api/loads", {
@@ -384,7 +384,7 @@ function ModalPublicar({ onClose, onPublicar, cargaEditar }: { onClose: () => vo
           }),
         });
         const data = await res.json();
-        if (!res.ok) { setError(data.error ?? "Error al publicar."); return; }
+        if (!res.ok) { setError(data.message ?? data.error ?? "Error al publicar."); return; }
         onPublicar(loadToCard(data.load));
       }
       onClose();
@@ -854,19 +854,30 @@ function ChatInline({ sel, userId }: { sel: OfertaSeleccionada; userId: string }
   const [texto, setTexto]       = useState("");
   const [enviando, setEnviando] = useState(false);
   const listRef = React.useRef<HTMLDivElement>(null);
+  const mensajesCountRef = React.useRef(0);
 
   React.useEffect(() => {
-    fetch(`/api/messages?offerId=${sel.offerId}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.messages) {
-          setMensajes(d.messages.map((m: { id: string; senderId: string; content: string; hora: string }) => ({
-            id: m.id, senderId: m.senderId, texto: m.content, hora: m.hora,
-          })));
-          setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }), 50);
-        }
-      })
-      .catch(() => {});
+    mensajesCountRef.current = 0;
+    const fetchMensajes = () => {
+      fetch(`/api/messages?offerId=${sel.offerId}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.messages) {
+            const nuevos = d.messages.map((m: { id: string; sender_id: string; content: string; created_at: string }) => ({
+              id: m.id, senderId: m.sender_id, texto: m.content, hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "",
+            }));
+            setMensajes(nuevos);
+            if (nuevos.length > mensajesCountRef.current) {
+              mensajesCountRef.current = nuevos.length;
+              setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
+            }
+          }
+        })
+        .catch(() => {});
+    };
+    fetchMensajes();
+    const interval = setInterval(fetchMensajes, 4000);
+    return () => clearInterval(interval);
   }, [sel.offerId]);
 
   const enviar = async () => {
@@ -881,7 +892,7 @@ function ChatInline({ sel, userId }: { sel: OfertaSeleccionada; userId: string }
       if (res.ok) {
         const data = await res.json();
         const m = data.message;
-        setMensajes((prev) => [...prev, { id: m.id, senderId: m.senderId, texto: m.content, hora: m.hora }]);
+        setMensajes((prev) => [...prev, { id: m.id, senderId: m.sender_id, texto: m.content, hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "" }]);
         setTexto("");
         setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
       }

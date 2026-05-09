@@ -773,6 +773,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const mensajesCountRef = useRef(0);
   const [showPerfil, setShowPerfil] = useState(false);
   const [showReportar, setShowReportar] = useState(false);
 
@@ -792,12 +793,25 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
   }
 
   useEffect(() => {
-    fetch(`/api/messages?offerId=${t.offerId}`).then((r) => r.json()).then((d) => {
-      if (d.messages) {
-        setMensajes(d.messages.map((m: { id: string; senderId: string; content: string; hora: string }) => ({ id: m.id, senderId: m.senderId, texto: m.content, hora: m.hora })));
-        setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }), 50);
-      }
-    }).catch(() => {});
+    mensajesCountRef.current = 0;
+    const fetchMensajes = () => {
+      fetch(`/api/messages?offerId=${t.offerId}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.messages) {
+            const nuevos = d.messages.map((m: { id: string; sender_id: string; content: string; created_at: string }) => ({ id: m.id, senderId: m.sender_id, texto: m.content, hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "" }));
+            setMensajes(nuevos);
+            if (nuevos.length > mensajesCountRef.current) {
+              mensajesCountRef.current = nuevos.length;
+              setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
+            }
+          }
+        })
+        .catch(() => {});
+    };
+    fetchMensajes();
+    const interval = setInterval(fetchMensajes, 4000);
+    return () => clearInterval(interval);
   }, [t.offerId]);
 
   const enviar = async () => {
@@ -805,7 +819,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
     setEnviando(true);
     try {
       const res = await fetch("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offerId: t.offerId, content: texto.trim() }) });
-      if (res.ok) { const data = await res.json(); const m = data.message; setMensajes((prev) => [...prev, { id: m.id, senderId: m.senderId, texto: m.content, hora: m.hora }]); setTexto(""); setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50); }
+      if (res.ok) { const data = await res.json(); const m = data.message; setMensajes((prev) => [...prev, { id: m.id, senderId: m.sender_id, texto: m.content, hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "" }]); setTexto(""); setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50); }
     } finally { setEnviando(false); }
   };
 
@@ -1107,6 +1121,7 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
     }
     if (!tipo) { setError("Seleccioná el tipo de camión."); return; }
     if (REQUIERE_REMOLQUE.has(tipo) && !patenteRemolque.trim()) { setError(`Los ${tipo}s necesitan la patente del remolque.`); return; }
+    if (capacidad && Number(capacidad) <= 0) { setError("La capacidad debe ser mayor a 0 kg."); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/fleet/trucks", {
@@ -1119,7 +1134,7 @@ function ModalAgregarCamion({ onClose, onAdded }: { onClose: () => void; onAdded
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al agregar el camión."); return; }
+      if (!res.ok) { setError(data.message ?? data.error ?? "Error al agregar el camión."); return; }
       onAdded(data.truck);
       onClose();
     } finally { setLoading(false); }
@@ -1228,11 +1243,12 @@ function ModalEditarCamion({ truck, onClose, onSaved }: { truck: TruckData; onCl
     if (!/^[A-Za-z0-9]{6,7}$/.test(patente.replace(/\s/g, ""))) { setError("Patente inválida (ej: AB123CD)."); return; }
     if (!tipo) { setError("Seleccioná el tipo de camión."); return; }
     if (REQUIERE_REMOLQUE.has(tipo) && !patenteRemolque.trim()) { setError(`Los ${tipo}s necesitan la patente del remolque.`); return; }
+    if (capacidad && Number(capacidad) <= 0) { setError("La capacidad debe ser mayor a 0 kg."); return; }
     setLoading(true);
     try {
       const res = await fetch(`/api/fleet/trucks/${truck.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patente: patente.toUpperCase(), patente_remolque: patenteRemolque || undefined, marca, modelo, año: año || undefined, truck_type: tipo, capacity_kg: capacidad || undefined }) });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al guardar los cambios."); return; }
+      if (!res.ok) { setError(data.message ?? data.error ?? "Error al guardar los cambios."); return; }
       onSaved(data.truck);
       onClose();
     } finally { setLoading(false); }

@@ -500,7 +500,7 @@ function LoginInner() {
                   <Campo label="DNI" id="dni" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" required
                     hint={dniDisponible === false ? { text: "⚠ Ya existe una cuenta con ese DNI.", color: "#ef4444" } : dniDisponible === true ? { text: "✓ DNI disponible.", color: "#16a34a" } : undefined} />
                 )}
-                <Campo label="Celular" id="tel" type="tel" value={telefono} onChange={(v) => setTelefono(v.replace(/[^\d\s-]/g, ""))} placeholder="9 11 1234-5678" maxLength={15} inputMode="tel" required
+                <Campo label="Celular" id="tel" type="tel" value={telefono} onChange={(v) => setTelefono(v.replace(/[^\d-]/g, ""))} placeholder="9 11 1234-5678" maxLength={15} inputMode="tel" required
                   hint={telefonoDisponible === false ? { text: "⚠ Este celular ya está registrado.", color: "#ef4444" } : telefonoDisponible === true ? { text: "✓ Celular disponible.", color: "#16a34a" } : undefined} />
                 <Campo label="Email" id="email" type="email" autoComplete="email" value={email} onChange={setEmail} placeholder="tu@email.com" style={{ gridColumn: "1 / -1" }} required
                   hint={emailDisponible === false ? { text: "⚠ Este email ya está registrado.", color: "#ef4444" } : emailDisponible === true ? { text: "✓ Email disponible.", color: "#16a34a" } : undefined} />
