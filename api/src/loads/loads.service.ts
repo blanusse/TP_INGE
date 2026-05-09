@@ -65,6 +65,13 @@ export class LoadsService {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user?.dni_verified) throw new ForbiddenException('Debés verificar tu DNI antes de publicar cargas.');
 
+    if (body.weight_kg !== undefined && body.weight_kg !== null && Number(body.weight_kg) <= 0) {
+      throw new BadRequestException('El peso debe ser mayor a 0.');
+    }
+    if (body.price_base !== undefined && body.price_base !== null && Number(body.price_base) <= 0) {
+      throw new BadRequestException('El precio base debe ser mayor a 0.');
+    }
+
     const mappedTruckType = body.truck_type_required
       ? (TRUCK_TYPE_MAP[body.truck_type_required] ?? body.truck_type_required)
       : undefined;
@@ -134,8 +141,14 @@ export class LoadsService {
     if (body.truck_type_required !== undefined) {
       load.truck_type_required = TRUCK_TYPE_MAP[body.truck_type_required] ?? body.truck_type_required;
     }
-    if (body.weight_kg !== undefined) load.weight_kg = body.weight_kg;
-    if (body.price_base !== undefined) load.price_base = body.price_base;
+    if (body.weight_kg !== undefined) {
+      if (Number(body.weight_kg) <= 0) throw new BadRequestException('El peso debe ser mayor a 0.');
+      load.weight_kg = body.weight_kg;
+    }
+    if (body.price_base !== undefined) {
+      if (Number(body.price_base) <= 0) throw new BadRequestException('El precio base debe ser mayor a 0.');
+      load.price_base = body.price_base;
+    }
     if (body.ready_at !== undefined) load.ready_at = body.ready_at;
     if (body.description !== undefined) load.description = body.description;
 

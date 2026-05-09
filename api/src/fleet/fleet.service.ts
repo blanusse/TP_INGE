@@ -69,6 +69,13 @@ export class FleetService {
     const patenteExistente = await this.trucksRepo.findOne({ where: { patente } });
     if (patenteExistente) throw new ConflictException('Ya existe un camión registrado con esa patente.');
 
+    // Capacidad
+    if (body.capacity_kg !== undefined && body.capacity_kg !== null) {
+      if (Number(body.capacity_kg) <= 0) {
+        throw new BadRequestException('La capacidad del camión debe ser mayor a 0.');
+      }
+    }
+
     // Año
     if (body.año !== undefined && body.año !== null) {
       if (!validarAnio(body.año)) {
@@ -98,6 +105,10 @@ export class FleetService {
       const existente = await this.trucksRepo.findOne({ where: { patente } });
       if (existente && existente.id !== truckId) throw new ConflictException('Ya existe un camión con esa patente.');
       body.patente = patente;
+    }
+
+    if (body.capacity_kg !== undefined && body.capacity_kg !== null && Number(body.capacity_kg) <= 0) {
+      throw new BadRequestException('La capacidad del camión debe ser mayor a 0.');
     }
 
     if (body.año !== undefined && !validarAnio(body.año)) {
