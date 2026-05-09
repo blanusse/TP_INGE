@@ -103,11 +103,12 @@ function LoginInner() {
   // Verificación en tiempo real: celular
   useEffect(() => {
     if (paso !== "registro") return;
-    if (!telefono || !/^\+?\d{8,15}$/.test(telefono.replace(/\s/g, ""))) { setTelefonoDisponible(null); return; }
+    const telefonoParsed = telefono.replace(/[\s-]/g, "");
+    if (!telefono || !/^\d{8,15}$/.test(telefonoParsed)) { setTelefonoDisponible(null); return; }
     setTelefonoDisponible(null);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/auth/check?field=phone&value=${encodeURIComponent(telefono)}`);
+        const res = await fetch(`/api/auth/check?field=phone&value=${encodeURIComponent(telefonoParsed)}`);
         const { available } = await res.json();
         setTelefonoDisponible(available);
       } catch { /* ignorar errores de red */ }
@@ -170,7 +171,7 @@ function LoginInner() {
     }
 
     if (!telefono.trim()) return "El teléfono es obligatorio.";
-    if (!/^\+?\d{8,15}$/.test(telefono.replace(/\s/g, ""))) return "El teléfono debe tener entre 8 y 15 dígitos.";
+    if (!/^\d{8,15}$/.test(telefono.replace(/[\s-]/g, ""))) return "El teléfono debe tener entre 8 y 15 dígitos.";
     if (telefonoDisponible === false) return "Ya existe una cuenta registrada con ese teléfono.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Email inválido.";
     if (emailDisponible === false) return "Ya existe una cuenta registrada con ese email.";
@@ -197,7 +198,7 @@ function LoginInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email, password, name: nombre, role: perfil,
-          tipo_dador: tipoDador || null, phone: telefono || null, dni: dni || null,
+          tipo_dador: tipoDador || null, phone: telefono ? telefono.replace(/[\s-]/g, "") : null, dni: dni || null,
           razon_social: razonSocial || null, cuit: cuit || null, address: direccion || null,
           invitation_token: perfil === "empleado" ? invitationToken.trim() : undefined,
         }),
@@ -226,7 +227,7 @@ function LoginInner() {
           return;
         }
         setError("Email o contraseña incorrectos.");
-      } else { router.push("/dashboard"); router.refresh(); }
+      } else { router.replace("/dashboard"); router.refresh(); }
     });
   };
 
@@ -499,7 +500,7 @@ function LoginInner() {
                   <Campo label="DNI" id="dni" type="text" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" maxLength={8} inputMode="numeric" required
                     hint={dniDisponible === false ? { text: "⚠ Ya existe una cuenta con ese DNI.", color: "#ef4444" } : dniDisponible === true ? { text: "✓ DNI disponible.", color: "#16a34a" } : undefined} />
                 )}
-                <Campo label="Celular" id="tel" type="tel" value={telefono} onChange={(v) => setTelefono(v.replace(/[^\d+\s]/g, ""))} placeholder="+54 9 11 1234-5678" maxLength={15} inputMode="tel" required
+                <Campo label="Celular" id="tel" type="tel" value={telefono} onChange={(v) => setTelefono(v.replace(/[^\d\s-]/g, ""))} placeholder="9 11 1234-5678" maxLength={15} inputMode="tel" required
                   hint={telefonoDisponible === false ? { text: "⚠ Este celular ya está registrado.", color: "#ef4444" } : telefonoDisponible === true ? { text: "✓ Celular disponible.", color: "#16a34a" } : undefined} />
                 <Campo label="Email" id="email" type="email" autoComplete="email" value={email} onChange={setEmail} placeholder="tu@email.com" style={{ gridColumn: "1 / -1" }} required
                   hint={emailDisponible === false ? { text: "⚠ Este email ya está registrado.", color: "#ef4444" } : emailDisponible === true ? { text: "✓ Email disponible.", color: "#16a34a" } : undefined} />

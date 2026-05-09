@@ -1194,7 +1194,7 @@ function ModalAgregarConductor({ onClose, onAdded }: { onClose: () => void; onAd
         <FormCampo label="Nombre y apellido" value={name} onChange={setName} placeholder="Juan Rodríguez" required />
         <FormCampo label="Email" value={email} onChange={setEmail} placeholder="conductor@email.com" type="email" required />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
-          <FormCampo label="Celular" value={phone} onChange={setPhone} placeholder="+54 9 11 1234-5678" />
+          <FormCampo label="Celular" value={phone} onChange={setPhone} placeholder="9 11 1234-5678" />
           <FormCampo label="DNI" value={dni} onChange={(v) => setDni(v.replace(/\D/g, ""))} placeholder="12345678" />
         </div>
         <FormCampo label="Contraseña inicial" value={password} onChange={setPassword} placeholder="Mínimo 8 caracteres" type="password" required />

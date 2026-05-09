@@ -1755,7 +1755,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             <div>
               <div style={fieldLabel}>Teléfono</div>
               {editando
-                ? <input value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="+54 9 11 1234-5678" style={{ fontSize: 13, border: "1px solid var(--card-border)", borderRadius: 8, padding: "6px 10px", background: "var(--page-bg)", color: "var(--heading-color)", outline: "none", width: "100%" }} />
+                ? <input value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="9 11 1234-5678" style={{ fontSize: 13, border: "1px solid var(--card-border)", borderRadius: 8, padding: "6px 10px", background: "var(--page-bg)", color: "var(--heading-color)", outline: "none", width: "100%" }} />
                 : <div style={fieldVal}>{telefono || "—"}</div>
               }
             </div>

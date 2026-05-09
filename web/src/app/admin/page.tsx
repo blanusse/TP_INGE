@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { signOut } from "next-auth/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,10 @@ export default function AdminPage() {
   const [error, setError] = React.useState("");
   const [tab, setTab] = React.useState<AdminTab>("retiros");
 
+  function handleLogout() {
+    signOut({ callbackUrl: "/login" });
+  }
+
   function login(e: React.FormEvent) {
     e.preventDefault();
     setSecret(input.trim());
@@ -112,12 +117,20 @@ export default function AdminPage() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#111827" }}>Panel de Admin</div>
-          <button
-            onClick={() => setSecret("")}
-            style={{ background: "none", border: "1px solid #d1d5db", borderRadius: 8, padding: "7px 16px", fontSize: 13, color: "#6b7280", cursor: "pointer" }}
-          >
-            Salir
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleLogout}
+              style={{ background: "none", border: "1px solid #d1d5db", borderRadius: 8, padding: "7px 16px", fontSize: 13, color: "#6b7280", cursor: "pointer" }}
+            >
+              ← Volver a login
+            </button>
+            <button
+              onClick={() => setSecret("")}
+              style={{ background: "none", border: "1px solid #d1d5db", borderRadius: 8, padding: "7px 16px", fontSize: 13, color: "#6b7280", cursor: "pointer" }}
+            >
+              Salir
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
