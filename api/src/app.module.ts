@@ -28,7 +28,7 @@ import { ReportsModule } from './reports/reports.module';
         type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: process.env.NODE_ENV !== 'production',
       }),
       inject: [ConfigService],
     }),

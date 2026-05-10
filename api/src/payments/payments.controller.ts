@@ -95,19 +95,25 @@ export class PaymentsController {
 
   // El admin lista todos los retiros pendientes/completados
   @Get('admin/payouts')
-  getAdminPayouts(@Headers('x-internal-secret') secret: string) {
-    if (secret !== process.env.INTERNAL_SECRET)
+  @UseGuards(JwtAuthGuard)
+  getAdminPayouts(
+    @Request() req: AuthReq,
+    @Headers('x-internal-secret') secret: string,
+  ) {
+    if (req.user.role !== 'admin' && secret !== process.env.INTERNAL_SECRET)
       throw new UnauthorizedException();
     return this.paymentsService.getAdminPayouts();
   }
 
-  // El admin marca un pago como transferido manualmente (protegido por secreto interno)
+  // El admin marca un pago como transferido manualmente (protegido por JWT + secreto interno)
   @Post('internal/:paymentId/mark-paid')
+  @UseGuards(JwtAuthGuard)
   markPaid(
     @Param('paymentId') paymentId: string,
+    @Request() req: AuthReq,
     @Headers('x-internal-secret') secret: string,
   ) {
-    if (secret !== process.env.INTERNAL_SECRET)
+    if (req.user.role !== 'admin' && secret !== process.env.INTERNAL_SECRET)
       throw new UnauthorizedException();
     return this.paymentsService.markPayoutDone(paymentId);
   }

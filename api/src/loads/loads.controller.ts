@@ -42,6 +42,7 @@ export class LoadsController {
   }
 
   @Get('available')
+  @UseGuards(JwtAuthGuard)
   getAvailableLoads(
     @Query('cargo_type') cargoType?: string,
     @Query('origin') origin?: string,

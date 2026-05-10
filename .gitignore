@@ -1,2 +1,24 @@
 
 **/.DS_Store
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.next/
+
+# Uploads (user documents, evidence)
+uploads/
+
+# Security reports
+.gstack/
+
+# IDE
+.vscode/
+.idea/
