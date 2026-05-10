@@ -331,7 +331,7 @@ export class FleetService {
     const alreadyInList = fleetDrivers.some((d) => d.id === userId);
     if (owner?.show_as_fleet_driver !== false && !alreadyInList) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { show_as_fleet_driver: _sfd, ...ownerData } = owner as Record<
+      const { show_as_fleet_driver: _sfd, ...ownerData } = owner as unknown as Record<
         string,
         unknown
       >;
@@ -421,7 +421,7 @@ export class FleetService {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password_hash: _ph1, ...result } = saved as Record<string, unknown>;
+    const { password_hash: _ph1, ...result } = saved as unknown as Record<string, unknown>;
     return result;
   }
 
@@ -458,7 +458,7 @@ export class FleetService {
     if (body.dni !== undefined) driver.dni = body.dni;
     const saved = await this.usersRepo.save(driver);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password_hash: _ph2, ...result } = saved as Record<string, unknown>;
+    const { password_hash: _ph2, ...result } = saved as unknown as Record<string, unknown>;
     return result;
   }
 
