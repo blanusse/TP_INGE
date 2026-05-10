@@ -1,6 +1,6 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { Shipper } from '../entities/shipper.entity';
 import { Load } from '../entities/load.entity';
@@ -42,13 +42,24 @@ export class StatsService {
 
     for (let i = 5; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthKey = date.toLocaleString('es-AR', { month: 'short', year: '2-digit' });
+      const monthKey = date.toLocaleString('es-AR', {
+        month: 'short',
+        year: '2-digit',
+      });
       const monthLoads = delivered.filter((l) => {
         const d = new Date(l.created_at);
-        return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
+        return (
+          d.getFullYear() === date.getFullYear() &&
+          d.getMonth() === date.getMonth()
+        );
       });
-      const monthOfferMap = Object.fromEntries(acceptedOffers.map((o) => [o.load_id, o]));
-      const ingresos = monthLoads.reduce((sum, l) => sum + Number(monthOfferMap[l.id]?.price ?? 0), 0);
+      const monthOfferMap = Object.fromEntries(
+        acceptedOffers.map((o) => [o.load_id, o]),
+      );
+      const ingresos = monthLoads.reduce(
+        (sum, l) => sum + Number(monthOfferMap[l.id]?.price ?? 0),
+        0,
+      );
       ingresosUltimos6Meses.push({ mes: monthKey, ingresos });
       totalIngresos6m += ingresos;
       viajes6m += monthLoads.length;
@@ -60,7 +71,10 @@ export class StatsService {
       const key = l.cargo_type ?? 'Otro';
       cargoCount[key] = (cargoCount[key] ?? 0) + 1;
     }
-    const tiposCarga = Object.entries(cargoCount).map(([tipo, cantidad]) => ({ tipo, cantidad }));
+    const tiposCarga = Object.entries(cargoCount).map(([tipo, cantidad]) => ({
+      tipo,
+      cantidad,
+    }));
 
     // Top 5 routes
     const routeCount: Record<string, number> = {};
@@ -73,7 +87,7 @@ export class StatsService {
       .slice(0, 5)
       .map(([ruta, viajes]) => ({ ruta, viajes }));
 
-    const ratingAgg = await this.ratingsRepo
+    const ratingAgg: { avg: string | null } | undefined = await this.ratingsRepo
       .createQueryBuilder('r')
       .select('AVG(r.score)', 'avg')
       .where('r.to_user_id = :id', { id: userId })
@@ -86,7 +100,9 @@ export class StatsService {
       viajes6m,
       tiposCarga,
       rutasFrecuentes,
-      calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,
+      calificacionPromedio: ratingAgg?.avg
+        ? Number(ratingAgg.avg).toFixed(1)
+        : null,
       memberSince: user.created_at,
       phone: user.phone ?? null,
       dni: user.dni ?? null,
@@ -98,9 +114,9 @@ export class StatsService {
     if (!user || user.role !== 'transportista') throw new ForbiddenException();
 
     const fromDate = from ? new Date(from) : null;
-    const toDate   = to   ? new Date(to)   : null;
+    const toDate = to ? new Date(to) : null;
     if (fromDate) fromDate.setUTCHours(0, 0, 0, 0);
-    if (toDate)   toDate.setUTCHours(23, 59, 59, 999);
+    if (toDate) toDate.setUTCHours(23, 59, 59, 999);
 
     const offers = await this.offersRepo.find({
       where: { driver_id: userId, status: 'accepted' },
@@ -113,34 +129,49 @@ export class StatsService {
         if (o.load?.status !== 'delivered') return false;
         const d = new Date(o.created_at);
         if (fromDate && d < fromDate) return false;
-        if (toDate   && d > toDate)   return false;
+        if (toDate && d > toDate) return false;
         return true;
       })
       .map((o) => ({
-        id:     o.id,
-        fecha:  new Date(o.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-        dador:  o.load?.shipper?.razon_social ?? o.load?.shipper?.user?.name ?? 'Dador',
-        ruta:   `${o.load?.pickup_city ?? ''} \u2192 ${o.load?.dropoff_city ?? ''}`,
-        monto:  Number(o.price),
+        id: o.id,
+        fecha: new Date(o.created_at).toLocaleDateString('es-AR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        }),
+        dador:
+          o.load?.shipper?.razon_social ??
+          o.load?.shipper?.user?.name ??
+          'Dador',
+        ruta: `${o.load?.pickup_city ?? ''} \u2192 ${o.load?.dropoff_city ?? ''}`,
+        monto: Number(o.price),
       }));
 
     return { cobros };
   }
 
-  async getFleetStats(userId: string, from?: string, to?: string, driverId?: string) {
+  async getFleetStats(
+    userId: string,
+    from?: string,
+    to?: string,
+    driverId?: string,
+  ) {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user || user.role !== 'transportista') throw new ForbiddenException();
 
-    const subDrivers = await this.usersRepo.find({ where: { fleet_id: userId } });
+    const subDrivers = await this.usersRepo.find({
+      where: { fleet_id: userId },
+    });
     const allDriverIds = [userId, ...subDrivers.map((d) => d.id)];
 
-    if (driverId && !allDriverIds.includes(driverId)) throw new ForbiddenException();
+    if (driverId && !allDriverIds.includes(driverId))
+      throw new ForbiddenException();
     const targetIds = driverId ? [driverId] : allDriverIds;
 
     const fromDate = from ? new Date(from) : null;
-    const toDate   = to   ? new Date(to)   : null;
+    const toDate = to ? new Date(to) : null;
     if (fromDate) fromDate.setUTCHours(0, 0, 0, 0);
-    if (toDate)   toDate.setUTCHours(23, 59, 59, 999);
+    if (toDate) toDate.setUTCHours(23, 59, 59, 999);
 
     const offers = await this.offersRepo.find({
       where: { driver_id: In(targetIds), status: 'accepted' },
@@ -155,39 +186,48 @@ export class StatsService {
       return true;
     });
 
-    const totalViajes  = delivered.length;
-    const totalIngresos = delivered.reduce((sum, o) => sum + Number(o.price), 0);
+    const totalViajes = delivered.length;
+    const totalIngresos = delivered.reduce(
+      (sum, o) => sum + Number(o.price),
+      0,
+    );
 
-    const driverUsers = await this.usersRepo.find({ where: { id: In(allDriverIds) } });
-    const driverMap   = Object.fromEntries(driverUsers.map((d) => [d.id, d]));
+    const driverUsers = await this.usersRepo.find({
+      where: { id: In(allDriverIds) },
+    });
+    const driverMap = Object.fromEntries(driverUsers.map((d) => [d.id, d]));
 
     const perConductor = targetIds.map((dId) => {
       const dOffers = delivered.filter((o) => o.driver_id === dId);
       return {
-        id:       dId,
-        name:     driverMap[dId]?.name ?? 'Desconocido',
-        viajes:   dOffers.length,
+        id: dId,
+        name: driverMap[dId]?.name ?? 'Desconocido',
+        viajes: dOffers.length,
         ingresos: dOffers.reduce((sum, o) => sum + Number(o.price), 0),
       };
     });
 
-    const mejorConductor = perConductor.reduce<{ id: string; name: string; viajes: number; ingresos: number } | null>(
-      (best, d) => (!best || d.viajes > best.viajes ? d : best),
-      null,
-    );
+    const mejorConductor = perConductor.reduce<{
+      id: string;
+      name: string;
+      viajes: number;
+      ingresos: number;
+    } | null>((best, d) => (!best || d.viajes > best.viajes ? d : best), null);
 
-    const ratingAgg = await this.ratingsRepo
+    const ratingAgg: { avg: string | null } | undefined = await this.ratingsRepo
       .createQueryBuilder('r')
       .select('AVG(r.score)', 'avg')
       .where('r.to_user_id IN (:...ids)', { ids: allDriverIds })
       .getRawOne();
 
-    const fleetTrucks = await this.trucksRepo.find({ where: { owner_id: userId } });
+    const fleetTrucks = await this.trucksRepo.find({
+      where: { owner_id: userId },
+    });
     const perTruck = fleetTrucks.map((t) => {
       const tOffers = delivered.filter((o) => o.truck_id === t.id);
       return {
-        id:       t.id,
-        viajes:   tOffers.length,
+        id: t.id,
+        viajes: tOffers.length,
         ingresos: tOffers.reduce((sum, o) => sum + Number(o.price), 0),
       };
     });
@@ -197,23 +237,31 @@ export class StatsService {
       totalIngresos,
       totalConductores: subDrivers.length,
       totalCamiones: fleetTrucks.length,
-      mejorConductor: mejorConductor ? { name: mejorConductor.name, viajes: mejorConductor.viajes } : null,
-      calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,
+      mejorConductor: mejorConductor
+        ? { name: mejorConductor.name, viajes: mejorConductor.viajes }
+        : null,
+      calificacionPromedio: ratingAgg?.avg
+        ? Number(ratingAgg.avg).toFixed(1)
+        : null,
       perConductor,
       perTruck,
     };
   }
 
   async getShipperStats(userId: string) {
-    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+    const shipper = await this.shippersRepo.findOne({
+      where: { user_id: userId },
+    });
     if (!shipper) throw new ForbiddenException();
 
     const [totalCargas, enTransito] = await Promise.all([
       this.loadsRepo.count({ where: { shipper_id: shipper.id } }),
-      this.loadsRepo.count({ where: { shipper_id: shipper.id, status: 'in_transit' } }),
+      this.loadsRepo.count({
+        where: { shipper_id: shipper.id, status: 'in_transit' },
+      }),
     ]);
 
-    const ratingAgg = await this.ratingsRepo
+    const ratingAgg: { avg: string | null } | undefined = await this.ratingsRepo
       .createQueryBuilder('r')
       .select('AVG(r.score)', 'avg')
       .where('r.to_user_id = :id', { id: userId })
@@ -225,7 +273,9 @@ export class StatsService {
       totalCargas,
       enTransito,
       memberSince: user?.created_at,
-      calificacionPromedio: ratingAgg?.avg ? Number(ratingAgg.avg).toFixed(1) : null,
+      calificacionPromedio: ratingAgg?.avg
+        ? Number(ratingAgg.avg).toFixed(1)
+        : null,
       tipo: shipper.tipo,
       phone: user?.phone ?? null,
       dni: user?.dni ?? null,

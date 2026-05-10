@@ -9,7 +9,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DeepPartial } from 'typeorm';
+import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { User } from '../entities/user.entity';
@@ -51,8 +51,10 @@ export class AuthService {
   constructor(
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Shipper) private shippersRepo: Repository<Shipper>,
-    @InjectRepository(EmailVerification) private verificationsRepo: Repository<EmailVerification>,
-    @InjectRepository(FleetInvitation) private invitationsRepo: Repository<FleetInvitation>,
+    @InjectRepository(EmailVerification)
+    private verificationsRepo: Repository<EmailVerification>,
+    @InjectRepository(FleetInvitation)
+    private invitationsRepo: Repository<FleetInvitation>,
     private jwtService: JwtService,
     private emailService: EmailService,
   ) {}
@@ -62,18 +64,26 @@ export class AuthService {
 
     // 1. Email único
     const byEmail = await this.usersRepo.findOne({ where: { email } });
-    if (byEmail) throw new ConflictException('Ya existe una cuenta con ese email.');
+    if (byEmail)
+      throw new ConflictException('Ya existe una cuenta con ese email.');
 
     // 2. Teléfono único (si se provee)
     if (dto.phone) {
-      const byPhone = await this.usersRepo.findOne({ where: { phone: dto.phone.trim() } });
-      if (byPhone) throw new ConflictException('Ya existe una cuenta con ese número de teléfono.');
+      const byPhone = await this.usersRepo.findOne({
+        where: { phone: dto.phone.trim() },
+      });
+      if (byPhone)
+        throw new ConflictException(
+          'Ya existe una cuenta con ese número de teléfono.',
+        );
     }
 
     // 3. DNI: validación de formato + rango + unicidad por rol
     if (dto.dni) {
       if (!validarDni(dto.dni)) {
-        throw new BadRequestException('El DNI ingresado no es válido. Debe tener entre 7 y 8 dígitos y estar en el rango argentino.');
+        throw new BadRequestException(
+          'El DNI ingresado no es válido. Debe tener entre 7 y 8 dígitos y estar en el rango argentino.',
+        );
       }
 
       const dniLimpio = dto.dni.replace(/\./g, '');
@@ -93,40 +103,63 @@ export class AuthService {
     let fleetInvitation: FleetInvitation | null = null;
     if (dto.role === 'empleado') {
       if (!dto.invitation_token) {
-        throw new BadRequestException('Se requiere un código de invitación para registrarse como empleado.');
+        throw new BadRequestException(
+          'Se requiere un código de invitación para registrarse como empleado.',
+        );
       }
-      fleetInvitation = await this.invitationsRepo.findOne({ where: { token: dto.invitation_token } });
-      if (!fleetInvitation) throw new NotFoundException('Código de invitación no válido.');
-      if (fleetInvitation.status === 'accepted') throw new GoneException('Este código de invitación ya fue utilizado.');
-      if (fleetInvitation.status === 'expired' || fleetInvitation.expires_at < new Date()) {
+      fleetInvitation = await this.invitationsRepo.findOne({
+        where: { token: dto.invitation_token },
+      });
+      if (!fleetInvitation)
+        throw new NotFoundException('Código de invitación no válido.');
+      if (fleetInvitation.status === 'accepted')
+        throw new GoneException('Este código de invitación ya fue utilizado.');
+      if (
+        fleetInvitation.status === 'expired' ||
+        fleetInvitation.expires_at < new Date()
+      ) {
         fleetInvitation.status = 'expired';
         await this.invitationsRepo.save(fleetInvitation);
         throw new GoneException('Este código de invitación ha vencido.');
       }
       // Validar que el email coincida con el de la invitación
       if (fleetInvitation.email !== email) {
-        throw new ForbiddenException('Este código de invitación fue enviado a otro email.');
+        throw new ForbiddenException(
+          'Este código de invitación fue enviado a otro email.',
+        );
       }
     }
 
     // 4. CUIT argentino (dadores empresa)
     if (dto.tipo_dador === 'empresa' && dto.cuit) {
       if (!validarCuit(dto.cuit)) {
-        throw new BadRequestException('El CUIT ingresado no es válido. Verificá el dígito verificador.');
+        throw new BadRequestException(
+          'El CUIT ingresado no es válido. Verificá el dígito verificador.',
+        );
       }
-      const byCuit = await this.shippersRepo.findOne({ where: { cuit: dto.cuit } });
-      if (byCuit) throw new ConflictException('Ya existe una empresa registrada con ese CUIT.');
+      const byCuit = await this.shippersRepo.findOne({
+        where: { cuit: dto.cuit },
+      });
+      if (byCuit)
+        throw new ConflictException(
+          'Ya existe una empresa registrada con ese CUIT.',
+        );
     }
 
     // 5. Contraseña mínima
     if (!dto.password || dto.password.length < 8) {
-      throw new BadRequestException('La contraseña debe tener al menos 8 caracteres.');
+      throw new BadRequestException(
+        'La contraseña debe tener al menos 8 caracteres.',
+      );
     }
 
     const password_hash = await bcrypt.hash(dto.password, 12);
     const dbRole = dto.role === 'dador' ? 'shipper' : 'transportista';
 
-    const userPayload: any = {
+    const userPayload: Partial<User> & {
+      is_fleet_owner?: boolean;
+      fleet_id?: string;
+    } = {
       email,
       name: dto.name.trim(),
       password_hash,
@@ -153,7 +186,9 @@ export class AuthService {
       fleetInvitation.status = 'accepted';
       await this.invitationsRepo.save(fleetInvitation);
 
-      const fleetOwner = await this.usersRepo.findOne({ where: { id: fleetInvitation.fleet_owner_id } });
+      const fleetOwner = await this.usersRepo.findOne({
+        where: { id: fleetInvitation.fleet_owner_id },
+      });
       if (fleetOwner && !fleetOwner.is_fleet_owner) {
         fleetOwner.is_fleet_owner = true;
         await this.usersRepo.save(fleetOwner);
@@ -166,7 +201,10 @@ export class AuthService {
         tipo: dto.tipo_dador === 'empresa' ? 'empresa' : 'persona',
         razon_social: dto.razon_social?.trim(),
         cuit: dto.tipo_dador === 'empresa' ? dto.cuit : undefined,
-        cuil: dto.tipo_dador === 'personal' ? dto.dni?.replace(/\./g, '') : undefined,
+        cuil:
+          dto.tipo_dador === 'personal'
+            ? dto.dni?.replace(/\./g, '')
+            : undefined,
         address: dto.address?.trim(),
       });
       await this.shippersRepo.save(shipper);
@@ -195,10 +233,14 @@ export class AuthService {
 
     // Verificar estado de la cuenta
     if (user.account_status === 'suspended') {
-      throw new ForbiddenException('Tu cuenta está suspendida temporalmente. Contactá a soporte para más información.');
+      throw new ForbiddenException(
+        'Tu cuenta está suspendida temporalmente. Contactá a soporte para más información.',
+      );
     }
     if (user.account_status === 'banned') {
-      throw new ForbiddenException('Tu cuenta fue deshabilitada permanentemente.');
+      throw new ForbiddenException(
+        'Tu cuenta fue deshabilitada permanentemente.',
+      );
     }
 
     const payload = { sub: user.id, role: user.role };
@@ -216,16 +258,23 @@ export class AuthService {
   }
 
   /** Verifica disponibilidad de email, teléfono o DNI (para validación en tiempo real) */
-  async checkField(field: string, value: string): Promise<{ available: boolean }> {
+  async checkField(
+    field: string,
+    value: string,
+  ): Promise<{ available: boolean }> {
     if (!value || !field) return { available: true };
 
     if (field === 'email') {
-      const exists = await this.usersRepo.findOne({ where: { email: value.toLowerCase() } });
+      const exists = await this.usersRepo.findOne({
+        where: { email: value.toLowerCase() },
+      });
       return { available: !exists };
     }
 
     if (field === 'phone') {
-      const exists = await this.usersRepo.findOne({ where: { phone: value.trim() } });
+      const exists = await this.usersRepo.findOne({
+        where: { phone: value.trim() },
+      });
       return { available: !exists };
     }
 
@@ -236,7 +285,9 @@ export class AuthService {
     }
 
     if (field === 'cuit') {
-      const exists = await this.shippersRepo.findOne({ where: { cuit: value } });
+      const exists = await this.shippersRepo.findOne({
+        where: { cuit: value },
+      });
       return { available: !exists };
     }
 
@@ -248,7 +299,8 @@ export class AuthService {
       where: { email: email.toLowerCase() },
     });
     if (!user) throw new NotFoundException('Email no registrado.');
-    if (user.is_verified) throw new ConflictException('La cuenta ya está verificada.');
+    if (user.is_verified)
+      throw new ConflictException('La cuenta ya está verificada.');
 
     const verification = await this.verificationsRepo.findOne({
       where: { user_id: user.id, used: false },
@@ -256,7 +308,9 @@ export class AuthService {
     });
 
     if (!verification) {
-      throw new BadRequestException('No hay un código activo. Solicitá uno nuevo.');
+      throw new BadRequestException(
+        'No hay un código activo. Solicitá uno nuevo.',
+      );
     }
 
     if (new Date() > verification.expires_at) {
@@ -266,7 +320,9 @@ export class AuthService {
     }
 
     if (verification.attempts >= 3) {
-      throw new BadRequestException('Demasiados intentos. Solicitá un nuevo código.');
+      throw new BadRequestException(
+        'Demasiados intentos. Solicitá un nuevo código.',
+      );
     }
 
     if (verification.code !== code) {
@@ -292,7 +348,8 @@ export class AuthService {
       where: { email: email.toLowerCase() },
     });
     if (!user) throw new NotFoundException('Email no registrado.');
-    if (user.is_verified) throw new ConflictException('La cuenta ya está verificada.');
+    if (user.is_verified)
+      throw new ConflictException('La cuenta ya está verificada.');
 
     await this.verificationsRepo.update(
       { user_id: user.id, used: false },
@@ -316,12 +373,17 @@ export class AuthService {
     });
     await this.verificationsRepo.save(verification);
 
-    this.logger.warn(`[DEV] Código de verificación para ${user.email}: ${code}`);
+    this.logger.warn(
+      `[DEV] Código de verificación para ${user.email}: ${code}`,
+    );
 
     try {
       await this.emailService.sendVerificationCode(user.email, user.name, code);
     } catch (err) {
-      this.logger.warn(`Email no enviado (${user.email}): ${err?.message}. Usá el código de arriba para probar.`);
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `Email no enviado (${user.email}): ${msg}. Usá el código de arriba para probar.`,
+      );
     }
   }
 }

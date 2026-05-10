@@ -14,7 +14,9 @@ async function bootstrap() {
 
   // Health check para Railway
   const httpAdapter = app.getHttpAdapter();
-  httpAdapter.get('/health', (_req, res: any) => res.send({ status: 'ok' }));
+  httpAdapter.get('/health', (_req, res: { send: (body: unknown) => void }) =>
+    res.send({ status: 'ok' }),
+  );
 
   await app.listen(process.env.PORT ?? 3001);
 }

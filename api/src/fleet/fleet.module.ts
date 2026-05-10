@@ -8,7 +8,10 @@ import { FleetService } from './fleet.service';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Truck, User, FleetInvitation]), MailModule],
+  imports: [
+    TypeOrmModule.forFeature([Truck, User, FleetInvitation]),
+    MailModule,
+  ],
   controllers: [FleetController],
   providers: [FleetService],
 })

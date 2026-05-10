@@ -19,8 +19,8 @@ import { ReportsModule } from './reports/reports.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([
-      { name: 'short', ttl: 60_000, limit: 10 },   // 10 req/min por IP
-      { name: 'auth',  ttl: 900_000, limit: 20 },   // 20 intentos de auth cada 15 min
+      { name: 'short', ttl: 60_000, limit: 10 }, // 10 req/min por IP
+      { name: 'auth', ttl: 900_000, limit: 20 }, // 20 intentos de auth cada 15 min
     ]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

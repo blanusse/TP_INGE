@@ -1,9 +1,17 @@
 import {
-  Injectable, BadRequestException, ConflictException, NotFoundException,
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { Report, ReportReason, ReportStatus, AdminAction } from '../entities/report.entity';
+import {
+  Report,
+  ReportReason,
+  ReportStatus,
+  AdminAction,
+} from '../entities/report.entity';
 import { User } from '../entities/user.entity';
 import { MailService } from '../mail/mail.service';
 
@@ -17,14 +25,22 @@ export class ReportsService {
 
   async createReport(
     reporterId: string,
-    body: { reported_id: string; reason: ReportReason; description: string; evidence_url?: string },
+    body: {
+      reported_id: string;
+      reason: ReportReason;
+      description: string;
+      evidence_url?: string;
+    },
   ) {
     if (reporterId === body.reported_id) {
       throw new BadRequestException('No podés reportarte a vos mismo.');
     }
 
-    const reported = await this.usersRepo.findOne({ where: { id: body.reported_id } });
-    if (!reported) throw new NotFoundException('El usuario reportado no existe.');
+    const reported = await this.usersRepo.findOne({
+      where: { id: body.reported_id },
+    });
+    if (!reported)
+      throw new NotFoundException('El usuario reportado no existe.');
 
     // Check for existing active report from same reporter to same reported
     const existing = await this.reportsRepo.findOne({
@@ -35,10 +51,14 @@ export class ReportsService {
       },
     });
     if (existing) {
-      throw new ConflictException('Ya tenés un reporte activo contra este usuario.');
+      throw new ConflictException(
+        'Ya tenés un reporte activo contra este usuario.',
+      );
     }
 
-    const reporter = await this.usersRepo.findOne({ where: { id: reporterId } });
+    const reporter = await this.usersRepo.findOne({
+      where: { id: reporterId },
+    });
 
     const report = this.reportsRepo.create({
       reporter_id: reporterId,
@@ -58,7 +78,9 @@ export class ReportsService {
         reason: body.reason,
         description: body.description,
       });
-    } catch (_) {}
+    } catch {
+      // ignored
+    }
 
     return report;
   }
@@ -67,23 +89,27 @@ export class ReportsService {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Usuario no encontrado.');
 
-    const ratingResult = await this.reportsRepo.manager
-      .createQueryBuilder()
-      .select('AVG(r.score)', 'avg')
-      .addSelect('COUNT(r.id)', 'count')
-      .from('ratings', 'r')
-      .where('r.to_user_id = :userId', { userId })
-      .getRawOne();
+    const ratingResult: { avg: string | null; count: string } | undefined =
+      await this.reportsRepo.manager
+        .createQueryBuilder()
+        .select('AVG(r.score)', 'avg')
+        .addSelect('COUNT(r.id)', 'count')
+        .from('ratings', 'r')
+        .where('r.to_user_id = :userId', { userId })
+        .getRawOne();
 
-    const tripCount = await this.reportsRepo.manager
-      .createQueryBuilder()
-      .select('COUNT(DISTINCT o.id)', 'count')
-      .from('offers', 'o')
-      .innerJoin('loads', 'l', 'l.id = o.load_id')
-      .where('(o.driver_id = :userId OR o.assigned_driver_id = :userId)', { userId })
-      .andWhere('o.status = :status', { status: 'accepted' })
-      .andWhere('l.status = :loadStatus', { loadStatus: 'completed' })
-      .getRawOne();
+    const tripCount: { count: string } | undefined =
+      await this.reportsRepo.manager
+        .createQueryBuilder()
+        .select('COUNT(DISTINCT o.id)', 'count')
+        .from('offers', 'o')
+        .innerJoin('loads', 'l', 'l.id = o.load_id')
+        .where('(o.driver_id = :userId OR o.assigned_driver_id = :userId)', {
+          userId,
+        })
+        .andWhere('o.status = :status', { status: 'accepted' })
+        .andWhere('l.status = :loadStatus', { loadStatus: 'completed' })
+        .getRawOne();
 
     return {
       id: user.id,
@@ -105,7 +131,11 @@ export class ReportsService {
 
   async updateReport(
     reportId: string,
-    body: { status?: ReportStatus; admin_action?: AdminAction; admin_notes?: string },
+    body: {
+      status?: ReportStatus;
+      admin_action?: AdminAction;
+      admin_notes?: string;
+    },
   ) {
     const report = await this.reportsRepo.findOne({
       where: { id: reportId },

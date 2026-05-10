@@ -1,6 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn,
-  OneToOne, OneToMany, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 
 export type UserRole = 'transportista' | 'shipper' | 'admin';
@@ -65,7 +69,6 @@ export class User {
   // MercadoPago OAuth — se completa cuando el transportista conecta su cuenta MP
   @Column({ nullable: true, type: 'varchar' })
   mp_user_id: string | null;
-
 
   @Column({ type: 'varchar', default: 'active' })
   account_status: 'active' | 'suspended' | 'banned';

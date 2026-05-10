@@ -1,12 +1,22 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn,
-  CreateDateColumn, Unique,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  Unique,
 } from 'typeorm';
 import { Load } from './load.entity';
 import { User } from './user.entity';
 import { Truck } from './truck.entity';
 
-export type OfferStatus = 'pending' | 'countered' | 'accepted' | 'rejected' | 'withdrawn';
+export type OfferStatus =
+  | 'pending'
+  | 'countered'
+  | 'accepted'
+  | 'rejected'
+  | 'withdrawn';
 
 @Entity('offers')
 @Unique(['load_id', 'driver_id'])
@@ -17,7 +27,7 @@ export class Offer {
   @Column({ type: 'uuid' })
   load_id: string;
 
-@ManyToOne(() => Load, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Load, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'load_id' })
   load: Load;
 

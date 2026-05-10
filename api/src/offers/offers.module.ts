@@ -12,7 +12,18 @@ import { OffersService } from './offers.service';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Offer, Load, Truck, Rating, User, Shipper, TruckerDocument]), MailModule],
+  imports: [
+    TypeOrmModule.forFeature([
+      Offer,
+      Load,
+      Truck,
+      Rating,
+      User,
+      Shipper,
+      TruckerDocument,
+    ]),
+    MailModule,
+  ],
   controllers: [OffersController],
   providers: [OffersService],
   exports: [OffersService],

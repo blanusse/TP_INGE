@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Load } from '../entities/load.entity';
@@ -8,11 +13,10 @@ import { User } from '../entities/user.entity';
 
 const TRUCK_TYPE_MAP: Record<string, string> = {
   'Furgón cerrado': 'camion',
-  'Plataforma': 'semi',
-  'Refrigerado': 'frigorifico',
-  'Cisterna': 'cisterna',
+  Plataforma: 'semi',
+  Refrigerado: 'frigorifico',
+  Cisterna: 'cisterna',
 };
-
 
 @Injectable()
 export class LoadsService {
@@ -24,8 +28,13 @@ export class LoadsService {
   ) {}
 
   async getMyLoads(userId: string) {
-    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
-    if (!shipper) throw new ForbiddenException('Solo los dadores de carga pueden ver sus cargas.');
+    const shipper = await this.shippersRepo.findOne({
+      where: { user_id: userId },
+    });
+    if (!shipper)
+      throw new ForbiddenException(
+        'Solo los dadores de carga pueden ver sus cargas.',
+      );
 
     const loads = await this.loadsRepo.find({
       where: { shipper_id: shipper.id },
@@ -41,7 +50,10 @@ export class LoadsService {
       .filter((o) => o.status === 'accepted')
       .map((o) => o.driver_id);
     const drivers = acceptedDriverIds.length
-      ? await this.usersRepo.find({ where: { id: In(acceptedDriverIds) }, select: ['id', 'name'] })
+      ? await this.usersRepo.find({
+          where: { id: In(acceptedDriverIds) },
+          select: ['id', 'name'],
+        })
       : [];
     const driverMap = Object.fromEntries(drivers.map((d) => [d.id, d.name]));
 
@@ -52,23 +64,46 @@ export class LoadsService {
         ...load,
         offer_count: loadOffers.length,
         accepted_offer: accepted
-          ? { offerId: accepted.id, precio: Number(accepted.price), driverName: driverMap[accepted.driver_id] ?? null }
+          ? {
+              offerId: accepted.id,
+              precio: Number(accepted.price),
+              driverName: driverMap[accepted.driver_id] ?? null,
+            }
           : null,
       };
     });
   }
 
-  async createLoad(userId: string, body: Partial<Load> & { truck_type_required?: string }) {
-    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
-    if (!shipper) throw new ForbiddenException('Solo los dadores de carga pueden publicar cargas.');
+  async createLoad(
+    userId: string,
+    body: Partial<Load> & { truck_type_required?: string },
+  ) {
+    const shipper = await this.shippersRepo.findOne({
+      where: { user_id: userId },
+    });
+    if (!shipper)
+      throw new ForbiddenException(
+        'Solo los dadores de carga pueden publicar cargas.',
+      );
 
     const user = await this.usersRepo.findOne({ where: { id: userId } });
-    if (!user?.dni_verified) throw new ForbiddenException('Debés verificar tu DNI antes de publicar cargas.');
+    if (!user?.dni_verified)
+      throw new ForbiddenException(
+        'Debés verificar tu DNI antes de publicar cargas.',
+      );
 
-    if (body.weight_kg !== undefined && body.weight_kg !== null && Number(body.weight_kg) <= 0) {
+    if (
+      body.weight_kg !== undefined &&
+      body.weight_kg !== null &&
+      Number(body.weight_kg) <= 0
+    ) {
       throw new BadRequestException('El peso debe ser mayor a 0.');
     }
-    if (body.price_base !== undefined && body.price_base !== null && Number(body.price_base) <= 0) {
+    if (
+      body.price_base !== undefined &&
+      body.price_base !== null &&
+      Number(body.price_base) <= 0
+    ) {
       throw new BadRequestException('El precio base debe ser mayor a 0.');
     }
 
@@ -87,16 +122,26 @@ export class LoadsService {
   }
 
   async getAvailableLoads(cargoType?: string, origin?: string) {
-    const qb = this.loadsRepo.createQueryBuilder('l')
+    const qb = this.loadsRepo
+      .createQueryBuilder('l')
       .select([
-        'l.id', 'l.pickup_city', 'l.dropoff_city', 'l.cargo_type',
-        'l.truck_type_required', 'l.weight_kg', 'l.price_base',
-        'l.ready_at', 'l.description', 'l.status', 'l.created_at',
+        'l.id',
+        'l.pickup_city',
+        'l.dropoff_city',
+        'l.cargo_type',
+        'l.truck_type_required',
+        'l.weight_kg',
+        'l.price_base',
+        'l.ready_at',
+        'l.description',
+        'l.status',
+        'l.created_at',
       ])
       .where('l.status = :status', { status: 'available' });
 
     if (cargoType) qb.andWhere('l.cargo_type = :cargoType', { cargoType });
-    if (origin) qb.andWhere('l.pickup_city ILIKE :origin', { origin: `%${origin}%` });
+    if (origin)
+      qb.andWhere('l.pickup_city ILIKE :origin', { origin: `%${origin}%` });
 
     return qb.orderBy('l.created_at', 'DESC').getMany();
   }
@@ -114,7 +159,9 @@ export class LoadsService {
   }
 
   async markInTransit(userId: string, loadId: string) {
-    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+    const shipper = await this.shippersRepo.findOne({
+      where: { user_id: userId },
+    });
     if (!shipper) throw new ForbiddenException();
 
     const load = await this.loadsRepo.findOne({ where: { id: loadId } });
@@ -128,25 +175,47 @@ export class LoadsService {
     return this.loadsRepo.save(load);
   }
 
-  async updateLoad(userId: string, loadId: string, body: Partial<Pick<Load, 'cargo_type' | 'truck_type_required' | 'weight_kg' | 'price_base' | 'ready_at' | 'description'>>) {
-    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+  async updateLoad(
+    userId: string,
+    loadId: string,
+    body: Partial<
+      Pick<
+        Load,
+        | 'cargo_type'
+        | 'truck_type_required'
+        | 'weight_kg'
+        | 'price_base'
+        | 'ready_at'
+        | 'description'
+      >
+    >,
+  ) {
+    const shipper = await this.shippersRepo.findOne({
+      where: { user_id: userId },
+    });
     if (!shipper) throw new ForbiddenException();
 
     const load = await this.loadsRepo.findOne({ where: { id: loadId } });
     if (!load) throw new NotFoundException('Carga no encontrada.');
     if (load.shipper_id !== shipper.id) throw new ForbiddenException();
-    if (load.status !== 'available') throw new BadRequestException('Solo se pueden editar cargas sin ofertas aceptadas.');
+    if (load.status !== 'available')
+      throw new BadRequestException(
+        'Solo se pueden editar cargas sin ofertas aceptadas.',
+      );
 
     if (body.cargo_type !== undefined) load.cargo_type = body.cargo_type;
     if (body.truck_type_required !== undefined) {
-      load.truck_type_required = TRUCK_TYPE_MAP[body.truck_type_required] ?? body.truck_type_required;
+      load.truck_type_required =
+        TRUCK_TYPE_MAP[body.truck_type_required] ?? body.truck_type_required;
     }
     if (body.weight_kg !== undefined) {
-      if (Number(body.weight_kg) <= 0) throw new BadRequestException('El peso debe ser mayor a 0.');
+      if (Number(body.weight_kg) <= 0)
+        throw new BadRequestException('El peso debe ser mayor a 0.');
       load.weight_kg = body.weight_kg;
     }
     if (body.price_base !== undefined) {
-      if (Number(body.price_base) <= 0) throw new BadRequestException('El precio base debe ser mayor a 0.');
+      if (Number(body.price_base) <= 0)
+        throw new BadRequestException('El precio base debe ser mayor a 0.');
       load.price_base = body.price_base;
     }
     if (body.ready_at !== undefined) load.ready_at = body.ready_at;
@@ -156,20 +225,27 @@ export class LoadsService {
   }
 
   async deleteLoad(userId: string, loadId: string) {
-    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+    const shipper = await this.shippersRepo.findOne({
+      where: { user_id: userId },
+    });
     if (!shipper) throw new ForbiddenException();
 
     const load = await this.loadsRepo.findOne({ where: { id: loadId } });
     if (!load) throw new NotFoundException('Carga no encontrada.');
     if (load.shipper_id !== shipper.id) throw new ForbiddenException();
-    if (load.status !== 'available') throw new BadRequestException('Solo se pueden eliminar cargas sin ofertas aceptadas.');
+    if (load.status !== 'available')
+      throw new BadRequestException(
+        'Solo se pueden eliminar cargas sin ofertas aceptadas.',
+      );
 
     await this.loadsRepo.remove(load);
     return { deleted: true };
   }
 
   async confirmDelivery(userId: string, loadId: string) {
-    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+    const shipper = await this.shippersRepo.findOne({
+      where: { user_id: userId },
+    });
     if (!shipper) throw new ForbiddenException();
 
     const load = await this.loadsRepo.findOne({ where: { id: loadId } });

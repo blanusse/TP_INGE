@@ -1,11 +1,24 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
   CreateDateColumn,
 } from 'typeorm';
 import { User } from './user.entity';
 
-export type ReportReason = 'fraud' | 'non_delivery' | 'harassment' | 'fake_data' | 'other';
-export type ReportStatus = 'pending' | 'under_review' | 'resolved' | 'dismissed';
+export type ReportReason =
+  | 'fraud'
+  | 'non_delivery'
+  | 'harassment'
+  | 'fake_data'
+  | 'other';
+export type ReportStatus =
+  | 'pending'
+  | 'under_review'
+  | 'resolved'
+  | 'dismissed';
 export type AdminAction = 'none' | 'warned' | 'suspended' | 'banned';
 
 @Entity('reports')
