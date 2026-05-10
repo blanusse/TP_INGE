@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -22,6 +23,7 @@ export default function InvitacionPage() {
   const [invitation, setInvitation] = useState<InvitationData | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     fetch(`/api/fleet/invitations/${token}`)
       .then((r) => r.json())

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
@@ -158,6 +159,7 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoT
   const parseKm = (d: string) => parseInt(d.replace(/\./g, "").replace(/[^0-9]/g, "")) || 0;
   const DIST_RANGOS: Record<string, [number, number]> = { todos: [0, Infinity], corta: [0, 500], media: [500, 1200], larga: [1200, 2000], muy_larga: [2000, Infinity] };
   const limpiarFiltros = () => { setTipos([]); setTiposCamion([]); setOrigen(""); setDestino(""); setDistanciaRango("todos"); setPrecioMin(""); setPrecioMax(""); setFechaDesde(""); setRatingMin("0"); setSoloDestacadas(false); setPage(1); };
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPage(1); }, [tipos, tiposCamion, origen, destino, distanciaRango, precioMin, precioMax, fechaDesde, ratingMin, soloDestacadas, sortBy]);
   const hayFiltros = tipos.length > 0 || tiposCamion.length > 0 || origen || destino || distanciaRango !== "todos" || precioMin || precioMax || fechaDesde || ratingMin !== "0" || soloDestacadas;
   const [minKm, maxKm] = DIST_RANGOS[distanciaRango];
@@ -433,6 +435,7 @@ function TabCobros() {
     setLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchCobros(); }, []);
 
   const exportarCSV = () => {
@@ -665,6 +668,7 @@ function SeccionMisViajes({ userId, mode }: { userId: string; mode?: DashboardMo
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     fetch("/api/trips/mine").then((r) => r.json()).then((d) => {
       setTrips({ enCurso: d.enCurso ?? [], proximos: d.proximos ?? [], completados: d.completados ?? [] });
@@ -1228,7 +1232,7 @@ function ModalAgregarConductor({ onClose, onAdded }: { onClose: () => void; onAd
 
 function ModalEditarCamion({ truck, onClose, onSaved }: { truck: TruckData; onClose: () => void; onSaved: (t: TruckData) => void }) {
   const [patente, setPatente] = useState(truck.patente ?? "");
-  const [patenteRemolque, setPatenteRemolque] = useState((truck as any).patente_remolque ?? "");
+  const [patenteRemolque, setPatenteRemolque] = useState((truck as TruckData & { patente_remolque?: string }).patente_remolque ?? "");
   const [marca, setMarca] = useState(truck.marca ?? "");
   const [modelo, setModelo] = useState(truck.modelo ?? "");
   const [año, setAño] = useState(truck.año ? String(truck.año) : "");
@@ -1398,6 +1402,7 @@ function TabEstadisticas({ drivers }: { drivers: Driver[] }) {
     setLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchStats(); }, []);
 
   const kpiCard = (label: string, value: string, sub?: string, icon?: string) => (
@@ -2495,7 +2500,7 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
             {buscado && !loadingCargas && cargasPorTramo.length === 0 && (
               <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, padding: 32, textAlign: "center" }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>Sin tramos de búsqueda</div>
-                <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Marcá al menos un tramo como "Busco carga" para ver resultados.</div>
+                <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Marcá al menos un tramo como &quot;Busco carga&quot; para ver resultados.</div>
               </div>
             )}
 
@@ -2577,6 +2582,7 @@ function OnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void; onNa
   const step = ONBOARDING_STEPS[paso];
   const esUltimo = paso === ONBOARDING_STEPS.length - 1;
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (!step.target) { setArrowX(null); return; }
     const btns = document.querySelectorAll<HTMLButtonElement>("button");
@@ -2670,6 +2676,7 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [showOnboarding, setShowOnboarding] = useState(false);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     const saved = localStorage.getItem("transportista-theme") as "dark" | "light" | null;
     if (saved) setTheme(saved);

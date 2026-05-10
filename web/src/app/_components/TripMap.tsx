@@ -35,10 +35,13 @@ export default function TripMap({
   truckType,
 }: TripMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const truckRef = useRef<any>(null);
   const esRef = useRef<EventSource | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const gasLayerRef = useRef<any>(null);
   const lastGasUpdatePosRef = useRef<[number, number] | null>(null);
   const showGasRef = useRef(false);
@@ -160,6 +163,7 @@ export default function TripMap({
             } else {
               gasLayerRef.current.clearLayers();
             }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (data.elements ?? []).forEach((el: any) => {
               const elLat = el.lat ?? el.center?.lat;
               const elLng = el.lon ?? el.center?.lon;

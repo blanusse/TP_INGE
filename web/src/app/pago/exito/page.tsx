@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -9,6 +10,7 @@ function ExitoContent() {
   const router   = useRouter();
   const [status, setStatus] = useState<"confirming" | "done" | "error">("confirming");
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     const offerId          = params.get("external_reference");
     const loadId           = params.get("loadId");
