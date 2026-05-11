@@ -52,7 +52,10 @@ export class OffersService {
       if (assignedDriver.fleet_id !== userId && assignedDriver.id !== userId) {
         throw new ForbiddenException('El conductor no pertenece a tu flota.');
       }
-      if (!assignedDriver.dni_verified || !assignedDriver.license_verified) {
+      const driverVerified =
+        assignedDriver.is_verified ||
+        (assignedDriver.dni_verified && assignedDriver.license_verified);
+      if (!driverVerified) {
         throw new BadRequestException('El conductor asignado debe tener DNI y registro de conducir verificados.');
       }
     }
