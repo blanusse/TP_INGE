@@ -1964,7 +1964,7 @@ function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userN
         >
           <i className="fa-solid fa-circle-info" style={{ color: "#3b82f6", fontSize: 15 }} />
           <span style={{ fontSize: 13, color: "#3b82f6", fontWeight: 500 }}>
-            Tenés {pendientes} carga{pendientes > 1 ? "s" : ""} con ofertas pendientes de revisión
+            Tenés {pendientes} oferta{pendientes > 1 ? "s" : ""} pendientes de revisión
           </span>
         </div>
       )}
