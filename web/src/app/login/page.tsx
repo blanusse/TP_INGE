@@ -228,6 +228,14 @@ function LoginInner() {
           router.push(`/verify-email?email=${encodeURIComponent(email)}`);
           return;
         }
+        if (!checkData.available && checkData.account_status === "suspended") {
+          setError("Tu cuenta está suspendida temporalmente. Contactá a soporte para más información.");
+          return;
+        }
+        if (!checkData.available && checkData.account_status === "banned") {
+          setError("Tu cuenta fue deshabilitada permanentemente.");
+          return;
+        }
         setError("Email o contraseña incorrectos.");
       } else { router.replace("/dashboard"); router.refresh(); }
     });

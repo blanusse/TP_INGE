@@ -5,6 +5,25 @@ import { signOut } from "next-auth/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface UserRow {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  account_status: "active" | "suspended" | "banned";
+  created_at: string;
+  is_verified: boolean;
+}
+
+interface AuditEntry {
+  id: string;
+  admin_email: string;
+  target_user_email: string;
+  action: string;
+  reason: string | null;
+  created_at: string;
+}
+
 interface Payout {
   id: string;
   amount: number;
@@ -36,7 +55,7 @@ interface ReportData {
   reported: { id: string; name: string; email: string; role: string };
 }
 
-type AdminTab = "retiros" | "reportes";
+type AdminTab = "usuarios" | "retiros" | "reportes" | "audit";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -73,94 +92,77 @@ const STATUS_COLOR: Record<string, string> = {
 export default function AdminPage() {
   const [secret, setSecret] = React.useState("");
   const [input, setInput] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [tab, setTab] = React.useState<AdminTab>("retiros");
+  const [secretError, setSecretError] = React.useState("");
+  const [tab, setTab] = React.useState<AdminTab>("usuarios");
 
   function handleLogout() {
     signOut({ callbackUrl: "/login" });
   }
 
-  function login(e: React.FormEvent) {
-    e.preventDefault();
-    setSecret(input.trim());
-  }
-
-  if (!secret) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f4f6" }}>
-        <form onSubmit={login} style={{ background: "#fff", padding: 40, borderRadius: 12, boxShadow: "0 2px 16px #0001", minWidth: 320 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#3a806b", marginBottom: 8 }}>Panel de Admin</div>
-          <div style={{ fontSize: 14, color: "#6b7280", marginBottom: 24 }}>Ingresá la contraseña de administrador</div>
-          <input
-            type="password"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Contraseña"
-            autoFocus
-            style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 15, marginBottom: 16, boxSizing: "border-box" }}
-          />
-          {error && <div style={{ color: "#ef4444", fontSize: 13, marginBottom: 12 }}>{error}</div>}
-          <button
-            type="submit"
-            style={{ width: "100%", background: "#3a806b", color: "#fff", border: "none", borderRadius: 8, padding: "11px 0", fontSize: 15, fontWeight: 600, cursor: "pointer" }}
-          >
-            Entrar
-          </button>
-        </form>
-      </div>
-    );
-  }
+  const needsSecret = tab === "retiros" || tab === "reportes";
 
   return (
     <div style={{ minHeight: "100vh", background: "#f3f4f6", padding: "32px 24px" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto" }}>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#111827" }}>Panel de Admin</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={handleLogout}
-              style={{ background: "none", border: "1px solid #d1d5db", borderRadius: 8, padding: "7px 16px", fontSize: 13, color: "#6b7280", cursor: "pointer" }}
-            >
-              ← Volver a login
-            </button>
-            <button
-              onClick={() => setSecret("")}
-              style={{ background: "none", border: "1px solid #d1d5db", borderRadius: 8, padding: "7px 16px", fontSize: 13, color: "#6b7280", cursor: "pointer" }}
-            >
-              Salir
-            </button>
-          </div>
+          <button
+            onClick={handleLogout}
+            style={{ background: "none", border: "1px solid #d1d5db", borderRadius: 8, padding: "7px 16px", fontSize: 13, color: "#6b7280", cursor: "pointer" }}
+          >
+            Cerrar sesión
+          </button>
         </div>
 
         {/* Tabs */}
         <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "2px solid #e5e7eb" }}>
-          <button
-            onClick={() => setTab("retiros")}
-            style={{
-              padding: "10px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer", border: "none", background: "none",
-              color: tab === "retiros" ? "#3a806b" : "#6b7280",
-              borderBottom: tab === "retiros" ? "2px solid #3a806b" : "2px solid transparent",
-              marginBottom: -2,
-            }}
-          >
-            Retiros
-          </button>
-          <button
-            onClick={() => setTab("reportes")}
-            style={{
-              padding: "10px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer", border: "none", background: "none",
-              color: tab === "reportes" ? "#3a806b" : "#6b7280",
-              borderBottom: tab === "reportes" ? "2px solid #3a806b" : "2px solid transparent",
-              marginBottom: -2,
-            }}
-          >
-            Reportes
-          </button>
+          {([
+            { key: "usuarios", label: "Usuarios" },
+            { key: "retiros",  label: "Retiros" },
+            { key: "reportes", label: "Reportes" },
+            { key: "audit",    label: "Audit log" },
+          ] as const).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                padding: "10px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer", border: "none", background: "none",
+                color: tab === t.key ? "#3a806b" : "#6b7280",
+                borderBottom: tab === t.key ? "2px solid #3a806b" : "2px solid transparent",
+                marginBottom: -2,
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        {tab === "retiros" && <SeccionRetiros secret={secret} onAuthError={() => { setError("Contraseña incorrecta."); setSecret(""); }} />}
-        {tab === "reportes" && <SeccionReportes secret={secret} />}
+        {tab === "usuarios" && <SeccionUsuarios />}
+        {tab === "audit" && <SeccionAuditLog />}
+
+        {needsSecret && !secret && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0" }}>
+            <form onSubmit={(e) => { e.preventDefault(); setSecret(input.trim()); }} style={{ background: "#fff", padding: 36, borderRadius: 12, boxShadow: "0 2px 16px #0001", minWidth: 300 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#3a806b", marginBottom: 8 }}>Contraseña de operaciones</div>
+              <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>Esta sección requiere la clave interna de administrador.</div>
+              <input
+                type="password"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Contraseña"
+                autoFocus
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 15, marginBottom: 12, boxSizing: "border-box" }}
+              />
+              {secretError && <div style={{ color: "#ef4444", fontSize: 13, marginBottom: 10 }}>{secretError}</div>}
+              <button type="submit" style={{ width: "100%", background: "#3a806b", color: "#fff", border: "none", borderRadius: 8, padding: "11px 0", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+                Ingresar
+              </button>
+            </form>
+          </div>
+        )}
+        {tab === "retiros"  && secret && <SeccionRetiros  secret={secret} onAuthError={() => { setSecretError("Contraseña incorrecta."); setSecret(""); }} />}
+        {tab === "reportes" && secret && <SeccionReportes secret={secret} />}
       </div>
     </div>
   );
@@ -477,5 +479,295 @@ function ReportCard({ report, loading, onAction }: { report: ReportData; loading
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Usuarios Section ─────────────────────────────────────────────────────────
+
+const STATUS_USER_COLOR: Record<string, string> = {
+  active:    "#10b981",
+  suspended: "#f59e0b",
+  banned:    "#ef4444",
+};
+
+const STATUS_USER_LABEL: Record<string, string> = {
+  active:    "Activa",
+  suspended: "Suspendida",
+  banned:    "Baneada",
+};
+
+const ROLE_LABEL: Record<string, string> = {
+  transportista: "Transportista",
+  dador:         "Dador de carga",
+  admin:         "Admin",
+};
+
+function SeccionUsuarios() {
+  const [users, setUsers]     = React.useState<UserRow[]>([]);
+  const [total, setTotal]     = React.useState(0);
+  const [page, setPage]       = React.useState(1);
+  const [search, setSearch]   = React.useState("");
+  const [query, setQuery]     = React.useState("");
+  const [loading, setLoading] = React.useState(true);
+  const [actionUser, setActionUser] = React.useState<UserRow | null>(null);
+  const [actionType, setActionType] = React.useState<"suspend" | "unsuspend" | "ban" | "unban" | null>(null);
+  const [reason, setReason]   = React.useState("");
+  const [saving, setSaving]   = React.useState(false);
+  const [toast, setToast]     = React.useState("");
+
+  const limit = 20;
+
+  React.useEffect(() => {
+    setLoading(true);
+    const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (query) qs.set("search", query);
+    fetch(`/api/admin/users?${qs}`)
+      .then((r) => r.json())
+      .then((d) => { setUsers(d.users ?? []); setTotal(d.total ?? 0); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [page, query]);
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    setPage(1);
+    setQuery(search.trim());
+  }
+
+  function openAction(user: UserRow, type: "suspend" | "unsuspend" | "ban" | "unban") {
+    setActionUser(user);
+    setActionType(type);
+    setReason("");
+  }
+
+  async function confirmAction() {
+    if (!actionUser || !actionType) return;
+    setSaving(true);
+    const res = await fetch(`/api/admin/users/${actionUser.id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: actionType, reason: reason || undefined }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setUsers((prev) => prev.map((u) => u.id === updated.id ? { ...u, account_status: updated.account_status } : u));
+      setToast(`Usuario ${actionType === "suspend" ? "suspendido" : actionType === "unsuspend" ? "reactivado" : actionType === "ban" ? "baneado" : "desbaneado"} correctamente.`);
+      setTimeout(() => setToast(""), 3000);
+    }
+    setSaving(false);
+    setActionUser(null);
+    setActionType(null);
+  }
+
+  const pages = Math.ceil(total / limit);
+
+  return (
+    <>
+      {toast && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, background: "#1f2937", color: "#fff", borderRadius: 10, padding: "12px 20px", fontSize: 14, fontWeight: 500, zIndex: 100, boxShadow: "0 4px 20px #0003" }}>
+          {toast}
+        </div>
+      )}
+
+      {/* Modal */}
+      {actionUser && actionType && (
+        <div style={{ position: "fixed", inset: 0, background: "#0008", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
+          <div style={{ background: "#fff", borderRadius: 14, padding: 28, width: 420, maxWidth: "90vw", boxShadow: "0 8px 40px #0003" }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "#111827", marginBottom: 4 }}>
+              {actionType === "suspend" ? "Suspender cuenta" : actionType === "unsuspend" ? "Reactivar cuenta" : actionType === "ban" ? "Banear cuenta" : "Desbanear cuenta"}
+            </div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 18 }}>
+              {actionUser.name} · {actionUser.email}
+            </div>
+            {(actionType === "suspend" || actionType === "ban") && (
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Motivo (opcional)..."
+                rows={3}
+                style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, resize: "none", marginBottom: 16, boxSizing: "border-box" }}
+              />
+            )}
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => { setActionUser(null); setActionType(null); }} style={{ padding: "8px 18px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button
+                disabled={saving}
+                onClick={confirmAction}
+                style={{
+                  padding: "8px 18px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", color: "#fff",
+                  background: actionType === "ban" ? "#ef4444" : actionType === "suspend" ? "#f59e0b" : "#10b981",
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {saving ? "Guardando..." : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search */}
+      <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por nombre o email..."
+          style={{ flex: 1, padding: "9px 14px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }}
+        />
+        <button type="submit" style={{ padding: "9px 20px", borderRadius: 8, background: "#3a806b", color: "#fff", border: "none", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+          Buscar
+        </button>
+      </form>
+
+      {loading ? (
+        <div style={{ textAlign: "center", color: "#6b7280", padding: 40 }}>Cargando usuarios...</div>
+      ) : (
+        <>
+          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 12 }}>{total} usuario{total !== 1 ? "s" : ""}</div>
+          <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px #0001", overflow: "hidden" }}>
+            {users.map((u, i) => (
+              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 20px", borderTop: i === 0 ? "none" : "1px solid #f3f4f6", flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{u.name}</div>
+                  <div style={{ fontSize: 12, color: "#6b7280" }}>{u.email} · {ROLE_LABEL[u.role] ?? u.role}</div>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{new Date(u.created_at).toLocaleDateString("es-AR")}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ background: (STATUS_USER_COLOR[u.account_status] ?? "#6b7280") + "20", color: STATUS_USER_COLOR[u.account_status] ?? "#6b7280", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>
+                    {STATUS_USER_LABEL[u.account_status] ?? u.account_status}
+                  </span>
+                  {!u.is_verified && (
+                    <span style={{ background: "#f3f4f6", color: "#6b7280", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Sin verificar</span>
+                  )}
+                </div>
+                {u.role !== "admin" && (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {u.account_status === "active" && (
+                      <>
+                        <button onClick={() => openAction(u, "suspend")} style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: "#fef3c7", color: "#92400e", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                          Suspender
+                        </button>
+                        <button onClick={() => openAction(u, "ban")} style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: "#fee2e2", color: "#991b1b", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                          Banear
+                        </button>
+                      </>
+                    )}
+                    {u.account_status === "suspended" && (
+                      <>
+                        <button onClick={() => openAction(u, "unsuspend")} style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: "#d1fae5", color: "#065f46", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                          Reactivar
+                        </button>
+                        <button onClick={() => openAction(u, "ban")} style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: "#fee2e2", color: "#991b1b", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                          Banear
+                        </button>
+                      </>
+                    )}
+                    {u.account_status === "banned" && (
+                      <button onClick={() => openAction(u, "unban")} style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: "#d1fae5", color: "#065f46", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                        Desbanear
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {pages > 1 && (
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 20 }}>
+              <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: page <= 1 ? "not-allowed" : "pointer", opacity: page <= 1 ? 0.5 : 1 }}>
+                ← Anterior
+              </button>
+              <span style={{ padding: "7px 16px", fontSize: 13, color: "#6b7280" }}>Página {page} de {pages}</span>
+              <button disabled={page >= pages} onClick={() => setPage((p) => p + 1)} style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: page >= pages ? "not-allowed" : "pointer", opacity: page >= pages ? 0.5 : 1 }}>
+                Siguiente →
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+// ─── Audit Log Section ────────────────────────────────────────────────────────
+
+const ACTION_LABEL: Record<string, string> = {
+  suspend:   "Suspendió",
+  unsuspend: "Reactivó",
+  ban:       "Baneó",
+  unban:     "Desbaneó",
+};
+
+const ACTION_COLOR: Record<string, string> = {
+  suspend:   "#f59e0b",
+  unsuspend: "#10b981",
+  ban:       "#ef4444",
+  unban:     "#10b981",
+};
+
+function SeccionAuditLog() {
+  const [logs, setLogs]       = React.useState<AuditEntry[]>([]);
+  const [total, setTotal]     = React.useState(0);
+  const [page, setPage]       = React.useState(1);
+  const [loading, setLoading] = React.useState(true);
+  const limit = 20;
+
+  React.useEffect(() => {
+    setLoading(true);
+    fetch(`/api/admin/audit-log?page=${page}&limit=${limit}`)
+      .then((r) => r.json())
+      .then((d) => { setLogs(d.logs ?? []); setTotal(d.total ?? 0); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [page]);
+
+  const pages = Math.ceil(total / limit);
+
+  if (loading) return <div style={{ textAlign: "center", color: "#6b7280", padding: 40 }}>Cargando audit log...</div>;
+
+  return (
+    <>
+      <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 12 }}>{total} acción{total !== 1 ? "es" : ""} registrada{total !== 1 ? "s" : ""}</div>
+
+      {logs.length === 0 ? (
+        <div style={{ background: "#fff", borderRadius: 12, padding: 32, textAlign: "center", color: "#6b7280" }}>
+          No hay acciones registradas aún
+        </div>
+      ) : (
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px #0001", overflow: "hidden" }}>
+          {logs.map((log, i) => (
+            <div key={log.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 20px", borderTop: i === 0 ? "none" : "1px solid #f3f4f6", flexWrap: "wrap" }}>
+              <span style={{ background: (ACTION_COLOR[log.action] ?? "#6b7280") + "20", color: ACTION_COLOR[log.action] ?? "#6b7280", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                {ACTION_LABEL[log.action] ?? log.action}
+              </span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, color: "#111827" }}>
+                  <strong>{log.admin_email}</strong> → <strong>{log.target_user_email}</strong>
+                </div>
+                {log.reason && <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>Motivo: {log.reason}</div>}
+              </div>
+              <div style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>
+                {new Date(log.created_at).toLocaleString("es-AR")}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {pages > 1 && (
+        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 20 }}>
+          <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: page <= 1 ? "not-allowed" : "pointer", opacity: page <= 1 ? 0.5 : 1 }}>
+            ← Anterior
+          </button>
+          <span style={{ padding: "7px 16px", fontSize: 13, color: "#6b7280" }}>Página {page} de {pages}</span>
+          <button disabled={page >= pages} onClick={() => setPage((p) => p + 1)} style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: page >= pages ? "not-allowed" : "pointer", opacity: page >= pages ? 0.5 : 1 }}>
+            Siguiente →
+          </button>
+        </div>
+      )}
+    </>
   );
 }

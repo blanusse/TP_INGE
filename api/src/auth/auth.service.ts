@@ -261,14 +261,16 @@ export class AuthService {
   async checkField(
     field: string,
     value: string,
-  ): Promise<{ available: boolean }> {
+  ): Promise<{ available: boolean; is_verified?: boolean; account_status?: string }> {
     if (!value || !field) return { available: true };
 
     if (field === 'email') {
-      const exists = await this.usersRepo.findOne({
+      const user = await this.usersRepo.findOne({
         where: { email: value.toLowerCase() },
+        select: ['id', 'is_verified', 'account_status'],
       });
-      return { available: !exists };
+      if (!user) return { available: true };
+      return { available: false, is_verified: user.is_verified, account_status: user.account_status };
     }
 
     if (field === 'phone') {
