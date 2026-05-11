@@ -2482,7 +2482,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
 
 // ── Modal Ofertar ─────────────────────────────────────────────────────────────
 
-function ModalOfertar({ info, onClose, onEnviar, trucks, drivers, mode, userId, userName }: { info: ModalOfertaState; onClose: () => void; onEnviar: (cargaId: string | number) => void; trucks: TruckData[]; drivers?: Driver[]; mode?: DashboardMode; userId?: string; userName?: string }) {
+function ModalOfertar({ info, onClose, onEnviar, trucks, drivers, mode, userId, userName, isFleetOwner }: { info: ModalOfertaState; onClose: () => void; onEnviar: (cargaId: string | number) => void; trucks: TruckData[]; drivers?: Driver[]; mode?: DashboardMode; userId?: string; userName?: string; isFleetOwner?: boolean }) {
   const [precio, setPrecio] = useState(info.precioBase.toString());
   const [truckId, setTruckId] = useState(trucks[0]?.id ?? "");
   const [loading, setLoading] = useState(false);
@@ -2490,27 +2490,31 @@ function ModalOfertar({ info, onClose, onEnviar, trucks, drivers, mode, userId, 
   const diferencia = parseInt(precio || "0") - info.precioBase;
   const diff = isNaN(diferencia) ? 0 : diferencia;
 
-  // Para individual: el único conductor es el propio usuario
-  const conductorOptions: Driver[] = mode === "flota" && drivers && drivers.length > 0
-    ? drivers
+  // Fleet owners see the full driver selector (including themselves); individuals see a fixed "yo mismo"
+  const conductorOptions: Driver[] = isFleetOwner
+    ? [
+        ...(userId ? [{ id: userId, name: `${userName ?? "Yo"} (yo mismo)`, email: "" }] : []),
+        ...(drivers ?? []).filter((d) => d.id !== userId),
+      ]
     : userId ? [{ id: userId, name: `${userName ?? "Yo"} (yo mismo)`, email: "" }] : [];
 
   const [assignedDriverId, setAssignedDriverId] = useState(conductorOptions[0]?.id ?? "");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setError(null);
-    if (mode === "flota" && !assignedDriverId) { setError("Seleccioná un conductor de tu flota."); setLoading(false); return; }
-    if (mode === "flota" && assignedDriverId) {
+    if (isFleetOwner && !assignedDriverId) { setError("Seleccioná un conductor."); setLoading(false); return; }
+    if (isFleetOwner && assignedDriverId && assignedDriverId !== userId) {
       const conductor = conductorOptions.find((d) => d.id === assignedDriverId);
-      if (conductor && conductor.id !== userId && !conductor.is_verified && !(conductor.dni_verified && conductor.license_verified)) {
+      if (conductor && !conductor.is_verified && !(conductor.dni_verified && conductor.license_verified)) {
         setError("El conductor seleccionado no tiene todos sus documentos verificados."); setLoading(false); return;
       }
     }
     if (!precio || Number(precio) <= 0) { setError("El precio debe ser mayor a 0."); setLoading(false); return; }
     try {
       const body: Record<string, unknown> = { loadId: info.cargaId, price: precio, truckId: truckId || undefined };
-      // assignedDriverId solo aplica para dueños de flota; individual ya es el driver por defecto
-      if (mode === "flota" && assignedDriverId) body.assignedDriverId = assignedDriverId;
+      // Solo enviar assignedDriverId si es fleet owner y eligió a alguien que no es él mismo;
+      // si eligió "yo mismo", el backend ya asigna driver_id al usuario que hace la oferta
+      if (isFleetOwner && assignedDriverId && assignedDriverId !== userId) body.assignedDriverId = assignedDriverId;
       const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) { setError(data.message ?? data.error ?? "Error al enviar la oferta."); return; }
@@ -2529,20 +2533,19 @@ function ModalOfertar({ info, onClose, onEnviar, trucks, drivers, mode, userId, 
         {conductorOptions.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Conductor asignado<span style={{ color: "#ef4444", marginLeft: 2 }}>*</span></label>
-            <select value={assignedDriverId} onChange={(e) => setAssignedDriverId(e.target.value)} required disabled={mode !== "flota"} style={{ width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" as const, opacity: mode !== "flota" ? 0.75 : 1 }}>
-              {mode === "flota" && <option value="">— Seleccioná un conductor —</option>}
+            <select value={assignedDriverId} onChange={(e) => setAssignedDriverId(e.target.value)} required disabled={!isFleetOwner} style={{ width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" as const, opacity: !isFleetOwner ? 0.75 : 1 }}>
               {conductorOptions.map((d) => {
                 const verificado = d.id === userId || d.is_verified || (d.dni_verified && d.license_verified);
                 return (
                   <option key={d.id} value={d.id}>
-                    {d.name}{d.dni ? ` (DNI ${d.dni})` : ""}{!verificado ? " ⚠ sin documentos" : ""}
+                    {d.name}{d.dni ? ` (DNI ${d.dni})` : ""}{!verificado && d.id !== userId ? " ⚠ sin documentos" : ""}
                   </option>
                 );
               })}
             </select>
-            {assignedDriverId && mode === "flota" && (() => {
+            {assignedDriverId && assignedDriverId !== userId && (() => {
               const conductor = conductorOptions.find((d) => d.id === assignedDriverId);
-              const verificado = !conductor || conductor.id === userId || conductor.is_verified || (conductor.dni_verified && conductor.license_verified);
+              const verificado = !conductor || conductor.is_verified || (conductor.dni_verified && conductor.license_verified);
               return !verificado && conductor ? (
                 <p style={{ fontSize: 12, color: "#f59e0b", margin: "5px 0 0", fontWeight: 500 }}>⚠ Este conductor no tiene DNI y registro de conducir verificados.</p>
               ) : null;
@@ -3080,9 +3083,10 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
     localStorage.setItem("transportista-theme", next);
   };
 
-  const userName  = session?.user?.name  ?? "Usuario";
-  const userEmail = session?.user?.email ?? "";
-  const userId    = session?.user?.id    ?? "";
+  const userName      = session?.user?.name        ?? "Usuario";
+  const userEmail     = session?.user?.email       ?? "";
+  const userId        = session?.user?.id          ?? "";
+  const isFleetOwner  = session?.user?.isFleetOwner ?? false;
   const initials  = userName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
   const primerNombre = userName.split(" ")[0];
   const [ofertasBadge, setOfertasBadge] = useState(0);
@@ -3196,7 +3200,7 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} mode={mode} />}
       </div>
 
-      {modalOferta && <ModalOfertar info={modalOferta} trucks={trucks} drivers={rootDrivers} mode={mode} userId={userId} userName={userName} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}
+      {modalOferta && <ModalOfertar info={modalOferta} trucks={trucks} drivers={rootDrivers} mode={mode} userId={userId} userName={userName} isFleetOwner={isFleetOwner} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}
       {toast && <Toast mensaje={toast} onClose={() => setToast(null)} />}
     </div>
     {showOnboarding && (
