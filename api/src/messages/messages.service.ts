@@ -65,6 +65,7 @@ export class MessagesService {
   async sendMessage(
     userId: string,
     body: { offer_id: string; content: string },
+    gateway?: import('./messages.gateway').MessagesGateway,
   ) {
     await this.assertAccess(userId, body.offer_id);
     const msg = this.messagesRepo.create({
@@ -72,7 +73,16 @@ export class MessagesService {
       sender_id: userId,
       content: body.content.trim(),
     });
-    return this.messagesRepo.save(msg);
+    const saved = await this.messagesRepo.save(msg);
+
+    const sender = await this.usersRepo.findOne({
+      where: { id: userId },
+      select: ['id', 'name'],
+    });
+    const payload = { ...saved, sender_name: sender?.name ?? undefined };
+    gateway?.emitNewMessage(body.offer_id, payload);
+
+    return saved;
   }
 
   async getConversations(userId: string) {
