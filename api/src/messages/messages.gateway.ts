@@ -19,7 +19,7 @@ import { User } from '../entities/user.entity';
 
 @WebSocketGateway({
   namespace: 'messages',
-  cors: { origin: '*', credentials: true },
+  cors: { origin: process.env['FRONTEND_URL'] ?? 'http://localhost:3000', credentials: true },
 })
 export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
