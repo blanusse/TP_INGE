@@ -2491,7 +2491,9 @@ function ModalOfertar({ info, onClose, onEnviar, trucks, drivers, mode, userId, 
   const diff = isNaN(diferencia) ? 0 : diferencia;
 
   // Fleet owners see the full driver selector (including themselves); individuals see a fixed "yo mismo"
-  const conductorOptions: Driver[] = isFleetOwner
+  // Also fallback to mode="flota" in case isFleetOwner isn't yet in the session token
+  const isFleet = isFleetOwner || mode === "flota";
+  const conductorOptions: Driver[] = isFleet
     ? [
         ...(userId ? [{ id: userId, name: `${userName ?? "Yo"} (yo mismo)`, email: "" }] : []),
         ...(drivers ?? []).filter((d) => d.id !== userId),
@@ -2502,8 +2504,8 @@ function ModalOfertar({ info, onClose, onEnviar, trucks, drivers, mode, userId, 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setError(null);
-    if (isFleetOwner && !assignedDriverId) { setError("Seleccioná un conductor."); setLoading(false); return; }
-    if (isFleetOwner && assignedDriverId && assignedDriverId !== userId) {
+    if (isFleet && !assignedDriverId) { setError("Seleccioná un conductor."); setLoading(false); return; }
+    if (isFleet && assignedDriverId && assignedDriverId !== userId) {
       const conductor = conductorOptions.find((d) => d.id === assignedDriverId);
       if (conductor && !conductor.is_verified && !(conductor.dni_verified && conductor.license_verified)) {
         setError("El conductor seleccionado no tiene todos sus documentos verificados."); setLoading(false); return;
@@ -2514,7 +2516,7 @@ function ModalOfertar({ info, onClose, onEnviar, trucks, drivers, mode, userId, 
       const body: Record<string, unknown> = { loadId: info.cargaId, price: precio, truckId: truckId || undefined };
       // Solo enviar assignedDriverId si es fleet owner y eligió a alguien que no es él mismo;
       // si eligió "yo mismo", el backend ya asigna driver_id al usuario que hace la oferta
-      if (isFleetOwner && assignedDriverId && assignedDriverId !== userId) body.assignedDriverId = assignedDriverId;
+      if (isFleet && assignedDriverId && assignedDriverId !== userId) body.assignedDriverId = assignedDriverId;
       const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) { setError(data.message ?? data.error ?? "Error al enviar la oferta."); return; }
@@ -2533,7 +2535,7 @@ function ModalOfertar({ info, onClose, onEnviar, trucks, drivers, mode, userId, 
         {conductorOptions.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Conductor asignado<span style={{ color: "#ef4444", marginLeft: 2 }}>*</span></label>
-            <select value={assignedDriverId} onChange={(e) => setAssignedDriverId(e.target.value)} required disabled={!isFleetOwner} style={{ width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" as const, opacity: !isFleetOwner ? 0.75 : 1 }}>
+            <select value={assignedDriverId} onChange={(e) => setAssignedDriverId(e.target.value)} required disabled={!isFleet} style={{ width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" as const, opacity: !isFleet ? 0.75 : 1 }}>
               {conductorOptions.map((d) => {
                 const verificado = d.id === userId || d.is_verified || (d.dni_verified && d.license_verified);
                 return (
