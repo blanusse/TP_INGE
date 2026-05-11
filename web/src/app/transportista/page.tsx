@@ -2733,9 +2733,11 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={toggleTheme} title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"} style={{ width: 30, height: 30, borderRadius: 6, background: "var(--bg2)", border: "1px solid var(--border2)", color: "var(--text1)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <i className={theme === "dark" ? "fa-solid fa-sun" : "fa-solid fa-moon"} />
-          </button>
+          {!isMobile && (
+            <button onClick={toggleTheme} title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"} style={{ width: 30, height: 30, borderRadius: 6, background: "var(--bg2)", border: "1px solid var(--border2)", color: "var(--text1)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <i className={theme === "dark" ? "fa-solid fa-sun" : "fa-solid fa-moon"} />
+            </button>
+          )}
           <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text1)" }}>{primerNombre}</span>
           <button onClick={() => setNavActivo("Mi perfil")} title="Ver mi perfil" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "var(--green)", cursor: "pointer" }}>{initials}</button>
         </div>
@@ -2755,6 +2757,11 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
               </button>
             );
           })}
+          <div style={{ borderTop: "1px solid var(--border)", margin: "8px 0" }} />
+          <button onClick={() => { toggleTheme(); setMobileMenuOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 24px", background: "transparent", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 15, fontWeight: 400, fontFamily: "inherit" }}>
+            <i className={theme === "dark" ? "fa-solid fa-sun" : "fa-solid fa-moon"} style={{ fontSize: 14, width: 16 }} />
+            {theme === "dark" ? "Modo claro" : "Modo oscuro"}
+          </button>
         </div>
       )}
 

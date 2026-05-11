@@ -2246,14 +2246,16 @@ export default function DadorDashboard() {
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            suppressHydrationWarning
-            onClick={toggleDark}
-            title={darkMode ? "Modo claro" : "Modo oscuro"}
-            style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: darkMode === false ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
-          >
-            <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: darkMode === false ? "#374151" : "rgba(255,255,255,0.7)" }} />
-          </button>
+          {!isMobile && (
+            <button
+              suppressHydrationWarning
+              onClick={toggleDark}
+              title={darkMode ? "Modo claro" : "Modo oscuro"}
+              style={{ width: 36, height: 36, borderRadius: 8, background: "transparent", border: darkMode === false ? "1px solid #d1d5db" : "1px solid rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}
+            >
+              <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16, color: darkMode === false ? "#374151" : "rgba(255,255,255,0.7)" }} />
+            </button>
+          )}
           <button
             onClick={() => {
               if (dniVerificado === false) {
@@ -2292,6 +2294,15 @@ export default function DadorDashboard() {
               </button>
             );
           })}
+          <div style={{ borderTop: darkMode === false ? "1px solid #e5e7eb" : "1px solid rgba(255,255,255,0.1)", margin: "8px 0" }} />
+          <button
+            suppressHydrationWarning
+            onClick={() => { toggleDark(); setMobileMenuOpen(false); }}
+            style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 24px", background: "transparent", border: "none", cursor: "pointer", color: darkMode === false ? "#374151" : "rgba(255,255,255,0.75)", fontSize: 15, fontWeight: 400, fontFamily: "var(--font-ibm-plex), sans-serif" }}
+          >
+            <FontAwesomeIcon suppressHydrationWarning icon={darkMode ? faSun : faMoon} style={{ width: 16, height: 16 }} />
+            {darkMode ? "Modo claro" : "Modo oscuro"}
+          </button>
         </div>
       )}
 
