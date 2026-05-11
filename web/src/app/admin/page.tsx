@@ -90,16 +90,7 @@ const STATUS_COLOR: Record<string, string> = {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AdminPage() {
-  const [secret, setSecret] = React.useState("");
-  const [input, setInput] = React.useState("");
-  const [secretError, setSecretError] = React.useState("");
   const [tab, setTab] = React.useState<AdminTab>("usuarios");
-
-  function handleLogout() {
-    signOut({ callbackUrl: "/login" });
-  }
-
-  const needsSecret = tab === "retiros" || tab === "reportes";
 
   return (
     <div style={{ minHeight: "100vh", background: "#f3f4f6", padding: "32px 24px" }}>
@@ -108,7 +99,7 @@ export default function AdminPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#111827" }}>Panel de Admin</div>
           <button
-            onClick={handleLogout}
+            onClick={() => signOut({ callbackUrl: "/login" })}
             style={{ background: "none", border: "1px solid #d1d5db", borderRadius: 8, padding: "7px 16px", fontSize: 13, color: "#6b7280", cursor: "pointer" }}
           >
             Cerrar sesión
@@ -139,30 +130,9 @@ export default function AdminPage() {
         </div>
 
         {tab === "usuarios" && <SeccionUsuarios />}
-        {tab === "audit" && <SeccionAuditLog />}
-
-        {needsSecret && !secret && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0" }}>
-            <form onSubmit={(e) => { e.preventDefault(); setSecret(input.trim()); }} style={{ background: "#fff", padding: 36, borderRadius: 12, boxShadow: "0 2px 16px #0001", minWidth: 300 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#3a806b", marginBottom: 8 }}>Contraseña de operaciones</div>
-              <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>Esta sección requiere la clave interna de administrador.</div>
-              <input
-                type="password"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Contraseña"
-                autoFocus
-                style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 15, marginBottom: 12, boxSizing: "border-box" }}
-              />
-              {secretError && <div style={{ color: "#ef4444", fontSize: 13, marginBottom: 10 }}>{secretError}</div>}
-              <button type="submit" style={{ width: "100%", background: "#3a806b", color: "#fff", border: "none", borderRadius: 8, padding: "11px 0", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
-                Ingresar
-              </button>
-            </form>
-          </div>
-        )}
-        {tab === "retiros"  && secret && <SeccionRetiros  secret={secret} onAuthError={() => { setSecretError("Contraseña incorrecta."); setSecret(""); }} />}
-        {tab === "reportes" && secret && <SeccionReportes secret={secret} />}
+        {tab === "retiros"  && <SeccionRetiros />}
+        {tab === "reportes" && <SeccionReportes />}
+        {tab === "audit"    && <SeccionAuditLog />}
       </div>
     </div>
   );
@@ -170,29 +140,23 @@ export default function AdminPage() {
 
 // ─── Retiros Section ──────────────────────────────────────────────────────────
 
-function SeccionRetiros({ secret, onAuthError }: { secret: string; onAuthError: () => void }) {
+function SeccionRetiros() {
   const [payouts, setPayouts] = React.useState<Payout[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const [marking, setMarking] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    fetch("/api/admin/payouts", { headers: { "x-internal-secret": secret } })
-      .then((r) => {
-        if (r.status === 401) { onAuthError(); return null; }
-        return r.json();
-      })
-      .then((d) => { if (d) setPayouts(d); })
+    fetch("/api/admin/payouts")
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d)) setPayouts(d); })
       .catch(() => setError("Error al cargar los retiros."))
       .finally(() => setLoading(false));
-  }, [secret]);
+  }, []);
 
   async function markPaid(id: string) {
     setMarking(id);
-    const res = await fetch(`/api/admin/payouts/${id}/mark-paid`, {
-      method: "POST",
-      headers: { "x-internal-secret": secret },
-    });
+    const res = await fetch(`/api/admin/payouts/${id}/mark-paid`, { method: "POST" });
     if (res.ok) {
       setPayouts((prev) =>
         prev.map((p) => (p.id === id ? { ...p, payout_status: "done" } : p))
@@ -295,25 +259,25 @@ function SeccionRetiros({ secret, onAuthError }: { secret: string; onAuthError: 
 
 // ─── Reportes Section ─────────────────────────────────────────────────────────
 
-function SeccionReportes({ secret }: { secret: string }) {
+function SeccionReportes() {
   const [reports, setReports] = React.useState<ReportData[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [filter, setFilter] = React.useState<string>("pending");
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    fetch("/api/admin/reports", { headers: { "x-internal-secret": secret } })
+    fetch("/api/admin/reports")
       .then((r) => r.json())
       .then((d) => { if (Array.isArray(d)) setReports(d); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [secret]);
+  }, []);
 
   async function handleAction(reportId: string, body: { status?: string; admin_action?: string; admin_notes?: string }) {
     setActionLoading(reportId);
     const res = await fetch(`/api/admin/reports/${reportId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-internal-secret": secret },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     if (res.ok) {

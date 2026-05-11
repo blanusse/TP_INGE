@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:3001";
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET ?? "";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   const { id } = await params;
   const body = await req.json();
   const res = await fetch(`${BACKEND_URL}/reports/admin/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
-      "x-internal-secret": process.env.INTERNAL_SECRET ?? "",
+      "x-internal-secret": INTERNAL_SECRET,
     },
     body: JSON.stringify(body),
   });
