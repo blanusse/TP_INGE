@@ -29,7 +29,7 @@ import { AdminModule } from './admin/admin.module';
         type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
-        synchronize: process.env.NODE_ENV !== 'production',
+        synchronize: true,
       }),
       inject: [ConfigService],
     }),
