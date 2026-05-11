@@ -1,9 +1,19 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { ServerOptions } from 'socket.io';
 import { join } from 'path';
 import * as jwt from 'jsonwebtoken';
 import { AppModule } from './app.module';
+
+class WsAdapter extends IoAdapter {
+  createIOServer(port: number, options?: ServerOptions) {
+    return super.createIOServer(port, {
+      ...options,
+      cors: { origin: '*' },
+    });
+  }
+}
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -29,7 +39,7 @@ async function bootstrap() {
   });
   app.useStaticAssets(uploadsPath, { prefix: '/uploads' });
 
-  app.useWebSocketAdapter(new IoAdapter(app));
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
