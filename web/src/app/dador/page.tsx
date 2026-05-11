@@ -1,9 +1,10 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { io } from "socket.io-client";
 
 const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
 import { signOut, useSession } from "next-auth/react";
@@ -851,35 +852,43 @@ function ModalCalificarCamionero({ offerId, driverName, driverId, onClose }: { o
 interface MensajeChat { id: string; senderId: string; texto: string; hora: string; }
 
 function ChatInline({ sel, userId }: { sel: OfertaSeleccionada; userId: string }) {
+  const { data: session } = useSession();
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
   const [texto, setTexto]       = useState("");
   const [enviando, setEnviando] = useState(false);
-  const listRef = React.useRef<HTMLDivElement>(null);
-  const mensajesCountRef = React.useRef(0);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    mensajesCountRef.current = 0;
-    const fetchMensajes = () => {
-      fetch(`/api/messages?offerId=${sel.offerId}`)
-        .then((r) => r.json())
-        .then((d) => {
-          if (d.messages) {
-            const nuevos = d.messages.map((m: { id: string; sender_id: string; content: string; created_at: string }) => ({
-              id: m.id, senderId: m.sender_id, texto: m.content, hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "",
-            }));
-            setMensajes(nuevos);
-            if (nuevos.length > mensajesCountRef.current) {
-              mensajesCountRef.current = nuevos.length;
-              setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
-            }
-          }
-        })
-        .catch(() => {});
-    };
-    fetchMensajes();
-    const interval = setInterval(fetchMensajes, 4000);
-    return () => clearInterval(interval);
-  }, [sel.offerId]);
+  useEffect(() => {
+    const mapMsg = (m: { id: string; sender_id: string; content: string; created_at: string }) => ({
+      id: m.id, senderId: m.sender_id, texto: m.content,
+      hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "",
+    });
+
+    fetch(`/api/messages?offerId=${sel.offerId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.messages) {
+          setMensajes(d.messages.map(mapMsg));
+          setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
+        }
+      })
+      .catch(() => {});
+
+    const token = session?.backendToken;
+    if (!token) return;
+
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
+    const socket = io(`${backendUrl}/messages`, { auth: { token }, transports: ["websocket"] });
+
+    socket.on("connect", () => { socket.emit("join", sel.offerId); });
+    socket.on("new_message", (msg: { id: string; sender_id: string; content: string; created_at: string }) => {
+      const m = mapMsg(msg);
+      setMensajes((prev) => prev.some((p) => p.id === m.id) ? prev : [...prev, m]);
+      setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
+    });
+
+    return () => { socket.disconnect(); };
+  }, [sel.offerId, session?.backendToken]);
 
   const enviar = async () => {
     if (!texto.trim() || enviando) return;

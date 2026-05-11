@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { io } from "socket.io-client";
 
 const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
 import { signOut, useSession } from "next-auth/react";
@@ -790,11 +791,11 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
   const ruta = partes[1] ?? t.titulo;
   const [or, dest] = ruta.split(" → ");
 
+  const { data: session } = useSession();
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
-  const mensajesCountRef = useRef(0);
   const [showPerfil, setShowPerfil] = useState(false);
   const [showReportar, setShowReportar] = useState(false);
 
@@ -814,26 +815,36 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
   }
 
   useEffect(() => {
-    mensajesCountRef.current = 0;
-    const fetchMensajes = () => {
-      fetch(`/api/messages?offerId=${t.offerId}`)
-        .then((r) => r.json())
-        .then((d) => {
-          if (d.messages) {
-            const nuevos = d.messages.map((m: { id: string; sender_id: string; content: string; created_at: string }) => ({ id: m.id, senderId: m.sender_id, texto: m.content, hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "" }));
-            setMensajes(nuevos);
-            if (nuevos.length > mensajesCountRef.current) {
-              mensajesCountRef.current = nuevos.length;
-              setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
-            }
-          }
-        })
-        .catch(() => {});
-    };
-    fetchMensajes();
-    const interval = setInterval(fetchMensajes, 4000);
-    return () => clearInterval(interval);
-  }, [t.offerId]);
+    const mapMsg = (m: { id: string; sender_id: string; content: string; created_at: string }) => ({
+      id: m.id, senderId: m.sender_id, texto: m.content,
+      hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "",
+    });
+
+    fetch(`/api/messages?offerId=${t.offerId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.messages) {
+          setMensajes(d.messages.map(mapMsg));
+          setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
+        }
+      })
+      .catch(() => {});
+
+    const token = session?.backendToken;
+    if (!token) return;
+
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
+    const socket = io(`${backendUrl}/messages`, { auth: { token }, transports: ["websocket"] });
+
+    socket.on("connect", () => { socket.emit("join", t.offerId); });
+    socket.on("new_message", (msg: { id: string; sender_id: string; content: string; created_at: string }) => {
+      const m = mapMsg(msg);
+      setMensajes((prev) => prev.some((p) => p.id === m.id) ? prev : [...prev, m]);
+      setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
+    });
+
+    return () => { socket.disconnect(); };
+  }, [t.offerId, session?.backendToken]);
 
   const enviar = async () => {
     if (!texto.trim() || enviando) return;
