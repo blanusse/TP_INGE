@@ -11,7 +11,7 @@ import { signOut, useSession } from "next-auth/react";
 import ModalPerfilPublico from "@/app/_components/ModalPerfilPublico";
 import ModalReportar from "@/app/_components/ModalReportar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBoxOpen, faClockRotateLeft, faFileInvoiceDollar, faHouse, faTruckFast, faSun, faMoon } from "@fortawesome/free-solid-svg-icons";
+import { faBoxOpen, faClockRotateLeft, faFileInvoiceDollar, faHouse, faTruckFast, faSun, faMoon, faShieldHalved } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 // ── Datos ────────────────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Inicio" | "Mis cargas" | "Mis envios" | "Historial" | "Facturación" | "Mi perfil";
+type NavItem = "Inicio" | "Mis cargas" | "Mis envios" | "Historial" | "Facturación" | "Seguros" | "Mi perfil";
 type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tránsito";
 
 interface Oferta { id: number; offerId: string; driverId?: string | null; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
@@ -1647,6 +1647,343 @@ function SeccionFacturacion() {
   );
 }
 
+// ── Sección Seguros ───────────────────────────────────────────────────────────
+
+interface InsurancePolicy {
+  id: string;
+  declared_value: number;
+  premium: number;
+  cargo_type: string;
+  pickup_city: string;
+  dropoff_city: string;
+  distance_km: number | null;
+  status: string;
+  provider: string;
+  coverage_ends_at: string;
+  created_at: string;
+}
+
+interface InsuranceQuote {
+  quote_id: string;
+  premium: number;
+  coverage_amount: number;
+  provider_name: string;
+  coverage_days: number;
+  details: string[];
+}
+
+const CARGO_TYPE_LABELS: Record<string, string> = {
+  electrodomesticos: "Electrodomésticos",
+  maquinaria: "Maquinaria",
+  alimentos: "Alimentos",
+  granos: "Granos",
+  materiales_construccion: "Materiales de construcción",
+  quimicos: "Químicos",
+  textil: "Textil",
+  otro: "Otro",
+};
+
+function ModalSeguro({
+  onClose,
+  onContratado,
+}: {
+  onClose: () => void;
+  onContratado: () => void;
+}) {
+  const [step, setStep] = useState<"form" | "quote" | "done">("form");
+  const [form, setForm] = useState({
+    declared_value: "",
+    cargo_type: "otro",
+    pickup_city: "",
+    dropoff_city: "",
+    distance_km: "",
+  });
+  const [quote, setQuote] = useState<InsuranceQuote | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const cotizar = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/insurance/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          declared_value: Number(form.declared_value),
+          cargo_type: form.cargo_type,
+          pickup_city: form.pickup_city,
+          dropoff_city: form.dropoff_city,
+          distance_km: form.distance_km ? Number(form.distance_km) : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Error al cotizar");
+      setQuote(data);
+      setStep("quote");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al cotizar");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const contratar = async () => {
+    if (!quote) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/insurance/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          declared_value: Number(form.declared_value),
+          cargo_type: form.cargo_type,
+          pickup_city: form.pickup_city,
+          dropoff_city: form.dropoff_city,
+          distance_km: form.distance_km ? Number(form.distance_km) : undefined,
+          quote_id: quote.quote_id,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Error al contratar");
+      setStep("done");
+      onContratado();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al contratar");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "9px 12px",
+    borderRadius: 8,
+    border: "0.5px solid var(--color-border-secondary)",
+    background: "var(--color-background-primary)",
+    color: "var(--color-text-primary)",
+    fontSize: 14,
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ background: "var(--color-background-secondary)", borderRadius: 14, padding: 28, width: "100%", maxWidth: 440, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+        {step === "form" && (
+          <>
+            <div style={{ fontSize: 17, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>Cotizar seguro de carga</div>
+            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>Completá los datos del envío para obtener tu cotización.</div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>Valor declarado de la mercadería (ARS)</label>
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="Ej: 500000"
+                  value={form.declared_value}
+                  onChange={(e) => setForm({ ...form, declared_value: e.target.value })}
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>Tipo de carga</label>
+                <select value={form.cargo_type} onChange={(e) => setForm({ ...form, cargo_type: e.target.value })} style={inputStyle}>
+                  {Object.entries(CARGO_TYPE_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>Ciudad de origen</label>
+                  <input type="text" placeholder="Ej: Buenos Aires" value={form.pickup_city} onChange={(e) => setForm({ ...form, pickup_city: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>Ciudad de destino</label>
+                  <input type="text" placeholder="Ej: Rosario" value={form.dropoff_city} onChange={(e) => setForm({ ...form, dropoff_city: e.target.value })} style={inputStyle} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>Distancia aproximada (km, opcional)</label>
+                <input type="number" min={1} placeholder="Ej: 300" value={form.distance_km} onChange={(e) => setForm({ ...form, distance_km: e.target.value })} style={inputStyle} />
+              </div>
+            </div>
+
+            {error && <div style={{ marginTop: 12, fontSize: 13, color: "#ef4444" }}>{error}</div>}
+
+            <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+              <button onClick={onClose} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", fontSize: 14, cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button
+                onClick={cotizar}
+                disabled={loading || !form.declared_value || !form.pickup_city || !form.dropoff_city}
+                style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: loading || !form.declared_value || !form.pickup_city || !form.dropoff_city ? 0.6 : 1 }}
+              >
+                {loading ? "Cotizando..." : "Ver cotización"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === "quote" && quote && (
+          <>
+            <div style={{ fontSize: 17, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>{quote.provider_name}</div>
+            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>
+              {form.pickup_city} → {form.dropoff_city} · {CARGO_TYPE_LABELS[form.cargo_type] ?? form.cargo_type}
+            </div>
+
+            <div style={{ background: "var(--color-background-primary)", borderRadius: 10, padding: 18, marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 4 }}>Prima del seguro</div>
+              <div style={{ fontSize: 32, fontWeight: 700, color: "var(--color-brand)" }}>${quote.premium.toLocaleString("es-AR")}</div>
+              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 2 }}>
+                Cubre hasta ${quote.coverage_amount.toLocaleString("es-AR")} · {quote.coverage_days} días
+              </div>
+            </div>
+
+            <ul style={{ margin: "0 0 18px 0", padding: "0 0 0 18px", listStyle: "disc" }}>
+              {quote.details.map((d, i) => (
+                <li key={i} style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 5 }}>{d}</li>
+              ))}
+            </ul>
+
+            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 18, padding: "10px 12px", background: "rgba(255,200,50,0.08)", borderRadius: 8, border: "0.5px solid rgba(255,200,50,0.2)" }}>
+              Póliza simulada — no tiene validez legal. CargaBack integrará un proveedor de seguros certificado en una próxima versión.
+            </div>
+
+            {error && <div style={{ marginBottom: 12, fontSize: 13, color: "#ef4444" }}>{error}</div>}
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setStep("form")} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", fontSize: 14, cursor: "pointer" }}>
+                Modificar
+              </button>
+              <button
+                onClick={contratar}
+                disabled={loading}
+                style={{ flex: 2, padding: "9px 0", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: loading ? 0.6 : 1 }}
+              >
+                {loading ? "Contratando..." : "Contratar seguro"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === "done" && (
+          <>
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              <div style={{ fontSize: 44, marginBottom: 12 }}>🛡️</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 8 }}>¡Seguro contratado!</div>
+              <div style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 24 }}>
+                Tu póliza está activa. Podés verla en la sección Seguros.
+              </div>
+              <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                Cerrar
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SeccionSeguros() {
+  const [polizas, setPolizas] = useState<InsurancePolicy[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalAbierto, setModalAbierto] = useState(false);
+
+  const cargarPolizas = () => {
+    setLoading(true);
+    fetch("/api/insurance/policies")
+      .then((r) => r.json())
+      .then((d) => setPolizas(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { cargarPolizas(); }, []);
+
+  const statusColor = (s: string) =>
+    s === "active" ? { bg: "rgba(22,163,74,0.1)", text: "#16a34a" }
+    : s === "claimed" ? { bg: "rgba(234,88,12,0.1)", text: "#ea580c" }
+    : { bg: "rgba(107,114,128,0.1)", text: "#6b7280" };
+
+  const statusLabel = (s: string) =>
+    s === "active" ? "Activa" : s === "claimed" ? "Siniestro" : "Vencida";
+
+  return (
+    <main style={{ padding: 20, flex: 1 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)" }}>Mis seguros de carga</div>
+        <button
+          onClick={() => setModalAbierto(true)}
+          style={{ fontSize: 13, padding: "7px 16px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, cursor: "pointer" }}
+        >
+          + Cotizar seguro
+        </button>
+      </div>
+
+      {!loading && polizas.length === 0 && (
+        <div style={{ textAlign: "center", padding: 48, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-tertiary)" }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🛡️</div>
+          <div style={{ fontWeight: 500, marginBottom: 6 }}>Sin pólizas activas</div>
+          <div>Contratá un seguro para proteger tu mercadería durante el transporte.</div>
+        </div>
+      )}
+
+      {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+
+      {!loading && polizas.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {polizas.map((p) => {
+            const sc = statusColor(p.status);
+            const fecha = new Date(p.created_at).toLocaleDateString("es-AR");
+            const vence = new Date(p.coverage_ends_at).toLocaleDateString("es-AR");
+            return (
+              <div key={p.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, padding: "16px 18px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>
+                      {p.pickup_city} → {p.dropoff_city}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
+                      {CARGO_TYPE_LABELS[p.cargo_type] ?? p.cargo_type} · Emitida el {fecha}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: sc.bg, color: sc.text }}>
+                    {statusLabel(p.status)}
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                  {[
+                    ["Prima pagada", `$${Number(p.premium).toLocaleString("es-AR")}`],
+                    ["Valor asegurado", `$${Number(p.declared_value).toLocaleString("es-AR")}`],
+                    ["Vence", vence],
+                  ].map(([label, val]) => (
+                    <div key={label}>
+                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {modalAbierto && (
+        <ModalSeguro
+          onClose={() => setModalAbierto(false)}
+          onContratado={() => { setModalAbierto(false); cargarPolizas(); }}
+        />
+      )}
+    </main>
+  );
+}
+
 // ── Sección Perfil ────────────────────────────────────────────────────────────
 
 interface DadorStats { totalCargas: number; enTransito: number; memberSince: string; calificacionPromedio: number | null; tipo: string | null; phone: string | null; dni: string | null; razonSocial: string | null; cuit: string | null; address: string | null; }
@@ -2186,6 +2523,7 @@ const NAV_ITEMS: { item: NavItem; icon: IconDefinition }[] = [
   { item: "Mis envios",   icon: faTruckFast },
   { item: "Historial",    icon: faClockRotateLeft },
   { item: "Facturación",  icon: faFileInvoiceDollar },
+  { item: "Seguros",      icon: faShieldHalved },
 ];
 
 export default function DadorDashboard() {
@@ -2365,6 +2703,7 @@ export default function DadorDashboard() {
         {navActivo === "Mis envios" && <SeccionMisEnvios cargas={cargas} onRefresh={fetchCargas} userId={userId} />}
         {navActivo === "Historial" && <SeccionHistorial />}
         {navActivo === "Facturación" && <SeccionFacturacion />}
+        {navActivo === "Seguros" && <SeccionSeguros />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>
 
