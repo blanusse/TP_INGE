@@ -6,9 +6,10 @@ import { Offer } from '../entities/offer.entity';
 import { User } from '../entities/user.entity';
 import { LoadsController } from './loads.controller';
 import { LoadsService } from './loads.service';
+import { AlertsModule } from '../alerts/alerts.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Load, Shipper, Offer, User])],
+  imports: [TypeOrmModule.forFeature([Load, Shipper, Offer, User]), AlertsModule],
   controllers: [LoadsController],
   providers: [LoadsService],
   exports: [LoadsService],
