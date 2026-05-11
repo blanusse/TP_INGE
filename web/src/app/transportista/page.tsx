@@ -833,17 +833,24 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
     const token = session?.backendToken;
     if (!token) return;
 
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
-    const socket = io(`${backendUrl}/messages`, { auth: { token }, transports: ["websocket"] });
+    let disposed = false;
+    let socket: ReturnType<typeof io> | null = null;
 
-    socket.on("connect", () => { socket.emit("join", t.offerId); });
-    socket.on("new_message", (msg: { id: string; sender_id: string; content: string; created_at: string }) => {
-      const m = mapMsg(msg);
-      setMensajes((prev) => prev.some((p) => p.id === m.id) ? prev : [...prev, m]);
-      setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
-    });
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then(({ backendUrl }: { backendUrl: string }) => {
+        if (disposed) return;
+        socket = io(`${backendUrl}/messages`, { auth: { token } });
+        socket.on("connect", () => { socket?.emit("join", t.offerId); });
+        socket.on("new_message", (msg: { id: string; sender_id: string; content: string; created_at: string }) => {
+          const m = mapMsg(msg);
+          setMensajes((prev) => prev.some((p) => p.id === m.id) ? prev : [...prev, m]);
+          setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
+        });
+      })
+      .catch(() => {});
 
-    return () => { socket.disconnect(); };
+    return () => { disposed = true; socket?.disconnect(); };
   }, [t.offerId, session?.backendToken]);
 
   const enviar = async () => {
