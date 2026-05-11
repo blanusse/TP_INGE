@@ -843,8 +843,9 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
         socket = io(`${backendUrl}/messages`, { auth: { token } });
         socket.on("connect", () => { socket?.emit("join", t.offerId); });
         socket.on("new_message", (msg: { id: string; sender_id: string; content: string; created_at: string }) => {
+          if (msg.sender_id === userId) return;
           const m = mapMsg(msg);
-          setMensajes((prev) => prev.some((p) => p.id === m.id) ? prev : [...prev, m]);
+          setMensajes((prev) => [...prev, m]);
           setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
         });
       })
@@ -858,7 +859,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
     setEnviando(true);
     try {
       const res = await fetch("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offerId: t.offerId, content: texto.trim() }) });
-      if (res.ok) { const data = await res.json(); const m = data.message; setMensajes((prev) => prev.some((p) => p.id === m.id) ? prev : [...prev, { id: m.id, senderId: m.sender_id, texto: m.content, hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "" }]); setTexto(""); setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50); }
+      if (res.ok) { const data = await res.json(); const m = data.message; setMensajes((prev) => [...prev, { id: m.id, senderId: m.sender_id, texto: m.content, hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "" }]); setTexto(""); setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50); }
     } finally { setEnviando(false); }
   };
 
