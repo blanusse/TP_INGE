@@ -44,6 +44,18 @@ export class InsuranceService {
     return this.productsRepo.save(product);
   }
 
+  async updateProduct(
+    role: string,
+    id: string,
+    body: Partial<{ name: string; insurer: string; coverage_type: string; price: number; conditions: string; is_active: boolean }>,
+  ) {
+    if (role !== 'admin') throw new ForbiddenException('Solo administradores.');
+    const product = await this.productsRepo.findOne({ where: { id } });
+    if (!product) throw new NotFoundException('Seguro no encontrado.');
+    Object.assign(product, body);
+    return this.productsRepo.save(product);
+  }
+
   async deleteProduct(role: string, id: string) {
     if (role !== 'admin') throw new ForbiddenException('Solo administradores.');
     const product = await this.productsRepo.findOne({ where: { id } });

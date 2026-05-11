@@ -771,6 +771,10 @@ function SeccionSegurosAdmin() {
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [feedback, setFeedback] = React.useState<string | null>(null);
   const [deleting, setDeleting] = React.useState<string | null>(null);
+  const [editing, setEditing] = React.useState<InsuranceProduct | null>(null);
+  const [editForm, setEditForm] = React.useState(EMPTY_FORM);
+  const [editSaving, setEditSaving] = React.useState(false);
+  const [editErrors, setEditErrors] = React.useState<Record<string, string>>({});
 
   const cargar = () => {
     setLoading(true);
@@ -823,6 +827,49 @@ function SeccionSegurosAdmin() {
     } finally {
       setDeleting(null);
     }
+  };
+
+  const abrirEdicion = (p: InsuranceProduct) => {
+    setEditing(p);
+    setEditForm({ name: p.name, insurer: p.insurer, coverage_type: p.coverage_type, price: String(p.price), conditions: p.conditions });
+    setEditErrors({});
+  };
+
+  const guardarEdicion = async () => {
+    const errs: Record<string, string> = {};
+    if (!editForm.name.trim()) errs.name = "El nombre es obligatorio.";
+    if (!editForm.insurer.trim()) errs.insurer = "La aseguradora es obligatoria.";
+    if (!editForm.price || isNaN(Number(editForm.price)) || Number(editForm.price) <= 0) errs.price = "El precio debe ser mayor a 0.";
+    if (!editForm.conditions.trim()) errs.conditions = "Las condiciones son obligatorias.";
+    setEditErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/insurance/products/${editing!.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...editForm, price: Number(editForm.price) }),
+      });
+      if (!res.ok) throw new Error();
+      setEditing(null);
+      setFeedback("Seguro actualizado correctamente.");
+      cargar();
+    } catch {
+      setFeedback("Error al actualizar. Intenta de nuevo.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const reactivar = async (id: string) => {
+    try {
+      await fetch(`/api/insurance/products/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: true }),
+      });
+      cargar();
+    } catch {}
   };
 
   const inputStyle: React.CSSProperties = {
@@ -895,14 +942,67 @@ function SeccionSegurosAdmin() {
                   <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>{p.insurer} · {p.coverage_type} · <strong style={{ color: "#111827" }}>${Number(p.price).toLocaleString("es-AR")}</strong></div>
                   <div style={{ fontSize: 13, color: "#374151", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{p.conditions}</div>
                 </div>
-                {p.is_active && (
-                  <button onClick={() => desactivar(p.id)} disabled={deleting === p.id} style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 8, border: "1px solid #fca5a5", background: "#fff5f5", color: "#ef4444", fontSize: 13, cursor: "pointer" }}>
-                    {deleting === p.id ? "..." : "Desactivar"}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+                  <button onClick={() => abrirEdicion(p)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#374151", fontSize: 13, cursor: "pointer" }}>
+                    Editar
                   </button>
-                )}
+                  {p.is_active ? (
+                    <button onClick={() => desactivar(p.id)} disabled={deleting === p.id} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #fca5a5", background: "#fff5f5", color: "#ef4444", fontSize: 13, cursor: "pointer" }}>
+                      {deleting === p.id ? "..." : "Desactivar"}
+                    </button>
+                  ) : (
+                    <button onClick={() => reactivar(p.id)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #86efac", background: "#f0fdf4", color: "#16a34a", fontSize: 13, cursor: "pointer" }}>
+                      Reactivar
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {editing && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setEditing(null)}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 28, width: "100%", maxWidth: 520, maxHeight: "90vh", overflow: "auto" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#111827", marginBottom: 20 }}>Editar seguro</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Nombre del seguro *</label>
+                <input style={{ ...inputStyle, borderColor: editErrors.name ? "#ef4444" : "#d1d5db" }} value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+                {editErrors.name && <div style={errStyle}>{editErrors.name}</div>}
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Aseguradora *</label>
+                <input style={{ ...inputStyle, borderColor: editErrors.insurer ? "#ef4444" : "#d1d5db" }} value={editForm.insurer} onChange={(e) => setEditForm({ ...editForm, insurer: e.target.value })} />
+                {editErrors.insurer && <div style={errStyle}>{editErrors.insurer}</div>}
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Tipo de cobertura *</label>
+                <select style={inputStyle} value={editForm.coverage_type} onChange={(e) => setEditForm({ ...editForm, coverage_type: e.target.value })}>
+                  {COVERAGE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Precio (ARS) *</label>
+                <input type="number" min={1} style={{ ...inputStyle, borderColor: editErrors.price ? "#ef4444" : "#d1d5db" }} value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} />
+                {editErrors.price && <div style={errStyle}>{editErrors.price}</div>}
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Condiciones *</label>
+                <textarea rows={4} style={{ ...inputStyle, resize: "vertical" as React.CSSProperties["resize"], borderColor: editErrors.conditions ? "#ef4444" : "#d1d5db" }} value={editForm.conditions} onChange={(e) => setEditForm({ ...editForm, conditions: e.target.value })} />
+                {editErrors.conditions && <div style={errStyle}>{editErrors.conditions}</div>}
+              </div>
+            </div>
+            <div style={{ marginTop: 18, display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button onClick={() => setEditing(null)} style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#374151", fontSize: 14, cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button onClick={guardarEdicion} disabled={editSaving} style={{ padding: "9px 24px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontSize: 14, fontWeight: 600, cursor: editSaving ? "not-allowed" : "pointer", opacity: editSaving ? 0.7 : 1 }}>
+                {editSaving ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>
