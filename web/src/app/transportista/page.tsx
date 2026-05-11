@@ -1119,6 +1119,8 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
 interface Conversacion {
   offerId: string;
   loadTitle: string;
+  pickupCity: string;
+  dropoffCity: string;
   otherParty: string | null;
   lastMessage: string | null;
   lastMessageAt: string | null;
@@ -1153,9 +1155,11 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
     fetch("/api/conversations")
       .then((r) => r.json())
       .then((d) => {
-        const arr: Conversacion[] = (d.conversations ?? []).map((c: { offer_id: string; load_title: string; other_party: string | null; last_message: string | null; last_message_at: string | null; unread_count: number }) => ({
+        const arr: Conversacion[] = (d.conversations ?? []).map((c: { offer_id: string; load_title: string; pickup_city: string; dropoff_city: string; other_party: string | null; last_message: string | null; last_message_at: string | null; unread_count: number }) => ({
           offerId: c.offer_id,
           loadTitle: c.load_title,
+          pickupCity: c.pickup_city ?? '',
+          dropoffCity: c.dropoff_city ?? '',
           otherParty: c.other_party,
           lastMessage: c.last_message,
           lastMessageAt: c.last_message_at,
@@ -1244,8 +1248,7 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "0.5px solid var(--border)" }}>
             <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 18, lineHeight: 1, padding: 0 }}>←</button>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text1)" }}>{selected.otherParty ?? "Dador de carga"}</div>
-              <div style={{ fontSize: 12, color: "var(--text2)" }}>{selected.loadTitle}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text1)" }}>{selected.otherParty ?? "Dador de carga"} — {selected.pickupCity} → {selected.dropoffCity}</div>
             </div>
           </div>
           {/* Chat */}
@@ -1295,7 +1298,7 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span style={{ fontSize: 14, fontWeight: c.unreadCount > 0 ? 700 : 500, color: "var(--text1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {c.otherParty ?? "Dador de carga"}
+                        {c.otherParty ?? "Dador de carga"} — {c.pickupCity} → {c.dropoffCity}
                       </span>
                       {c.lastMessageAt && (
                         <span style={{ fontSize: 11, color: "var(--text2)", flexShrink: 0, marginLeft: 8 }}>
@@ -1304,7 +1307,7 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
                       )}
                     </div>
                     <div style={{ fontSize: 12, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
-                      {c.lastMessage ?? c.loadTitle}
+                      {c.lastMessage ?? "Sin mensajes todavía"}
                     </div>
                   </div>
                   {c.unreadCount > 0 && (

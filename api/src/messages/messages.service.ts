@@ -197,6 +197,31 @@ export class MessagesService {
       unreadRaw.map((r) => [r.offer_id, parseInt(r.count)]),
     );
 
+    // Para transportistas: buscar el nombre del dador de cada carga
+    let shipperNameMap: Record<string, string> = {};
+    if (!shipper) {
+      const allShipperIds = [...new Set(loads.map((l) => l.shipper_id))];
+      if (allShipperIds.length) {
+        const shippersData = await this.shippersRepo.find({
+          where: { id: In(allShipperIds) },
+          select: ['id', 'user_id'],
+        });
+        const shipperUserIds = shippersData.map((s) => s.user_id);
+        if (shipperUserIds.length) {
+          const shipperUsers = await this.usersRepo.find({
+            where: { id: In(shipperUserIds) },
+            select: ['id', 'name'],
+          });
+          const userNameMap = Object.fromEntries(
+            shipperUsers.map((u) => [u.id, u.name]),
+          );
+          shipperNameMap = Object.fromEntries(
+            shippersData.map((s) => [s.id, userNameMap[s.user_id] ?? '']),
+          );
+        }
+      }
+    }
+
     return offers.map((offer) => {
       const load = loadMap[offer.load_id];
       const driver = driverMap[offer.driver_id];
@@ -206,7 +231,11 @@ export class MessagesService {
         load_title: load
           ? `${load.cargo_type} — ${load.pickup_city} → ${load.dropoff_city}`
           : '',
-        other_party: shipper ? driver?.name : null,
+        pickup_city: load?.pickup_city ?? '',
+        dropoff_city: load?.dropoff_city ?? '',
+        other_party: shipper
+          ? (driver?.name ?? null)
+          : (shipperNameMap[load?.shipper_id ?? ''] ?? null),
         price: offer.price,
         last_message: lastMsg?.content ?? null,
         last_message_at: lastMsg?.created_at ?? null,
