@@ -21,6 +21,11 @@ export class MessagesController {
     private messagesGateway: MessagesGateway,
   ) {}
 
+  @Get('messages/unread-count')
+  getUnreadCount(@Request() req: AuthReq) {
+    return this.messagesService.getUnreadCount(req.user.id);
+  }
+
   @Get('messages')
   getMessages(@Request() req: AuthReq, @Query('offerId') offerId: string) {
     return this.messagesService.getMessages(req.user.id, offerId);
@@ -34,10 +39,5 @@ export class MessagesController {
   @Get('conversations')
   getConversations(@Request() req: AuthReq) {
     return this.messagesService.getConversations(req.user.id);
-  }
-
-  @Get('messages/unread-count')
-  getUnreadCount(@Request() req: AuthReq) {
-    return this.messagesService.getUnreadCount(req.user.id);
   }
 }

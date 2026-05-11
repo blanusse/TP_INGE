@@ -173,7 +173,8 @@ export class MessagesService {
         .createQueryBuilder('m')
         .select(['m.offer_id', 'm.content', 'm.created_at'])
         .where('m.offer_id IN (:...ids)', { ids: offerIds })
-        .orderBy('m.created_at', 'DESC')
+        .orderBy('m.offer_id')
+        .addOrderBy('m.created_at', 'DESC')
         .distinctOn(['m.offer_id'])
         .getMany(),
       this.messagesRepo
