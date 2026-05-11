@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { apiFetch } from "@/lib/apiFetch";
 
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:3001";
 const COMMISSION_RATE = 0.10;
 const grossToNet = (gross: number) => Math.round(gross * (1 - COMMISSION_RATE) * 100) / 100;
 
 export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
   const params = new URLSearchParams();
   if (searchParams.get("cargo_type")) params.set("cargo_type", searchParams.get("cargo_type")!);
   if (searchParams.get("origin"))     params.set("origin", searchParams.get("origin")!);
 
-  const res = await fetch(`${BACKEND_URL}/loads/available?${params}`);
+  const res = await apiFetch(`/loads/available?${params}`, session.backendToken);
   const data = await res.json();
   // El transportista ve el precio neto (lo que recibirá tras la comisión del 10%)
   const loads = Array.isArray(data)
