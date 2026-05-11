@@ -1133,6 +1133,7 @@ interface MsgChat {
 }
 
 function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadge: () => void }) {
+  const { data: session } = useSession();
   const [convs, setConvs] = useState<Conversacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Conversacion | null>(null);
@@ -1140,7 +1141,13 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const mapMsg = (m: { id: string; sender_id: string; content: string; created_at: string }): MsgChat => ({
+    id: m.id,
+    senderId: m.sender_id,
+    texto: m.content,
+    hora: new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
+  });
 
   useEffect(() => {
     fetch("/api/conversations")
@@ -1160,49 +1167,66 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
       .finally(() => setLoading(false));
   }, []);
 
-  const fetchMensajes = (offerId: string) => {
+  useEffect(() => {
+    if (!selected) return;
+
+    setMensajes([]);
+    const offerId = selected.offerId;
+
     fetch(`/api/messages?offerId=${offerId}`)
       .then((r) => r.json())
       .then((d) => {
-        const msgs: MsgChat[] = (d.messages ?? []).map((m: { id: string; sender_id: string; content: string; created_at: string }) => ({
-          id: m.id,
-          senderId: m.sender_id,
-          texto: m.content,
-          hora: new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
-        }));
-        setMensajes(msgs);
-        // limpiar unread en local
+        setMensajes((d.messages ?? []).map(mapMsg));
         setConvs((prev) => prev.map((c) => c.offerId === offerId ? { ...c, unreadCount: 0 } : c));
         onClearBadge();
       })
       .catch(() => {});
-  };
 
-  const abrirConv = (conv: Conversacion) => {
-    setSelected(conv);
-    setMensajes([]);
-    fetchMensajes(conv.offerId);
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => fetchMensajes(conv.offerId), 4000);
-  };
+    const token = session?.backendToken;
+    if (!token) return;
+
+    let disposed = false;
+    let socket: ReturnType<typeof io> | null = null;
+
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then(({ backendUrl }: { backendUrl: string }) => {
+        if (disposed) return;
+        socket = io(`${backendUrl}/messages`, { auth: { token } });
+        socket.on("connect", () => { socket?.emit("join", offerId); });
+        socket.on("new_message", (msg: { id: string; sender_id: string; content: string; created_at: string }) => {
+          if (msg.sender_id === userId) return;
+          setMensajes((prev) => [...prev, mapMsg(msg)]);
+        });
+      })
+      .catch(() => {});
+
+    return () => { disposed = true; socket?.disconnect(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.offerId, session?.backendToken]);
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [mensajes]);
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
-
   const enviar = async () => {
     if (!texto.trim() || !selected || enviando) return;
     setEnviando(true);
-    await fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ offerId: selected.offerId, content: texto.trim() }),
-    });
-    setTexto("");
-    fetchMensajes(selected.offerId);
-    setEnviando(false);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ offerId: selected.offerId, content: texto.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const m = data.message;
+        setMensajes((prev) => [...prev, mapMsg(m)]);
+        setTexto("");
+      }
+    } finally {
+      setEnviando(false);
+    }
   };
 
   const wrapper: React.CSSProperties = { padding: "24px 20px", maxWidth: 760, margin: "0 auto", width: "100%" };
@@ -1218,7 +1242,7 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
         <div style={card}>
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "0.5px solid var(--border)" }}>
-            <button onClick={() => { setSelected(null); if (pollRef.current) clearInterval(pollRef.current); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 18, lineHeight: 1, padding: 0 }}>←</button>
+            <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 18, lineHeight: 1, padding: 0 }}>←</button>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text1)" }}>{selected.otherParty ?? "Dador de carga"}</div>
               <div style={{ fontSize: 12, color: "var(--text2)" }}>{selected.loadTitle}</div>
@@ -1262,7 +1286,7 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
               {convs.map((c, i) => (
                 <button
                   key={c.offerId}
-                  onClick={() => abrirConv(c)}
+                  onClick={() => setSelected(c)}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: "transparent", border: "none", borderTop: i === 0 ? "none" : "0.5px solid var(--border)", cursor: "pointer", textAlign: "left" }}
                 >
                   <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--green-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16, color: "var(--green)", fontWeight: 700 }}>
