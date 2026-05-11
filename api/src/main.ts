@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { join } from 'path';
 import * as jwt from 'jsonwebtoken';
 import { AppModule } from './app.module';
@@ -27,6 +28,8 @@ async function bootstrap() {
     }
   });
   app.useStaticAssets(uploadsPath, { prefix: '/uploads' });
+
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
