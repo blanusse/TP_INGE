@@ -16,7 +16,12 @@ import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Shipper, EmailVerification, FleetInvitation]),
+    TypeOrmModule.forFeature([
+      User,
+      Shipper,
+      EmailVerification,
+      FleetInvitation,
+    ]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

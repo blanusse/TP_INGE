@@ -1,4 +1,8 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Message } from '../entities/message.entity';
@@ -23,10 +27,14 @@ export class MessagesService {
 
     const load = await this.loadsRepo.findOne({ where: { id: offer.load_id } });
     if (!load || !['matched', 'in_transit'].includes(load.status)) {
-      throw new BadRequestException('La mensajería solo está disponible cuando hay una oferta aceptada.');
+      throw new BadRequestException(
+        'La mensajería solo está disponible cuando hay una oferta aceptada.',
+      );
     }
 
-    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+    const shipper = await this.shippersRepo.findOne({
+      where: { user_id: userId },
+    });
     const isDriver = offer.driver_id === userId;
     const isShipper = shipper && load.shipper_id === shipper.id;
 
@@ -44,14 +52,20 @@ export class MessagesService {
 
     const senderIds = [...new Set(messages.map((m) => m.sender_id))];
     const senders = senderIds.length
-      ? await this.usersRepo.find({ where: { id: In(senderIds) }, select: ['id', 'name'] })
+      ? await this.usersRepo.find({
+          where: { id: In(senderIds) },
+          select: ['id', 'name'],
+        })
       : [];
     const senderMap = Object.fromEntries(senders.map((s) => [s.id, s.name]));
 
     return messages.map((m) => ({ ...m, sender_name: senderMap[m.sender_id] }));
   }
 
-  async sendMessage(userId: string, body: { offer_id: string; content: string }) {
+  async sendMessage(
+    userId: string,
+    body: { offer_id: string; content: string },
+  ) {
     await this.assertAccess(userId, body.offer_id);
     const msg = this.messagesRepo.create({
       offer_id: body.offer_id,
@@ -62,7 +76,9 @@ export class MessagesService {
   }
 
   async getConversations(userId: string) {
-    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+    const shipper = await this.shippersRepo.findOne({
+      where: { user_id: userId },
+    });
 
     let offers: Offer[];
     if (shipper) {
@@ -74,10 +90,14 @@ export class MessagesService {
       });
       const loadIds = loads.map((l) => l.id);
       offers = loadIds.length
-        ? await this.offersRepo.find({ where: { load_id: In(loadIds), status: 'accepted' } })
+        ? await this.offersRepo.find({
+            where: { load_id: In(loadIds), status: 'accepted' },
+          })
         : [];
     } else {
-      offers = await this.offersRepo.find({ where: { driver_id: userId, status: 'accepted' } });
+      offers = await this.offersRepo.find({
+        where: { driver_id: userId, status: 'accepted' },
+      });
     }
 
     if (!offers.length) return [];
@@ -88,8 +108,12 @@ export class MessagesService {
 
     const [loads, drivers, lastMessages] = await Promise.all([
       this.loadsRepo.find({ where: { id: In(loadIds) } }),
-      this.usersRepo.find({ where: { id: In(driverIds) }, select: ['id', 'name'] }),
-      this.messagesRepo.createQueryBuilder('m')
+      this.usersRepo.find({
+        where: { id: In(driverIds) },
+        select: ['id', 'name'],
+      }),
+      this.messagesRepo
+        .createQueryBuilder('m')
         .select(['m.offer_id', 'm.content', 'm.created_at'])
         .where('m.offer_id IN (:...ids)', { ids: offerIds })
         .orderBy('m.created_at', 'DESC')
@@ -99,7 +123,9 @@ export class MessagesService {
 
     const loadMap = Object.fromEntries(loads.map((l) => [l.id, l]));
     const driverMap = Object.fromEntries(drivers.map((d) => [d.id, d]));
-    const lastMsgMap = Object.fromEntries(lastMessages.map((m) => [m.offer_id, m]));
+    const lastMsgMap = Object.fromEntries(
+      lastMessages.map((m) => [m.offer_id, m]),
+    );
 
     return offers.map((offer) => {
       const load = loadMap[offer.load_id];
@@ -107,7 +133,9 @@ export class MessagesService {
       const lastMsg = lastMsgMap[offer.id];
       return {
         offer_id: offer.id,
-        load_title: load ? `${load.cargo_type} — ${load.pickup_city} → ${load.dropoff_city}` : '',
+        load_title: load
+          ? `${load.cargo_type} — ${load.pickup_city} → ${load.dropoff_city}`
+          : '',
         other_party: shipper ? driver?.name : null,
         price: offer.price,
         last_message: lastMsg?.content ?? null,

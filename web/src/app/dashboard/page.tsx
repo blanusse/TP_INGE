@@ -11,8 +11,9 @@ export default async function DashboardPage() {
   if (role === "admin") redirect("/admin");
 
   // Transportistas: ruta según sub-tipo
-  const fleetId      = (session?.user as any)?.fleetId ?? null;
-  const isFleetOwner = (session?.user as any)?.isFleetOwner ?? false;
+  const user         = session?.user as ({ fleetId?: string; isFleetOwner?: boolean }) | undefined;
+  const fleetId      = user?.fleetId ?? null;
+  const isFleetOwner = user?.isFleetOwner ?? false;
   if (fleetId)      redirect("/empleado");
   if (isFleetOwner) redirect("/flota");
   redirect("/transportista");

@@ -36,23 +36,33 @@ function readJwtExp(jwt: string): number | null {
   }
 }
 
+interface CustomToken {
+  sub?: string;
+  role?: UserRole;
+  backendToken?: string;
+  backendTokenExp?: number | null;
+  fleetId?: string | null;
+  isFleetOwner?: boolean;
+}
+
 export const authConfig: NextAuthConfig = {
   providers: [],
   trustHost: true,
   callbacks: {
     jwt({ token, user }) {
-      if (user?.id)                        token.sub                          = user.id;
-      if (user?.role)                      (token as any).role                = user.role;
+      const t = token as CustomToken;
+      if (user?.id)                        t.sub              = user.id;
+      if (user?.role)                      t.role             = user.role;
       if (user?.backendToken) {
-        (token as any).backendToken    = user.backendToken;
-        (token as any).backendTokenExp = readJwtExp(user.backendToken);
+        t.backendToken    = user.backendToken;
+        t.backendTokenExp = readJwtExp(user.backendToken);
       }
-      if (user?.fleetId !== undefined)     (token as any).fleetId             = user.fleetId;
-      if (user?.isFleetOwner !== undefined)(token as any).isFleetOwner        = user.isFleetOwner;
+      if (user?.fleetId !== undefined)     t.fleetId          = user.fleetId;
+      if (user?.isFleetOwner !== undefined) t.isFleetOwner    = user.isFleetOwner;
 
       // Si el JWT del backend ya expiró, invalidamos la sesión de NextAuth.
       // Devolver null hace que el middleware vea loggedIn=false y redirija a /login.
-      const exp = (token as any).backendTokenExp;
+      const exp = t.backendTokenExp;
       if (typeof exp === "number" && Math.floor(Date.now() / 1000) >= exp) {
         return null;
       }
@@ -60,11 +70,12 @@ export const authConfig: NextAuthConfig = {
       return token;
     },
     session({ session, token }) {
-      if (token.sub)                      session.user.id           = token.sub;
-      if ((token as any).role)            session.user.role         = (token as any).role as UserRole;
-      if ((token as any).backendToken)    session.backendToken      = (token as any).backendToken;
-      if ((token as any).fleetId !== undefined)    session.user.fleetId     = (token as any).fleetId;
-      if ((token as any).isFleetOwner !== undefined) session.user.isFleetOwner = (token as any).isFleetOwner;
+      const t = token as CustomToken;
+      if (t.sub)                      session.user.id           = t.sub;
+      if (t.role)                     session.user.role         = t.role;
+      if (t.backendToken)             session.backendToken      = t.backendToken;
+      if (t.fleetId !== undefined)    session.user.fleetId      = t.fleetId;
+      if (t.isFleetOwner !== undefined) session.user.isFleetOwner = t.isFleetOwner;
       return session;
     },
   },

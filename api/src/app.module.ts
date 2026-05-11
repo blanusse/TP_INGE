@@ -14,13 +14,14 @@ import { PaymentsModule } from './payments/payments.module';
 import { LocationModule } from './location/location.module';
 import { DocumentsModule } from './documents/documents.module';
 import { ReportsModule } from './reports/reports.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([
-      { name: 'short', ttl: 60_000, limit: 10 },   // 10 req/min por IP
-      { name: 'auth',  ttl: 900_000, limit: 20 },   // 20 intentos de auth cada 15 min
+      { name: 'short', ttl: 60_000, limit: 10 }, // 10 req/min por IP
+      { name: 'auth', ttl: 900_000, limit: 20 }, // 20 intentos de auth cada 15 min
     ]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -28,7 +29,7 @@ import { ReportsModule } from './reports/reports.module';
         type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: process.env.NODE_ENV !== 'production',
       }),
       inject: [ConfigService],
     }),
@@ -43,6 +44,7 @@ import { ReportsModule } from './reports/reports.module';
     LocationModule,
     DocumentsModule,
     ReportsModule,
+    AdminModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

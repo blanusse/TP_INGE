@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
@@ -2082,6 +2083,7 @@ function DadorOnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void;
   const step = DADOR_ONBOARDING_STEPS[paso];
   const esUltimo = paso === DADOR_ONBOARDING_STEPS.length - 1;
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (!step.target) { setArrowX(null); return; }
     const spans = document.querySelectorAll<HTMLElement>("button span");

@@ -16,8 +16,29 @@ export async function GET() {
 
   const now = new Date();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const toViaje = (o: any) => ({
+  interface OfferWithLoad {
+    id: string;
+    load_id: string;
+    status: string;
+    price: number;
+    load?: {
+      cargo_type?: string;
+      pickup_city?: string;
+      dropoff_city?: string;
+      pickup_exact?: string;
+      dropoff_exact?: string;
+      pickup_lat?: string;
+      pickup_lon?: string;
+      dropoff_lat?: string;
+      dropoff_lon?: string;
+      truck_type_required?: string;
+      status?: string;
+      ready_at?: string;
+      shipper?: { razon_social?: string; user_id?: string };
+    };
+  }
+
+  const toViaje = (o: OfferWithLoad) => ({
     offerId: o.id,
     loadId: o.load_id,
     titulo: `${o.load?.cargo_type ?? "Transporte"} \u2014 ${o.load?.pickup_city ?? ""} \u2192 ${o.load?.dropoff_city ?? ""}`,
@@ -41,21 +62,21 @@ export async function GET() {
   });
 
   const enCurso = offers
-    .filter((o: any) =>
+    .filter((o: OfferWithLoad) =>
       o.status === "accepted" && o.load?.status === "in_transit" &&
       (!o.load.ready_at || new Date(o.load.ready_at) <= now)
     )
     .map(toViaje);
 
   const proximos = offers
-    .filter((o: any) =>
+    .filter((o: OfferWithLoad) =>
       o.status === "accepted" &&
       (o.load?.status === "matched" || (o.load?.status === "in_transit" && o.load.ready_at && new Date(o.load.ready_at) > now))
     )
     .map(toViaje);
 
   const completados = offers
-    .filter((o: any) => o.status === "accepted" && o.load?.status === "delivered")
+    .filter((o: OfferWithLoad) => o.status === "accepted" && o.load?.status === "delivered")
     .map(toViaje);
 
   return NextResponse.json({ enCurso, proximos, completados });

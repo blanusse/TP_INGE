@@ -10,7 +10,9 @@ import { StatsController } from './stats.controller';
 import { StatsService } from './stats.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Shipper, Load, Offer, Rating, Truck])],
+  imports: [
+    TypeOrmModule.forFeature([User, Shipper, Load, Offer, Rating, Truck]),
+  ],
   controllers: [StatsController],
   providers: [StatsService],
 })

@@ -1,14 +1,28 @@
 import {
-  Controller, Post, Get, Patch, Body, Param, Request, UseGuards,
-  ForbiddenException, UseInterceptors, UploadedFile, Query,
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Body,
+  Param,
+  Request,
+  UseGuards,
+  ForbiddenException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+
+type AuthReq = { user: { id: string; role: string; email: string } };
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { mkdirSync } from 'fs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DocumentsService } from './documents.service';
-import { DocumentTipo, DocumentStatus } from '../entities/trucker-document.entity';
+import {
+  DocumentTipo,
+  DocumentStatus,
+} from '../entities/trucker-document.entity';
 
 const uploadsDir = join(process.cwd(), 'uploads', 'documents');
 mkdirSync(uploadsDir, { recursive: true });
@@ -19,165 +33,223 @@ export class DocumentsController {
   constructor(private documentsService: DocumentsService) {}
 
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: uploadsDir,
-      filename: (_req, file, cb) => {
-        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-        cb(null, `${unique}${extname(file.originalname)}`);
-      },
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: uploadsDir,
+        filename: (_req, file, cb) => {
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+          cb(null, `${unique}${extname(file.originalname)}`);
+        },
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
     }),
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
-  }))
+  )
   async uploadDocument(
-    @Request() req,
+    @Request() req: AuthReq,
     @UploadedFile() file: Express.Multer.File,
     @Body() body: { tipo: DocumentTipo },
   ) {
-    const backendUrl = process.env.BACKEND_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
+    const backendUrl =
+      process.env.BACKEND_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
     const url = `${backendUrl}/uploads/documents/${file.filename}`;
     return this.documentsService.createDocument(req.user.id, body.tipo, url);
   }
 
   @Get('mine')
-  getMyDocuments(@Request() req) {
+  getMyDocuments(@Request() req: AuthReq) {
     return this.documentsService.getMyDocuments(req.user.id);
   }
 
   @Get('dni-status')
-  getDniStatus(@Request() req) {
+  getDniStatus(@Request() req: AuthReq) {
     return this.documentsService.getDniStatus(req.user.id);
   }
 
   @Get('driver-status')
-  getDriverStatus(@Request() req) {
+  getDriverStatus(@Request() req: AuthReq) {
     return this.documentsService.getDriverVerificationStatus(req.user.id);
   }
 
   @Post('verify-license')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: uploadsDir,
-      filename: (_req, file, cb) => {
-        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-        cb(null, `license-${unique}${extname(file.originalname)}`);
-      },
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: uploadsDir,
+        filename: (_req, file, cb) => {
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+          cb(null, `license-${unique}${extname(file.originalname)}`);
+        },
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
-    limits: { fileSize: 10 * 1024 * 1024 },
-  }))
-  async verifyLicense(@Request() req, @UploadedFile() file: Express.Multer.File) {
+  )
+  async verifyLicense(
+    @Request() req: AuthReq,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     return this.documentsService.verifyLicense(req.user.id, file.path);
   }
 
   @Post('verify-truck-vtv/:truckId')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: uploadsDir,
-      filename: (_req, file, cb) => {
-        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-        cb(null, `vtv-${unique}${extname(file.originalname)}`);
-      },
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: uploadsDir,
+        filename: (_req, file, cb) => {
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+          cb(null, `vtv-${unique}${extname(file.originalname)}`);
+        },
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
-    limits: { fileSize: 10 * 1024 * 1024 },
-  }))
-  async verifyTruckVtv(@Request() req, @Param('truckId') truckId: string, @UploadedFile() file: Express.Multer.File) {
-    return this.documentsService.verifyTruckVtv(req.user.id, truckId, file.path);
+  )
+  async verifyTruckVtv(
+    @Request() req: AuthReq,
+    @Param('truckId') truckId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.documentsService.verifyTruckVtv(
+      req.user.id,
+      truckId,
+      file.path,
+    );
   }
 
   @Post('verify-truck-seguro/:truckId')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: uploadsDir,
-      filename: (_req, file, cb) => {
-        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-        cb(null, `seguro-${unique}${extname(file.originalname)}`);
-      },
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: uploadsDir,
+        filename: (_req, file, cb) => {
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+          cb(null, `seguro-${unique}${extname(file.originalname)}`);
+        },
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
-    limits: { fileSize: 10 * 1024 * 1024 },
-  }))
-  async verifyTruckSeguro(@Request() req, @Param('truckId') truckId: string, @UploadedFile() file: Express.Multer.File) {
-    return this.documentsService.verifyTruckSeguro(req.user.id, truckId, file.path);
+  )
+  async verifyTruckSeguro(
+    @Request() req: AuthReq,
+    @Param('truckId') truckId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.documentsService.verifyTruckSeguro(
+      req.user.id,
+      truckId,
+      file.path,
+    );
   }
 
   @Post('verify-dni')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: uploadsDir,
-      filename: (_req, file, cb) => {
-        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-        cb(null, `dni-${unique}${extname(file.originalname)}`);
-      },
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: uploadsDir,
+        filename: (_req, file, cb) => {
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+          cb(null, `dni-${unique}${extname(file.originalname)}`);
+        },
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
-    limits: { fileSize: 10 * 1024 * 1024 },
-  }))
-  async verifyDni(@Request() req, @UploadedFile() file: Express.Multer.File) {
+  )
+  async verifyDni(
+    @Request() req: AuthReq,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     return this.documentsService.verifyDni(req.user.id, file.path);
   }
 
   @Post('verify-truck-cedula-verde/:truckId')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: uploadsDir,
-      filename: (_req, file, cb) => {
-        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-        cb(null, `cedula-verde-${unique}${extname(file.originalname)}`);
-      },
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: uploadsDir,
+        filename: (_req, file, cb) => {
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+          cb(null, `cedula-verde-${unique}${extname(file.originalname)}`);
+        },
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
-    limits: { fileSize: 10 * 1024 * 1024 },
-  }))
-  async verifyCedulaVerde(@Request() req, @Param('truckId') truckId: string, @UploadedFile() file: Express.Multer.File) {
-    return this.documentsService.verifyCedulaVerde(req.user.id, truckId, file.path);
+  )
+  async verifyCedulaVerde(
+    @Request() req: AuthReq,
+    @Param('truckId') truckId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.documentsService.verifyCedulaVerde(
+      req.user.id,
+      truckId,
+      file.path,
+    );
   }
 
   @Post('verify-cedula-azul')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: uploadsDir,
-      filename: (_req, file, cb) => {
-        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-        cb(null, `cedula-azul-${unique}${extname(file.originalname)}`);
-      },
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: uploadsDir,
+        filename: (_req, file, cb) => {
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+          cb(null, `cedula-azul-${unique}${extname(file.originalname)}`);
+        },
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
-    limits: { fileSize: 10 * 1024 * 1024 },
-  }))
-  async verifyCedulaAzul(@Request() req, @UploadedFile() file: Express.Multer.File) {
+  )
+  async verifyCedulaAzul(
+    @Request() req: AuthReq,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     return this.documentsService.verifyCedulaAzul(req.user.id, file.path);
   }
 
   @Post('verify-ructt')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: uploadsDir,
-      filename: (_req, file, cb) => {
-        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-        cb(null, `ructt-${unique}${extname(file.originalname)}`);
-      },
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: uploadsDir,
+        filename: (_req, file, cb) => {
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+          cb(null, `ructt-${unique}${extname(file.originalname)}`);
+        },
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
-    limits: { fileSize: 10 * 1024 * 1024 },
-  }))
-  async verifyRuctt(@Request() req, @UploadedFile() file: Express.Multer.File) {
+  )
+  async verifyRuctt(
+    @Request() req: AuthReq,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     return this.documentsService.verifyRuctt(req.user.id, file.path);
   }
 
   @Get('pending')
-  getPending(@Request() req) {
+  getPending(@Request() req: AuthReq) {
     if (req.user.role !== 'admin') throw new ForbiddenException();
     return this.documentsService.getPendingDocuments();
   }
 
   @Get('all')
-  getAll(@Request() req) {
+  getAll(@Request() req: AuthReq) {
     if (req.user.role !== 'admin') throw new ForbiddenException();
     return this.documentsService.getAllDocuments();
   }
 
   @Patch(':id')
   updateStatus(
-    @Request() req,
+    @Request() req: AuthReq,
     @Param('id') id: string,
     @Body() body: { status: DocumentStatus; admin_note?: string },
   ) {
     if (req.user.role !== 'admin') throw new ForbiddenException();
-    return this.documentsService.updateStatus(id, req.user.id, body.status, body.admin_note);
+    return this.documentsService.updateStatus(
+      id,
+      req.user.id,
+      body.status,
+      body.admin_note,
+    );
   }
 }

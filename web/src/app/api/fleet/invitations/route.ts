@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const text = await res.text();
     const data = text ? JSON.parse(text) : {};
     return NextResponse.json(data, { status: res.status });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ message: "Error interno al enviar la invitación." }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import { Schema, model, models } from "mongoose";
 
 const TruckSchema = new Schema({
   owner_id:      { type: Schema.Types.ObjectId, ref: "User", required: true },

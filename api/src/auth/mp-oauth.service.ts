@@ -5,15 +5,15 @@ import { User } from '../entities/user.entity';
 
 @Injectable()
 export class MpOauthService {
-  constructor(
-    @InjectRepository(User) private usersRepo: Repository<User>,
-  ) {}
+  constructor(@InjectRepository(User) private usersRepo: Repository<User>) {}
 
   getAuthUrl(userId: string): string {
     const clientId = process.env.MP_CLIENT_ID;
     const redirectUri = process.env.MP_REDIRECT_URI;
     if (!clientId || !redirectUri) {
-      throw new BadRequestException('Integración con MercadoPago no configurada.');
+      throw new BadRequestException(
+        'Integración con MercadoPago no configurada.',
+      );
     }
     const params = new URLSearchParams({
       client_id: clientId,
@@ -28,7 +28,10 @@ export class MpOauthService {
   async handleCallback(code: string, userId: string): Promise<void> {
     const res = await fetch('https://api.mercadopago.com/oauth/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
       body: JSON.stringify({
         client_id: process.env.MP_CLIENT_ID,
         client_secret: process.env.MP_CLIENT_SECRET,
@@ -40,10 +43,12 @@ export class MpOauthService {
 
     if (!res.ok) {
       const body = await res.text();
-      throw new BadRequestException(`Error al conectar con MercadoPago: ${body}`);
+      throw new BadRequestException(
+        `Error al conectar con MercadoPago: ${body}`,
+      );
     }
 
-    const data = await res.json() as { user_id: number };
+    const data = (await res.json()) as { user_id: number };
     await this.usersRepo.update(userId, { mp_user_id: String(data.user_id) });
   }
 

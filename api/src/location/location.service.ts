@@ -4,7 +4,11 @@ import { filter, map } from 'rxjs/operators';
 
 @Injectable()
 export class LocationService {
-  private readonly updates$ = new Subject<{ loadId: string; lat: number; lng: number }>();
+  private readonly updates$ = new Subject<{
+    loadId: string;
+    lat: number;
+    lng: number;
+  }>();
 
   emit(loadId: string, lat: number, lng: number) {
     this.updates$.next({ loadId, lat, lng });

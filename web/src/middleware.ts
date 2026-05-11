@@ -7,8 +7,8 @@ const { auth } = NextAuth({ ...authConfig, secret: process.env.AUTH_SECRET });
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const role         = req.auth?.user?.role;
-  const fleetId      = (req.auth?.user as any)?.fleetId ?? null;
-  const isFleetOwner = (req.auth?.user as any)?.isFleetOwner ?? false;
+  const fleetId      = req.auth?.user?.fleetId ?? null;
+  const isFleetOwner = req.auth?.user?.isFleetOwner ?? false;
   const loggedIn     = !!req.auth;
 
   /** Determina la vista correcta para transportistas */

@@ -10,7 +10,10 @@ export class MpOauthController {
   /** El transportista visita este endpoint para vincular su cuenta MP */
   @UseGuards(JwtAuthGuard)
   @Get('connect')
-  connect(@Req() req: Request & { user: { userId: string } }, @Res() res: Response) {
+  connect(
+    @Req() req: Request & { user: { userId: string } },
+    @Res() res: Response,
+  ) {
     const url = this.mpOauthService.getAuthUrl(req.user.userId);
     return res.redirect(url);
   }

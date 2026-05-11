@@ -1,6 +1,13 @@
-import { Injectable, ForbiddenException, BadRequestException, NotFoundException, ConflictException, GoneException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  BadRequestException,
+  NotFoundException,
+  ConflictException,
+  GoneException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DeepPartial } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Truck } from '../entities/truck.entity';
 import { User } from '../entities/user.entity';
 import { FleetInvitation } from '../entities/fleet-invitation.entity';
@@ -26,8 +33,12 @@ function validarAnio(anio: number): boolean {
 function validarVigencia(fecha: string, campo: string): void {
   if (!fecha) return;
   const d = new Date(fecha);
-  if (isNaN(d.getTime())) throw new BadRequestException(`La fecha de ${campo} no es válida.`);
-  if (d < new Date()) throw new BadRequestException(`La fecha de vencimiento de ${campo} ya está vencida.`);
+  if (isNaN(d.getTime()))
+    throw new BadRequestException(`La fecha de ${campo} no es válida.`);
+  if (d < new Date())
+    throw new BadRequestException(
+      `La fecha de vencimiento de ${campo} ya está vencida.`,
+    );
 }
 
 /** DNI argentino básico: 7-8 dígitos, rango plausible */
@@ -45,7 +56,8 @@ export class FleetService {
   constructor(
     @InjectRepository(Truck) private trucksRepo: Repository<Truck>,
     @InjectRepository(User) private usersRepo: Repository<User>,
-    @InjectRepository(FleetInvitation) private invitationsRepo: Repository<FleetInvitation>,
+    @InjectRepository(FleetInvitation)
+    private invitationsRepo: Repository<FleetInvitation>,
     private mailService: MailService,
   ) {}
 
@@ -53,9 +65,14 @@ export class FleetService {
     return this.trucksRepo.find({ where: { owner_id: userId } });
   }
 
-  async addTruck(userId: string, body: Partial<Truck> & { vtv_doc_url?: string; seguro_doc_url?: string }) {
-    if (!body.patente?.trim()) throw new BadRequestException('La patente es requerida.');
-    if (!body.truck_type)      throw new BadRequestException('El tipo de camión es requerido.');
+  async addTruck(
+    userId: string,
+    body: Partial<Truck> & { vtv_doc_url?: string; seguro_doc_url?: string },
+  ) {
+    if (!body.patente?.trim())
+      throw new BadRequestException('La patente es requerida.');
+    if (!body.truck_type)
+      throw new BadRequestException('El tipo de camión es requerido.');
 
     // Formato de patente
     if (!validarPatente(body.patente)) {
@@ -66,20 +83,29 @@ export class FleetService {
     const patente = body.patente.toUpperCase().replace(/\s/g, '');
 
     // Patente única globalmente (un camión no puede estar registrado dos veces)
-    const patenteExistente = await this.trucksRepo.findOne({ where: { patente } });
-    if (patenteExistente) throw new ConflictException('Ya existe un camión registrado con esa patente.');
+    const patenteExistente = await this.trucksRepo.findOne({
+      where: { patente },
+    });
+    if (patenteExistente)
+      throw new ConflictException(
+        'Ya existe un camión registrado con esa patente.',
+      );
 
     // Capacidad
     if (body.capacity_kg !== undefined && body.capacity_kg !== null) {
       if (Number(body.capacity_kg) <= 0) {
-        throw new BadRequestException('La capacidad del camión debe ser mayor a 0.');
+        throw new BadRequestException(
+          'La capacidad del camión debe ser mayor a 0.',
+        );
       }
     }
 
     // Año
     if (body.año !== undefined && body.año !== null) {
       if (!validarAnio(body.año)) {
-        throw new BadRequestException(`El año del camión debe estar entre 1960 y ${new Date().getFullYear() + 1}.`);
+        throw new BadRequestException(
+          `El año del camión debe estar entre 1960 y ${new Date().getFullYear() + 1}.`,
+        );
       }
     }
 
@@ -87,7 +113,11 @@ export class FleetService {
     validarVigencia(body.vtv_vence ?? '', 'VTV');
     validarVigencia(body.seguro_vence ?? '', 'seguro');
 
-    const truck = this.trucksRepo.create({ ...body, patente, owner_id: userId });
+    const truck = this.trucksRepo.create({
+      ...body,
+      patente,
+      owner_id: userId,
+    });
     return this.trucksRepo.save(truck);
   }
 
@@ -99,48 +129,89 @@ export class FleetService {
     // Si se actualiza la patente, validar formato y unicidad
     if (body.patente && body.patente !== truck.patente) {
       if (!validarPatente(body.patente)) {
-        throw new BadRequestException('La patente debe tener formato argentino: ABC123 o AB123CD.');
+        throw new BadRequestException(
+          'La patente debe tener formato argentino: ABC123 o AB123CD.',
+        );
       }
       const patente = body.patente.toUpperCase().replace(/\s/g, '');
       const existente = await this.trucksRepo.findOne({ where: { patente } });
-      if (existente && existente.id !== truckId) throw new ConflictException('Ya existe un camión con esa patente.');
+      if (existente && existente.id !== truckId)
+        throw new ConflictException('Ya existe un camión con esa patente.');
       body.patente = patente;
     }
 
-    if (body.capacity_kg !== undefined && body.capacity_kg !== null && Number(body.capacity_kg) <= 0) {
-      throw new BadRequestException('La capacidad del camión debe ser mayor a 0.');
+    if (
+      body.capacity_kg !== undefined &&
+      body.capacity_kg !== null &&
+      Number(body.capacity_kg) <= 0
+    ) {
+      throw new BadRequestException(
+        'La capacidad del camión debe ser mayor a 0.',
+      );
     }
 
     if (body.año !== undefined && !validarAnio(body.año)) {
-      throw new BadRequestException(`El año debe estar entre 1960 y ${new Date().getFullYear() + 1}.`);
+      throw new BadRequestException(
+        `El año debe estar entre 1960 y ${new Date().getFullYear() + 1}.`,
+      );
     }
     validarVigencia(body.vtv_vence ?? '', 'VTV');
     validarVigencia(body.seguro_vence ?? '', 'seguro');
 
-    const { owner_id, id, ...updates } = body as any;
+    /* eslint-disable @typescript-eslint/no-unused-vars */
+    const {
+      owner_id: _owner_id,
+      id: _id,
+      ...updates
+    } = body as Partial<Record<string, unknown>>;
+    /* eslint-enable @typescript-eslint/no-unused-vars */
     Object.assign(truck, updates);
     return this.trucksRepo.save(truck);
   }
 
   async inviteDriver(userId: string, email: string) {
     const owner = await this.usersRepo.findOne({ where: { id: userId } });
-    if (!owner || owner.role !== 'transportista') throw new ForbiddenException();
+    if (!owner || owner.role !== 'transportista')
+      throw new ForbiddenException();
 
-    const pending = await this.invitationsRepo.findOne({ where: { fleet_owner_id: userId, email: email.toLowerCase(), status: 'pending' } });
-    if (pending && pending.expires_at > new Date()) throw new BadRequestException('Ya existe una invitación pendiente para ese email.');
+    const pending = await this.invitationsRepo.findOne({
+      where: {
+        fleet_owner_id: userId,
+        email: email.toLowerCase(),
+        status: 'pending',
+      },
+    });
+    if (pending && pending.expires_at > new Date())
+      throw new BadRequestException(
+        'Ya existe una invitación pendiente para ese email.',
+      );
 
     const token = randomUUID();
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
-    const invitation = this.invitationsRepo.create({ token, fleet_owner_id: userId, email: email.toLowerCase(), status: 'pending', expires_at: expiresAt });
+    const invitation = this.invitationsRepo.create({
+      token,
+      fleet_owner_id: userId,
+      email: email.toLowerCase(),
+      status: 'pending',
+      expires_at: expiresAt,
+    });
     await this.invitationsRepo.save(invitation);
-    await this.mailService.sendInvitacionFlota({ email: email.toLowerCase(), ownerName: owner.name, token });
+    await this.mailService.sendInvitacionFlota({
+      email: email.toLowerCase(),
+      ownerName: owner.name,
+      token,
+    });
     return { ok: true };
   }
 
   async getInvitation(token: string) {
-    const inv = await this.invitationsRepo.findOne({ where: { token }, relations: ['fleet_owner'] });
+    const inv = await this.invitationsRepo.findOne({
+      where: { token },
+      relations: ['fleet_owner'],
+    });
     if (!inv) throw new NotFoundException('Invitación no encontrada.');
-    if (inv.status === 'accepted') throw new GoneException('Esta invitación ya fue utilizada.');
+    if (inv.status === 'accepted')
+      throw new GoneException('Esta invitación ya fue utilizada.');
     if (inv.status === 'expired' || inv.expires_at < new Date()) {
       inv.status = 'expired';
       await this.invitationsRepo.save(inv);
@@ -157,7 +228,8 @@ export class FleetService {
   async acceptInvitation(token: string, userId: string) {
     const inv = await this.invitationsRepo.findOne({ where: { token } });
     if (!inv) throw new NotFoundException('Invitación no encontrada.');
-    if (inv.status === 'accepted') throw new GoneException('Esta invitación ya fue utilizada.');
+    if (inv.status === 'accepted')
+      throw new GoneException('Esta invitación ya fue utilizada.');
     if (inv.status === 'expired' || inv.expires_at < new Date()) {
       inv.status = 'expired';
       await this.invitationsRepo.save(inv);
@@ -165,33 +237,50 @@ export class FleetService {
     }
 
     const user = await this.usersRepo.findOne({ where: { id: userId } });
-    if (!user || user.role !== 'transportista') throw new ForbiddenException('Solo transportistas pueden aceptar invitaciones.');
-    if (user.email !== inv.email) throw new ForbiddenException('Esta invitación fue enviada a otro email.');
-    if (inv.fleet_owner_id === userId) throw new BadRequestException('No podés unirte a tu propia flota.');
+    if (!user || user.role !== 'transportista')
+      throw new ForbiddenException(
+        'Solo transportistas pueden aceptar invitaciones.',
+      );
+    if (user.email !== inv.email)
+      throw new ForbiddenException('Esta invitación fue enviada a otro email.');
+    if (inv.fleet_owner_id === userId)
+      throw new BadRequestException('No podés unirte a tu propia flota.');
 
     user.fleet_id = inv.fleet_owner_id;
     inv.status = 'accepted';
 
     // Marcar al dueño como fleet owner
-    const fleetOwner = await this.usersRepo.findOne({ where: { id: inv.fleet_owner_id } });
+    const fleetOwner = await this.usersRepo.findOne({
+      where: { id: inv.fleet_owner_id },
+    });
     if (fleetOwner && !fleetOwner.is_fleet_owner) {
       fleetOwner.is_fleet_owner = true;
       await this.usersRepo.save(fleetOwner);
     }
 
-    await Promise.all([this.usersRepo.save(user), this.invitationsRepo.save(inv)]);
+    await Promise.all([
+      this.usersRepo.save(user),
+      this.invitationsRepo.save(inv),
+    ]);
     return { ok: true };
   }
 
   async getOwnerSettings(userId: string) {
-    const user = await this.usersRepo.findOne({ where: { id: userId }, select: ['id', 'show_as_fleet_driver'] });
+    const user = await this.usersRepo.findOne({
+      where: { id: userId },
+      select: ['id', 'show_as_fleet_driver'],
+    });
     return { show_as_fleet_driver: user?.show_as_fleet_driver ?? true };
   }
 
-  async updateOwnerSettings(userId: string, body: { show_as_fleet_driver?: boolean }) {
+  async updateOwnerSettings(
+    userId: string,
+    body: { show_as_fleet_driver?: boolean },
+  ) {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user || user.role !== 'transportista') throw new ForbiddenException();
-    if (body.show_as_fleet_driver !== undefined) user.show_as_fleet_driver = body.show_as_fleet_driver;
+    if (body.show_as_fleet_driver !== undefined)
+      user.show_as_fleet_driver = body.show_as_fleet_driver;
     await this.usersRepo.save(user);
     return { show_as_fleet_driver: user.show_as_fleet_driver };
   }
@@ -208,53 +297,108 @@ export class FleetService {
     const [fleetDrivers, owner] = await Promise.all([
       this.usersRepo.find({
         where: { fleet_id: userId },
-        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at', 'is_verified', 'dni_verified', 'license_verified'],
+        select: [
+          'id',
+          'name',
+          'email',
+          'phone',
+          'dni',
+          'role',
+          'created_at',
+          'is_verified',
+          'dni_verified',
+          'license_verified',
+        ],
       }),
       this.usersRepo.findOne({
         where: { id: userId },
-        select: ['id', 'name', 'email', 'phone', 'dni', 'role', 'created_at', 'show_as_fleet_driver', 'is_verified', 'dni_verified', 'license_verified'],
+        select: [
+          'id',
+          'name',
+          'email',
+          'phone',
+          'dni',
+          'role',
+          'created_at',
+          'show_as_fleet_driver',
+          'is_verified',
+          'dni_verified',
+          'license_verified',
+        ],
       }),
     ]);
 
     const alreadyInList = fleetDrivers.some((d) => d.id === userId);
     if (owner?.show_as_fleet_driver !== false && !alreadyInList) {
-      const { show_as_fleet_driver: _, ...ownerData } = owner as any;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { show_as_fleet_driver: _sfd, ...ownerData } = owner as unknown as Record<
+        string,
+        unknown
+      >;
       return [ownerData, ...fleetDrivers];
     }
 
     return fleetDrivers;
   }
 
-  async addFleetDriver(userId: string, body: { email: string; password: string; name: string; phone?: string; dni?: string }) {
+  async addFleetDriver(
+    userId: string,
+    body: {
+      email: string;
+      password: string;
+      name: string;
+      phone?: string;
+      dni?: string;
+    },
+  ) {
     const owner = await this.usersRepo.findOne({ where: { id: userId } });
-    if (!owner || owner.role !== 'transportista') throw new ForbiddenException();
+    if (!owner || owner.role !== 'transportista')
+      throw new ForbiddenException();
 
     // Validaciones de nombre
-    if (!body.name?.trim()) throw new BadRequestException('El nombre del conductor es requerido.');
+    if (!body.name?.trim())
+      throw new BadRequestException('El nombre del conductor es requerido.');
 
     // Email único (y no puede ser el propio dueño)
-    if (body.email.toLowerCase() === owner.email.toLowerCase()) throw new BadRequestException('No podés agregarte a vos mismo como conductor.');
-    const byEmail = await this.usersRepo.findOne({ where: { email: body.email.toLowerCase() } });
-    if (byEmail) throw new ConflictException('Ya existe una cuenta con ese email.');
+    if (body.email.toLowerCase() === owner.email.toLowerCase())
+      throw new BadRequestException(
+        'No podés agregarte a vos mismo como conductor.',
+      );
+    const byEmail = await this.usersRepo.findOne({
+      where: { email: body.email.toLowerCase() },
+    });
+    if (byEmail)
+      throw new ConflictException('Ya existe una cuenta con ese email.');
 
     // Teléfono: formato básico
     if (body.phone && !/^\+?\d{8,15}$/.test(body.phone.replace(/\s/g, ''))) {
-      throw new BadRequestException('El teléfono debe tener entre 8 y 15 dígitos.');
+      throw new BadRequestException(
+        'El teléfono debe tener entre 8 y 15 dígitos.',
+      );
     }
 
     // DNI: formato + rango + unicidad
     if (body.dni) {
       if (!validarDni(body.dni)) {
-        throw new BadRequestException('El DNI debe tener 7 u 8 dígitos y estar en el rango argentino.');
+        throw new BadRequestException(
+          'El DNI debe tener 7 u 8 dígitos y estar en el rango argentino.',
+        );
       }
       const dniLimpio = body.dni.replace(/\./g, '');
-      const byDni = await this.usersRepo.findOne({ where: { dni: dniLimpio, role: 'transportista' } });
-      if (byDni) throw new ConflictException('Ya existe un conductor registrado con ese DNI.');
+      const byDni = await this.usersRepo.findOne({
+        where: { dni: dniLimpio, role: 'transportista' },
+      });
+      if (byDni)
+        throw new ConflictException(
+          'Ya existe un conductor registrado con ese DNI.',
+        );
     }
 
     // Contraseña mínima
     if (!body.password || body.password.length < 8) {
-      throw new BadRequestException('La contraseña debe tener al menos 8 caracteres.');
+      throw new BadRequestException(
+        'La contraseña debe tener al menos 8 caracteres.',
+      );
     }
 
     const password_hash = await bcrypt.hash(body.password, 12);
@@ -267,7 +411,7 @@ export class FleetService {
       dni: body.dni ? body.dni.replace(/\./g, '') : null,
       fleet_id: userId,
       is_verified: true,
-    } as DeepPartial<User>);
+    } as Partial<User>);
     const saved = await this.usersRepo.save(driver);
 
     // Marcar al dueño como fleet owner si todavía no lo era
@@ -276,17 +420,24 @@ export class FleetService {
       await this.usersRepo.save(owner);
     }
 
-    const { password_hash: _, ...result } = saved as any;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password_hash: _ph1, ...result } = saved as unknown as Record<string, unknown>;
     return result;
   }
 
-  async updateDriver(userId: string, driverId: string, body: { name?: string; phone?: string; dni?: string }) {
+  async updateDriver(
+    userId: string,
+    driverId: string,
+    body: { name?: string; phone?: string; dni?: string },
+  ) {
     const driver = await this.usersRepo.findOne({ where: { id: driverId } });
     if (!driver) throw new NotFoundException('Conductor no encontrado.');
     if (driver.fleet_id !== userId) throw new ForbiddenException();
 
     if (body.phone && !/^\+?\d{8,15}$/.test(body.phone.replace(/\s/g, ''))) {
-      throw new BadRequestException('El teléfono debe tener entre 8 y 15 dígitos.');
+      throw new BadRequestException(
+        'El teléfono debe tener entre 8 y 15 dígitos.',
+      );
     }
 
     if (body.dni) {
@@ -294,16 +445,20 @@ export class FleetService {
         throw new BadRequestException('El DNI ingresado no es válido.');
       }
       const dniLimpio = body.dni.replace(/\./g, '');
-      const byDni = await this.usersRepo.findOne({ where: { dni: dniLimpio, role: 'transportista' } });
-      if (byDni && byDni.id !== driverId) throw new ConflictException('Ya existe un conductor con ese DNI.');
+      const byDni = await this.usersRepo.findOne({
+        where: { dni: dniLimpio, role: 'transportista' },
+      });
+      if (byDni && byDni.id !== driverId)
+        throw new ConflictException('Ya existe un conductor con ese DNI.');
       body.dni = dniLimpio;
     }
 
     if (body.name !== undefined) driver.name = body.name.trim();
     if (body.phone !== undefined) driver.phone = body.phone.trim();
-    if (body.dni !== undefined)   driver.dni   = body.dni;
+    if (body.dni !== undefined) driver.dni = body.dni;
     const saved = await this.usersRepo.save(driver);
-    const { password_hash, ...result } = saved as any;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password_hash: _ph2, ...result } = saved as unknown as Record<string, unknown>;
     return result;
   }
 

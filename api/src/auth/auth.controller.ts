@@ -25,7 +25,11 @@ export class AuthController {
   // Sin límite estricto para checks en tiempo real (ya tiene el límite global)
   @SkipThrottle()
   @Get('check')
-  check(@Query('field') field: string, @Query('value') value: string, @Query('email') email: string) {
+  check(
+    @Query('field') field: string,
+    @Query('value') value: string,
+    @Query('email') email: string,
+  ) {
     // Compatibilidad con llamadas ?email= (legacy) y ?field=email&value=
     const f = field ?? 'email';
     const v = value ?? email ?? '';

@@ -1,6 +1,21 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, Headers, Res, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+  Headers,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+
+type AuthReq = { user: { id: string; role: string; email: string } };
 import { PaymentsService } from './payments.service';
 
 @Controller('payments')
@@ -10,14 +25,23 @@ export class PaymentsController {
   // Llamado por el front al crear preferencia MP
   @Post()
   @UseGuards(JwtAuthGuard)
-  createPayment(@Body() body: { offerId: string; amount: number; mpPreferenceId: string }) {
-    return this.paymentsService.createPayment(body.offerId, body.amount, body.mpPreferenceId);
+  createPayment(
+    @Body() body: { offerId: string; amount: number; mpPreferenceId: string },
+  ) {
+    return this.paymentsService.createPayment(
+      body.offerId,
+      body.amount,
+      body.mpPreferenceId,
+    );
   }
 
   // Llamado por el front al confirmar pago (página de éxito o simulate)
   @Patch(':offerId/confirm')
   @UseGuards(JwtAuthGuard)
-  confirmPayment(@Param('offerId') offerId: string, @Body() body: { mpPaymentId?: string }) {
+  confirmPayment(
+    @Param('offerId') offerId: string,
+    @Body() body: { mpPaymentId?: string },
+  ) {
     return this.paymentsService.confirmPayment(offerId, body.mpPaymentId);
   }
 
@@ -28,21 +52,22 @@ export class PaymentsController {
     @Body() body: { mpPaymentId?: string },
     @Headers('x-internal-secret') secret: string,
   ) {
-    if (secret !== process.env.INTERNAL_SECRET) throw new UnauthorizedException();
+    if (secret !== process.env.INTERNAL_SECRET)
+      throw new UnauthorizedException();
     return this.paymentsService.confirmPayment(offerId, body.mpPaymentId);
   }
 
   // Historial de pagos del dador (para facturas)
   @Get('mine')
   @UseGuards(JwtAuthGuard)
-  getMyPayments(@Request() req) {
+  getMyPayments(@Request() req: AuthReq) {
     return this.paymentsService.getMyPayments(req.user.id);
   }
 
   // El dador ve el código de entrega para compartirlo con quien recibe la carga
   @Get('delivery-code')
   @UseGuards(JwtAuthGuard)
-  getDeliveryCode(@Request() req, @Query('loadId') loadId: string) {
+  getDeliveryCode(@Request() req: AuthReq, @Query('loadId') loadId: string) {
     return this.paymentsService.getDeliveryCode(req.user.id, loadId);
   }
 
@@ -50,8 +75,14 @@ export class PaymentsController {
   @Post('confirm-delivery')
   @UseGuards(JwtAuthGuard)
   confirmDelivery(
-    @Request() req,
-    @Body() body: { loadId: string; code: string; payoutMethod: string; payoutDestination: string },
+    @Request() req: AuthReq,
+    @Body()
+    body: {
+      loadId: string;
+      code: string;
+      payoutMethod: string;
+      payoutDestination: string;
+    },
   ) {
     return this.paymentsService.confirmDelivery(
       req.user.id,
@@ -64,18 +95,26 @@ export class PaymentsController {
 
   // El admin lista todos los retiros pendientes/completados
   @Get('admin/payouts')
-  getAdminPayouts(@Headers('x-internal-secret') secret: string) {
-    if (secret !== process.env.INTERNAL_SECRET) throw new UnauthorizedException();
+  @UseGuards(JwtAuthGuard)
+  getAdminPayouts(
+    @Request() req: AuthReq,
+    @Headers('x-internal-secret') secret: string,
+  ) {
+    if (req.user.role !== 'admin' && secret !== process.env.INTERNAL_SECRET)
+      throw new UnauthorizedException();
     return this.paymentsService.getAdminPayouts();
   }
 
-  // El admin marca un pago como transferido manualmente (protegido por secreto interno)
+  // El admin marca un pago como transferido manualmente (protegido por JWT + secreto interno)
   @Post('internal/:paymentId/mark-paid')
+  @UseGuards(JwtAuthGuard)
   markPaid(
     @Param('paymentId') paymentId: string,
+    @Request() req: AuthReq,
     @Headers('x-internal-secret') secret: string,
   ) {
-    if (secret !== process.env.INTERNAL_SECRET) throw new UnauthorizedException();
+    if (req.user.role !== 'admin' && secret !== process.env.INTERNAL_SECRET)
+      throw new UnauthorizedException();
     return this.paymentsService.markPayoutDone(paymentId);
   }
 
@@ -85,10 +124,14 @@ export class PaymentsController {
   async downloadInvoice(
     @Param('paymentId') paymentId: string,
     @Query('numero') numero: string,
-    @Request() req,
+    @Request() req: AuthReq,
     @Res() res: Response,
   ) {
-    const buffer = await this.paymentsService.generateInvoicePdf(paymentId, req.user.id, numero ?? 'F-0000-000');
+    const buffer = await this.paymentsService.generateInvoicePdf(
+      paymentId,
+      req.user.id,
+      numero ?? 'F-0000-000',
+    );
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="factura-${numero ?? paymentId}.pdf"`,

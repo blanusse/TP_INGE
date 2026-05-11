@@ -199,7 +199,7 @@ export default async function Home() {
               { nombre: "Transportes Del Sur", rol: "Empresa de flota · Mendoza", texto: "Gestionamos 18 camiones desde una sola pantalla. Las rutas de retorno están siempre cubiertas. La eficiencia subió un 40%." },
             ].map((t) => (
               <div key={t.nombre} style={{ background: "#000", borderRadius: "var(--border-radius-lg)", padding: 24, border: "0.5px solid rgba(255,255,255,0.15)" }}>
-                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.65, marginBottom: 20, fontStyle: "italic" }}>"{t.texto}"</p>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.65, marginBottom: 20, fontStyle: "italic" }}>&quot;{t.texto}&quot;</p>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{t.nombre}</div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{t.rol}</div>
               </div>

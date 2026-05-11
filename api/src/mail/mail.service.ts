@@ -108,7 +108,10 @@ export class MailService {
     const rows: { label: string; value: string }[] = [
       { label: 'Camionero', value: opts.camioneroName },
       { label: 'Ruta', value: `${opts.pickup} → ${opts.dropoff}` },
-      { label: 'Precio ofrecido', value: `$${Number(opts.price).toLocaleString('es-AR')}` },
+      {
+        label: 'Precio ofrecido',
+        value: `$${Number(opts.price).toLocaleString('es-AR')}`,
+      },
     ];
     if (opts.note) rows.push({ label: 'Nota', value: opts.note });
 
@@ -131,7 +134,10 @@ export class MailService {
       { label: 'Ruta', value: `${opts.pickup} → ${opts.dropoff}` },
     ];
     if (opts.price != null) {
-      rows.push({ label: 'Precio acordado', value: `$${Number(opts.price).toLocaleString('es-AR')}` });
+      rows.push({
+        label: 'Precio acordado',
+        value: `$${Number(opts.price).toLocaleString('es-AR')}`,
+      });
     }
 
     await this.send({
@@ -184,11 +190,21 @@ export class MailService {
     });
   }
 
-  async sendContraofertaRecibida(opts: { camioneroEmail: string; camioneroName: string; pickup: string; dropoff: string; counterPrice: number; loadId: string }) {
+  async sendContraofertaRecibida(opts: {
+    camioneroEmail: string;
+    camioneroName: string;
+    pickup: string;
+    dropoff: string;
+    counterPrice: number;
+    loadId: string;
+  }) {
     const ctaUrl = `${this.config.get('FRONTEND_URL')}/transportista`;
     const rows = [
       { label: 'Ruta', value: `${opts.pickup} → ${opts.dropoff}` },
-      { label: 'Contraoferta del dador', value: `$${Number(opts.counterPrice).toLocaleString('es-AR')}` },
+      {
+        label: 'Contraoferta del dador',
+        value: `$${Number(opts.counterPrice).toLocaleString('es-AR')}`,
+      },
     ];
     await this.send({
       to: opts.camioneroEmail,
@@ -202,11 +218,21 @@ export class MailService {
     });
   }
 
-  async sendOfertaAceptada(opts: { camioneroEmail: string; camioneroName: string; pickup: string; dropoff: string; price: number; loadId: string }) {
+  async sendOfertaAceptada(opts: {
+    camioneroEmail: string;
+    camioneroName: string;
+    pickup: string;
+    dropoff: string;
+    price: number;
+    loadId: string;
+  }) {
     const ctaUrl = `${this.config.get('FRONTEND_URL')}/transportista`;
     const rows = [
       { label: 'Ruta', value: `${opts.pickup} → ${opts.dropoff}` },
-      { label: 'Precio acordado', value: `$${Number(opts.price).toLocaleString('es-AR')}` },
+      {
+        label: 'Precio acordado',
+        value: `$${Number(opts.price).toLocaleString('es-AR')}`,
+      },
     ];
     await this.send({
       to: opts.camioneroEmail,
@@ -220,11 +246,15 @@ export class MailService {
     });
   }
 
-  async sendOfertaRechazada(opts: { camioneroEmail: string; camioneroName: string; pickup: string; dropoff: string; loadId: string }) {
+  async sendOfertaRechazada(opts: {
+    camioneroEmail: string;
+    camioneroName: string;
+    pickup: string;
+    dropoff: string;
+    loadId: string;
+  }) {
     const ctaUrl = `${this.config.get('FRONTEND_URL')}/transportista`;
-    const rows = [
-      { label: 'Ruta', value: `${opts.pickup} → ${opts.dropoff}` },
-    ];
+    const rows = [{ label: 'Ruta', value: `${opts.pickup} → ${opts.dropoff}` }];
     await this.send({
       to: opts.camioneroEmail,
       subject: `Tu oferta fue rechazada — ${opts.pickup} → ${opts.dropoff}`,
@@ -237,8 +267,13 @@ export class MailService {
     });
   }
 
-  async sendInvitacionFlota(opts: { email: string; ownerName: string; token: string }) {
-    const frontendUrl = this.config.get('FRONTEND_URL') ?? 'http://localhost:3000';
+  async sendInvitacionFlota(opts: {
+    email: string;
+    ownerName: string;
+    token: string;
+  }) {
+    const frontendUrl: string =
+      this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
     const link = `${frontendUrl}/invitacion/${opts.token}`;
     const html = `<!DOCTYPE html>
 <html lang="es">
@@ -286,11 +321,21 @@ export class MailService {
     </div>
 </body>
 </html>`;
-    await this.send({ to: opts.email, subject: `${opts.ownerName} te invita a su flota en CargaBack`, html });
+    await this.send({
+      to: opts.email,
+      subject: `${opts.ownerName} te invita a su flota en CargaBack`,
+      html,
+    });
   }
 
-  async sendNuevoReporte(opts: { reporterName: string; reportedName: string; reason: string; description: string }) {
-    const adminEmail = this.config.get<string>('ADMIN_EMAIL') ?? 'admin@cargaback.com';
+  async sendNuevoReporte(opts: {
+    reporterName: string;
+    reportedName: string;
+    reason: string;
+    description: string;
+  }) {
+    const adminEmail =
+      this.config.get<string>('ADMIN_EMAIL') ?? 'admin@cargaback.com';
     const reasonLabels: Record<string, string> = {
       fraud: 'Fraude / estafa',
       non_delivery: 'Incumplimiento de entrega',
@@ -326,7 +371,8 @@ export class MailService {
         html: opts.html,
       });
     } catch (err) {
-      this.logger.error(`Error enviando mail a ${opts.to}: ${err.message}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Error enviando mail a ${opts.to}: ${msg}`);
     }
   }
 }

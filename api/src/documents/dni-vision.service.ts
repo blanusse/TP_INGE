@@ -5,7 +5,8 @@ import { readFileSync } from 'fs';
 export class DniVisionService {
   async extractTextFromFile(filePath: string): Promise<string> {
     const apiKey = process.env.GOOGLE_VISION_API_KEY;
-    if (!apiKey) throw new ServiceUnavailableException('Google Vision no configurado');
+    if (!apiKey)
+      throw new ServiceUnavailableException('Google Vision no configurado');
 
     const imageBase64 = readFileSync(filePath).toString('base64');
 
@@ -13,26 +14,39 @@ export class DniVisionService {
       'https://vision.googleapis.com/v1/images:annotate',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-goog-api-key': apiKey,
+        },
         body: JSON.stringify({
-          requests: [{
-            image: { content: imageBase64 },
-            features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
-          }],
+          requests: [
+            {
+              image: { content: imageBase64 },
+              features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
+            },
+          ],
         }),
       },
     );
 
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({})) as any;
+      const errData = (await response.json().catch(() => ({}))) as {
+        error?: { status?: string };
+      };
       const reason = errData?.error?.status ?? 'ERROR';
       if (reason === 'PERMISSION_DENIED') {
-        throw new ServiceUnavailableException('El servicio de verificación no está disponible en este momento. Contactá al soporte.');
+        throw new ServiceUnavailableException(
+          'El servicio de verificación no está disponible en este momento. Contactá al soporte.',
+        );
       }
-      throw new ServiceUnavailableException('Error al procesar la imagen. Intentá de nuevo.');
+      throw new ServiceUnavailableException(
+        'Error al procesar la imagen. Intentá de nuevo.',
+      );
     }
 
-    const data = await response.json() as any;
+    const data = (await response.json()) as {
+      responses?: { textAnnotations?: { description?: string }[] }[];
+    };
     const annotations = data.responses?.[0]?.textAnnotations;
     if (!annotations || annotations.length === 0) return '';
     return annotations[0].description ?? '';
@@ -41,19 +55,26 @@ export class DniVisionService {
   /** Checks if at least `min` keywords from the list appear in the (uppercased) text */
   private hasKeywords(text: string, keywords: string[], min: number): boolean {
     const upper = text.toUpperCase();
-    const found = keywords.filter(k => upper.includes(k.toUpperCase()));
+    const found = keywords.filter((k) => upper.includes(k.toUpperCase()));
     return found.length >= min;
   }
 
   /** Returns true only if the image looks like an Argentine DNI */
   isDniDocument(text: string): boolean {
     const keywords = [
-      'REPUBLICA ARGENTINA', 'REPÚBLICA ARGENTINA',
-      'DOCUMENTO NACIONAL DE IDENTIDAD', 'DNI',
-      'APELLIDO', 'APELL',
-      'NOMBRES', 'NOMBRE',
-      'SEXO', 'GENERO', 'GÉNERO',
-      'NACIMIENTO', 'NACIDO',
+      'REPUBLICA ARGENTINA',
+      'REPÚBLICA ARGENTINA',
+      'DOCUMENTO NACIONAL DE IDENTIDAD',
+      'DNI',
+      'APELLIDO',
+      'APELL',
+      'NOMBRES',
+      'NOMBRE',
+      'SEXO',
+      'GENERO',
+      'GÉNERO',
+      'NACIMIENTO',
+      'NACIDO',
       'IDENTIDAD',
     ];
     return this.hasKeywords(text, keywords, 3);
@@ -62,9 +83,15 @@ export class DniVisionService {
   /** Returns true only if the image looks like an Argentine driver's license */
   isLicenseDocument(text: string): boolean {
     const keywords = [
-      'LICENCIA', 'CONDUCIR', 'CONDUCTOR',
-      'HABILITANTE', 'CLASE', 'CATEGORIA', 'CATEGORÍA',
-      'PERMISO', 'MUNICIPAL',
+      'LICENCIA',
+      'CONDUCIR',
+      'CONDUCTOR',
+      'HABILITANTE',
+      'CLASE',
+      'CATEGORIA',
+      'CATEGORÍA',
+      'PERMISO',
+      'MUNICIPAL',
     ];
     return this.hasKeywords(text, keywords, 2);
   }
@@ -72,10 +99,16 @@ export class DniVisionService {
   /** Returns true only if the image looks like a VTV certificate */
   isVtvDocument(text: string): boolean {
     const keywords = [
-      'VTV', 'VERIFICACION', 'VERIFICACIÓN',
-      'TECNICA', 'TÉCNICA', 'VEHICULAR',
-      'DOMINIO', 'PATENTE',
-      'VENCIMIENTO', 'VIGENCIA',
+      'VTV',
+      'VERIFICACION',
+      'VERIFICACIÓN',
+      'TECNICA',
+      'TÉCNICA',
+      'VEHICULAR',
+      'DOMINIO',
+      'PATENTE',
+      'VENCIMIENTO',
+      'VIGENCIA',
     ];
     return this.hasKeywords(text, keywords, 2);
   }
@@ -83,10 +116,18 @@ export class DniVisionService {
   /** Returns true only if the image looks like an Argentine cédula verde (vehicle title) */
   isCedulaVerdeDocument(text: string): boolean {
     const keywords = [
-      'CEDULA', 'CÉDULA', 'VERDE',
-      'TITULAR', 'DOMINIO', 'PATENTE',
-      'DNRPA', 'REGISTRO', 'AUTOMOTOR',
-      'MARCA', 'MODELO', 'AÑO',
+      'CEDULA',
+      'CÉDULA',
+      'VERDE',
+      'TITULAR',
+      'DOMINIO',
+      'PATENTE',
+      'DNRPA',
+      'REGISTRO',
+      'AUTOMOTOR',
+      'MARCA',
+      'MODELO',
+      'AÑO',
     ];
     return this.hasKeywords(text, keywords, 2);
   }
@@ -94,11 +135,18 @@ export class DniVisionService {
   /** Returns true only if the image looks like an Argentine cédula azul (driver authorization) */
   isCedulaAzulDocument(text: string): boolean {
     const keywords = [
-      'CEDULA', 'CÉDULA', 'AZUL',
-      'AUTORIZA', 'AUTORIZACIÓN', 'AUTORIZACION',
-      'CONDUCTOR', 'CONDUCIR',
-      'DOMINIO', 'PATENTE',
-      'DNRPA', 'AUTOMOTOR',
+      'CEDULA',
+      'CÉDULA',
+      'AZUL',
+      'AUTORIZA',
+      'AUTORIZACIÓN',
+      'AUTORIZACION',
+      'CONDUCTOR',
+      'CONDUCIR',
+      'DOMINIO',
+      'PATENTE',
+      'DNRPA',
+      'AUTOMOTOR',
     ];
     return this.hasKeywords(text, keywords, 2);
   }
@@ -106,11 +154,18 @@ export class DniVisionService {
   /** Returns true only if the image looks like an Argentine RUCTT certificate */
   isRucttDocument(text: string): boolean {
     const keywords = [
-      'RUCTT', 'REGISTRO UNICO', 'REGISTRO ÚNICO',
-      'TRANSPORTE', 'CARGAS', 'CNRT',
-      'HABILITACION', 'HABILITACIÓN',
-      'NUMERO DE REGISTRO', 'NÚMERO DE REGISTRO',
-      'CARGA', 'NACIONAL',
+      'RUCTT',
+      'REGISTRO UNICO',
+      'REGISTRO ÚNICO',
+      'TRANSPORTE',
+      'CARGAS',
+      'CNRT',
+      'HABILITACION',
+      'HABILITACIÓN',
+      'NUMERO DE REGISTRO',
+      'NÚMERO DE REGISTRO',
+      'CARGA',
+      'NACIONAL',
     ];
     return this.hasKeywords(text, keywords, 2);
   }
@@ -118,42 +173,52 @@ export class DniVisionService {
   /** Returns true only if the image looks like a vehicle insurance document */
   isSeguroDocument(text: string): boolean {
     const keywords = [
-      'SEGURO', 'PÓLIZA', 'POLIZA',
-      'ASEGURADO', 'ASEGURADA',
-      'VIGENCIA', 'VENCIMIENTO',
-      'COBERTURA', 'PRIMA', 'ASEGURADORA',
-      'AUTOMOTOR', 'VEHICULO', 'VEHÍCULO',
+      'SEGURO',
+      'PÓLIZA',
+      'POLIZA',
+      'ASEGURADO',
+      'ASEGURADA',
+      'VIGENCIA',
+      'VENCIMIENTO',
+      'COBERTURA',
+      'PRIMA',
+      'ASEGURADORA',
+      'AUTOMOTOR',
+      'VEHICULO',
+      'VEHÍCULO',
     ];
     return this.hasKeywords(text, keywords, 2);
   }
 
   dniFoundInText(text: string, dni: string): boolean {
-    const normalize = (s: string) => s.replace(/[\s.\-_]/g, '');
+    const normalize = (s: string) => s.replace(/[\s._-]/g, '');
     return normalize(text).includes(normalize(dni));
   }
 
   plateFoundInText(text: string, patente: string): boolean {
-    const normalize = (s: string) => s.replace(/[\s\-\.]/g, '').toUpperCase();
+    const normalize = (s: string) => s.replace(/[\s.-]/g, '').toUpperCase();
     return normalize(text).includes(normalize(patente));
   }
 
   extractExpiryDate(text: string): Date | null {
     const now = new Date();
     // Try DD/MM/YYYY
-    const fullDates = [...text.matchAll(/\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/g)];
+    const fullDates = [...text.matchAll(/\b(\d{2})[/-](\d{2})[/-](\d{4})\b/g)];
     if (fullDates.length > 0) {
       const future = fullDates
-        .map(m => new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1])))
-        .filter(d => d > now && d.getFullYear() > 2020)
+        .map(
+          (m) => new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1])),
+        )
+        .filter((d) => d > now && d.getFullYear() > 2020)
         .sort((a, b) => b.getTime() - a.getTime());
       if (future.length > 0) return future[0];
     }
     // Try MM/YYYY
-    const monthDates = [...text.matchAll(/\b(\d{2})[\/\-](\d{4})\b/g)];
+    const monthDates = [...text.matchAll(/\b(\d{2})[/-](\d{4})\b/g)];
     if (monthDates.length > 0) {
       const future = monthDates
-        .map(m => new Date(parseInt(m[2]), parseInt(m[1]) - 1, 1))
-        .filter(d => d > now && d.getFullYear() > 2020)
+        .map((m) => new Date(parseInt(m[2]), parseInt(m[1]) - 1, 1))
+        .filter((d) => d > now && d.getFullYear() > 2020)
         .sort((a, b) => b.getTime() - a.getTime());
       if (future.length > 0) return future[0];
     }

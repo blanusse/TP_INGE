@@ -1,9 +1,19 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
 } from 'typeorm';
 import { Shipper } from './shipper.entity';
 
-export type LoadStatus = 'available' | 'matched' | 'in_transit' | 'delivered' | 'cancelled';
+export type LoadStatus =
+  | 'available'
+  | 'matched'
+  | 'in_transit'
+  | 'delivered'
+  | 'cancelled';
 
 @Entity('loads')
 export class Load {

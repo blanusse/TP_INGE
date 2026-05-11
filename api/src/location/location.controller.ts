@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Sse, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Sse,
+  UseGuards,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -20,7 +28,9 @@ export class LocationController {
     @Param('loadId') loadId: string,
     @Body() body: { lat: number; lng: number },
   ) {
-    await this.repo.upsert({ load_id: loadId, lat: body.lat, lng: body.lng }, ['load_id']);
+    await this.repo.upsert({ load_id: loadId, lat: body.lat, lng: body.lng }, [
+      'load_id',
+    ]);
     this.locationService.emit(loadId, body.lat, body.lng);
     return { ok: true };
   }

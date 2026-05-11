@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useState, useTransition, useEffect } from "react";
 import { signIn } from "next-auth/react";
@@ -17,7 +18,9 @@ function LoginInner() {
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [tipoDador, setTipoDador] = useState<TipoDador | null>(null);
   const [from, setFrom]     = useState<string | null>(null);
+  const [invitationToken, setInvitationToken] = useState("");
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     const modo      = searchParams.get("modo");
     const perfilP   = searchParams.get("perfil") as Perfil | null;
@@ -43,7 +46,6 @@ function LoginInner() {
   const [razonSocial, setRazonSocial]         = useState("");
   const [cuit, setCuit]                       = useState("");
   const [direccion, setDireccion]             = useState("");
-  const [invitationToken, setInvitationToken] = useState("");
   const [invitacionInfo, setInvitacionInfo]   = useState<{ ownerName: string; email: string } | null>(null);
   const [tokenError, setTokenError]           = useState("");
   const [error, setError]             = useState("");
@@ -226,6 +228,14 @@ function LoginInner() {
           router.push(`/verify-email?email=${encodeURIComponent(email)}`);
           return;
         }
+        if (!checkData.available && checkData.account_status === "suspended") {
+          setError("Tu cuenta está suspendida temporalmente. Contactá a soporte para más información.");
+          return;
+        }
+        if (!checkData.available && checkData.account_status === "banned") {
+          setError("Tu cuenta fue deshabilitada permanentemente.");
+          return;
+        }
         setError("Email o contraseña incorrectos.");
       } else { router.replace("/dashboard"); router.refresh(); }
     });
@@ -260,7 +270,7 @@ function LoginInner() {
         </div>
 
         <div style={{ background: "rgba(255,255,255,0.07)", border: "0.5px solid rgba(255,255,255,0.12)", borderRadius: 14, padding: "20px 18px" }}>
-          <div style={{ fontSize: 22, color: "#5cb899", marginBottom: 10, lineHeight: 1 }}>"</div>
+          <div style={{ fontSize: 22, color: "#5cb899", marginBottom: 10, lineHeight: 1 }}>&quot;</div>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.65, margin: "0 0 16px", fontStyle: "italic" }}>
             Antes volvía vacío de Buenos Aires siempre. Ahora en 20 minutos encuentro carga para el regreso. Cambió todo.
           </p>
