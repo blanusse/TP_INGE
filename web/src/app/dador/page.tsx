@@ -909,7 +909,7 @@ function ChatInline({ sel, userId }: { sel: OfertaSeleccionada; userId: string }
       if (res.ok) {
         const data = await res.json();
         const m = data.message;
-        setMensajes((prev) => [...prev, { id: m.id, senderId: m.sender_id, texto: m.content, hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "" }]);
+        setMensajes((prev) => prev.some((p) => p.id === m.id) ? prev : [...prev, { id: m.id, senderId: m.sender_id, texto: m.content, hora: m.created_at ? new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "" }]);
         setTexto("");
         setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
       }
