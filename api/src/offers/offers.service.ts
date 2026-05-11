@@ -27,6 +27,10 @@ export class OffersService {
   ) {}
 
   async submitOffer(userId: string, body: { load_id: string; price: number; truck_id?: string; note?: string; assigned_driver_id?: string }) {
+    if (!body.price || Number(body.price) <= 0) {
+      throw new BadRequestException('El precio de la oferta debe ser mayor a 0.');
+    }
+
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     const fleetOwnerId = user?.fleet_id ?? userId;
 
@@ -37,6 +41,9 @@ export class OffersService {
       if (!assignedDriver) throw new BadRequestException('El conductor asignado no existe.');
       if (assignedDriver.fleet_id !== userId && assignedDriver.id !== userId) {
         throw new ForbiddenException('El conductor no pertenece a tu flota.');
+      }
+      if (!assignedDriver.dni_verified || !assignedDriver.license_verified) {
+        throw new BadRequestException('El conductor asignado debe tener DNI y registro de conducir verificados.');
       }
     }
 

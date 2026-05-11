@@ -2125,12 +2125,19 @@ function ModalOfertar({ info, onClose, onEnviar, trucks, drivers, mode }: { info
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setError(null);
     if (esFlota && !assignedDriverId) { setError("Seleccioná un conductor de tu flota."); setLoading(false); return; }
+    if (esFlota && assignedDriverId) {
+      const conductor = drivers?.find((d) => d.id === assignedDriverId);
+      if (conductor && !conductor.is_verified && !(conductor.dni_verified && conductor.license_verified)) {
+        setError("El conductor seleccionado no tiene todos sus documentos verificados."); setLoading(false); return;
+      }
+    }
+    if (!precio || Number(precio) <= 0) { setError("El precio debe ser mayor a 0."); setLoading(false); return; }
     try {
       const body: Record<string, unknown> = { loadId: info.cargaId, price: precio, truckId: truckId || undefined };
       if (esFlota && assignedDriverId) body.assignedDriverId = assignedDriverId;
       const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? data.message ?? "Error al enviar la oferta."); return; }
+      if (!res.ok) { setError(data.message ?? data.error ?? "Error al enviar la oferta."); return; }
       onEnviar(info.cargaId); onClose();
     } finally { setLoading(false); }
   };
@@ -2148,10 +2155,22 @@ function ModalOfertar({ info, onClose, onEnviar, trucks, drivers, mode }: { info
             <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>Conductor asignado<span style={{ color: "#ef4444", marginLeft: 2 }}>*</span></label>
             <select value={assignedDriverId} onChange={(e) => setAssignedDriverId(e.target.value)} style={{ width: "100%", fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" as const }}>
               <option value="">— Seleccioná un conductor —</option>
-              {drivers?.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}{d.dni ? ` (DNI ${d.dni})` : ""}</option>
-              ))}
+              {drivers?.map((d) => {
+                const verificado = d.is_verified || (d.dni_verified && d.license_verified);
+                return (
+                  <option key={d.id} value={d.id}>
+                    {d.name}{d.dni ? ` (DNI ${d.dni})` : ""}{!verificado ? " ⚠ sin documentos" : ""}
+                  </option>
+                );
+              })}
             </select>
+            {assignedDriverId && (() => {
+              const conductor = drivers?.find((d) => d.id === assignedDriverId);
+              const verificado = conductor && (conductor.is_verified || (conductor.dni_verified && conductor.license_verified));
+              return !verificado && conductor ? (
+                <p style={{ fontSize: 12, color: "#f59e0b", margin: "5px 0 0", fontWeight: 500 }}>⚠ Este conductor no tiene DNI y registro de conducir verificados.</p>
+              ) : null;
+            })()}
           </div>
         )}
         {trucks.length > 0 && (

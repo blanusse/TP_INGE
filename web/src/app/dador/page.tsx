@@ -1241,9 +1241,10 @@ function SeccionMisCargas({
 
 // ── Seccion Mis Envios ───────────────────────────────────────────────────────
 
-function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }) {
+function SeccionMisEnvios({ cargas, userId }: { cargas: Carga[]; onRefresh: () => void; userId: string }) {
   const [deliveryCodes, setDeliveryCodes] = useState<Record<string, { code: string; used: boolean }>>({});
   const [mapaAbierto, setMapaAbierto] = useState<string | null>(null);
+  const [chatAbierto, setChatAbierto] = useState<string | null>(null);
 
   const enTransito = cargas.filter((c) => c.status === "in_transit" || c.status === "accepted");
   const entregados = cargas.filter((c) => c.status === "delivered");
@@ -1321,9 +1322,14 @@ function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }
                   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
                   {mapaAbierto === c.id ? "Ocultar mapa" : "Ver en mapa"}
                 </button>
-                <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ fontSize: 14 }}>&#9993;</span> Chat
-                </button>
+                {ao && (
+                  <button
+                    onClick={() => setChatAbierto(chatAbierto === c.id ? null : c.id)}
+                    style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: chatAbierto === c.id ? "rgba(58,128,107,0.08)" : "transparent", color: chatAbierto === c.id ? "#3a806b" : "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+                  >
+                    <span style={{ fontSize: 14 }}>&#9993;</span> {chatAbierto === c.id ? "Ocultar chat" : "Chat"}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1377,6 +1383,16 @@ function SeccionMisEnvios({ cargas }: { cargas: Carga[]; onRefresh: () => void }
                   destLng={c.destLng}
                   truckType={c.truckType}
                   height={280}
+                />
+              </div>
+            )}
+
+            {/* Chat en tiempo real */}
+            {chatAbierto === c.id && ao && (
+              <div style={{ marginTop: 16, borderTop: "1px solid var(--color-border-tertiary)", paddingTop: 16 }}>
+                <ChatInline
+                  sel={{ offerId: ao.offerId, cargaTitulo: c.titulo, cargaId: c.id, oferta: { id: 0, offerId: ao.offerId, driverId: null, nombre: ao.driverName, iniciales: ao.driverName.charAt(0), rating: 0, viajes: 0, precio: ao.precio, nota: "" } }}
+                  userId={userId}
                 />
               </div>
             )}
@@ -2327,7 +2343,7 @@ export default function DadorDashboard() {
             }}
           />
         )}
-        {navActivo === "Mis envios" && <SeccionMisEnvios cargas={cargas} onRefresh={fetchCargas} />}
+        {navActivo === "Mis envios" && <SeccionMisEnvios cargas={cargas} onRefresh={fetchCargas} userId={userId} />}
         {navActivo === "Historial" && <SeccionHistorial />}
         {navActivo === "Facturación" && <SeccionFacturacion />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
