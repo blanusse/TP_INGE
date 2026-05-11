@@ -12,6 +12,18 @@ import { Offer } from '../entities/offer.entity';
 import { User } from '../entities/user.entity';
 import { AlertsService } from '../alerts/alerts.service';
 
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 const TRUCK_TYPE_MAP: Record<string, string> = {
   'Furgón cerrado': 'camion',
   Plataforma: 'semi',
@@ -113,10 +125,16 @@ export class LoadsService {
       ? (TRUCK_TYPE_MAP[body.truck_type_required] ?? body.truck_type_required)
       : undefined;
 
+    let distance_km: number | undefined;
+    if (body.pickup_lat != null && body.pickup_lon != null && body.dropoff_lat != null && body.dropoff_lon != null) {
+      distance_km = Math.round(haversineKm(Number(body.pickup_lat), Number(body.pickup_lon), Number(body.dropoff_lat), Number(body.dropoff_lon)));
+    }
+
     const load = this.loadsRepo.create({
       ...body,
       shipper_id: shipper.id,
       truck_type_required: mappedTruckType,
+      distance_km,
       status: 'available',
     });
 
@@ -140,6 +158,11 @@ export class LoadsService {
         'l.description',
         'l.status',
         'l.created_at',
+        'l.distance_km',
+        'l.pickup_lat',
+        'l.pickup_lon',
+        'l.dropoff_lat',
+        'l.dropoff_lon',
       ])
       .where('l.status = :status', { status: 'available' });
 
