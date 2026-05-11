@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Not } from 'typeorm';
 import { Message } from '../entities/message.entity';
 import { Offer } from '../entities/offer.entity';
 import { Load } from '../entities/load.entity';
@@ -42,6 +42,32 @@ export class MessagesService {
     return offer;
   }
 
+  /** Devuelve los offer_ids de conversaciones activas del usuario */
+  private async getAccessibleOfferIds(userId: string): Promise<string[]> {
+    const shipper = await this.shippersRepo.findOne({ where: { user_id: userId } });
+
+    if (shipper) {
+      const loads = await this.loadsRepo.find({
+        where: [
+          { shipper_id: shipper.id, status: 'matched' },
+          { shipper_id: shipper.id, status: 'in_transit' },
+        ],
+      });
+      if (!loads.length) return [];
+      const offers = await this.offersRepo.find({
+        where: { load_id: In(loads.map((l) => l.id)), status: 'accepted' },
+        select: ['id'],
+      });
+      return offers.map((o) => o.id);
+    } else {
+      const offers = await this.offersRepo.find({
+        where: { driver_id: userId, status: 'accepted' },
+        select: ['id'],
+      });
+      return offers.map((o) => o.id);
+    }
+  }
+
   async getMessages(userId: string, offerId: string) {
     await this.assertAccess(userId, offerId);
 
@@ -49,6 +75,12 @@ export class MessagesService {
       where: { offer_id: offerId },
       order: { created_at: 'ASC' },
     });
+
+    // Marcar como leídos los mensajes del otro (no los propios)
+    await this.messagesRepo.update(
+      { offer_id: offerId, sender_id: Not(userId), is_read: false },
+      { is_read: true },
+    );
 
     const senderIds = [...new Set(messages.map((m) => m.sender_id))];
     const senders = senderIds.length
@@ -72,6 +104,7 @@ export class MessagesService {
       offer_id: body.offer_id,
       sender_id: userId,
       content: body.content.trim(),
+      is_read: false,
     });
     const saved = await this.messagesRepo.save(msg);
 
@@ -83,6 +116,20 @@ export class MessagesService {
     gateway?.emitNewMessage(body.offer_id, payload);
 
     return saved;
+  }
+
+  async getUnreadCount(userId: string): Promise<{ count: number }> {
+    const offerIds = await this.getAccessibleOfferIds(userId);
+    if (!offerIds.length) return { count: 0 };
+
+    const count = await this.messagesRepo.count({
+      where: {
+        offer_id: In(offerIds),
+        sender_id: Not(userId),
+        is_read: false,
+      },
+    });
+    return { count };
   }
 
   async getConversations(userId: string) {
@@ -116,7 +163,7 @@ export class MessagesService {
     const loadIds = [...new Set(offers.map((o) => o.load_id))];
     const driverIds = [...new Set(offers.map((o) => o.driver_id))];
 
-    const [loads, drivers, lastMessages] = await Promise.all([
+    const [loads, drivers, lastMessages, unreadRaw] = await Promise.all([
       this.loadsRepo.find({ where: { id: In(loadIds) } }),
       this.usersRepo.find({
         where: { id: In(driverIds) },
@@ -129,12 +176,24 @@ export class MessagesService {
         .orderBy('m.created_at', 'DESC')
         .distinctOn(['m.offer_id'])
         .getMany(),
+      this.messagesRepo
+        .createQueryBuilder('m')
+        .select('m.offer_id', 'offer_id')
+        .addSelect('COUNT(*)', 'count')
+        .where('m.offer_id IN (:...ids)', { ids: offerIds })
+        .andWhere('m.sender_id != :userId', { userId })
+        .andWhere('m.is_read = false')
+        .groupBy('m.offer_id')
+        .getRawMany<{ offer_id: string; count: string }>(),
     ]);
 
     const loadMap = Object.fromEntries(loads.map((l) => [l.id, l]));
     const driverMap = Object.fromEntries(drivers.map((d) => [d.id, d]));
     const lastMsgMap = Object.fromEntries(
       lastMessages.map((m) => [m.offer_id, m]),
+    );
+    const unreadMap = Object.fromEntries(
+      unreadRaw.map((r) => [r.offer_id, parseInt(r.count)]),
     );
 
     return offers.map((offer) => {
@@ -150,6 +209,7 @@ export class MessagesService {
         price: offer.price,
         last_message: lastMsg?.content ?? null,
         last_message_at: lastMsg?.created_at ?? null,
+        unread_count: unreadMap[offer.id] ?? 0,
       };
     });
   }

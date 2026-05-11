@@ -15,6 +15,7 @@ import { LocationModule } from './location/location.module';
 import { DocumentsModule } from './documents/documents.module';
 import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
+import { AlertsModule } from './alerts/alerts.module';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { AdminModule } from './admin/admin.module';
         type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
-        synchronize: process.env.NODE_ENV !== 'production',
+        synchronize: true,
       }),
       inject: [ConfigService],
     }),
@@ -45,6 +46,7 @@ import { AdminModule } from './admin/admin.module';
     DocumentsModule,
     ReportsModule,
     AdminModule,
+    AlertsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -1,0 +1,11 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { apiFetch } from "@/lib/apiFetch";
+
+export async function PATCH() {
+  const session = await auth();
+  if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const res = await apiFetch("/notifications/read-all", session.backendToken, { method: "PATCH" });
+  const data = await res.json();
+  return NextResponse.json(data, { status: res.status });
+}

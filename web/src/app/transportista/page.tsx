@@ -13,13 +13,13 @@ import ModalReportar from "@/app/_components/ModalReportar";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
-type NavItem = "Inicio" | "Buscar cargas" | "Planificar viaje" | "Mis ofertas" | "Mis viajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
+type NavItem = "Inicio" | "Buscar cargas" | "Planificar viaje" | "Mis ofertas" | "Mis viajes" | "Mensajes" | "Notificaciones" | "Mi flota" | "Mi perfil";
 type DashboardMode = "individual" | "flota" | "empleado";
 
 const NAV_ITEMS_BY_MODE: Record<DashboardMode, NavItem[]> = {
-  individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Mi flota", "Notificaciones"],
-  flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Notificaciones", "Mi perfil"],
-  empleado:   ["Mis viajes", "Mi perfil", "Notificaciones"],
+  individual: ["Inicio", "Buscar cargas", "Planificar viaje", "Mis ofertas", "Mis viajes", "Mensajes", "Mi flota", "Notificaciones"],
+  flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Mensajes", "Notificaciones", "Mi perfil"],
+  empleado:   ["Mis viajes", "Mensajes", "Mi perfil", "Notificaciones"],
 };
 const DEFAULT_NAV: Record<DashboardMode, NavItem> = {
   individual: "Inicio",
@@ -270,8 +270,25 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoT
           </label>
         </div>
 
-        <button onClick={onAlerta} style={{ width: "100%", fontSize: 13, padding: "9px", borderRadius: 6, background: "var(--green)", border: "none", color: "#fff", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-          <i className="fa-solid fa-magnifying-glass" />Aplicar filtros
+        <button
+          onClick={async () => {
+            await fetch("/api/alerts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                cargo_types: tipos.length ? tipos : undefined,
+                truck_types: tiposCamion.length ? tiposCamion : undefined,
+                origin_city: origen || undefined,
+                dest_city: destino || undefined,
+                price_min: precioMin ? parseInt(precioMin) : undefined,
+                price_max: precioMax ? parseInt(precioMax) : undefined,
+              }),
+            });
+            onAlerta();
+          }}
+          style={{ width: "100%", fontSize: 13, padding: "9px", borderRadius: 6, background: "var(--green)", border: "none", color: "#fff", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+        >
+          <i className="fa-solid fa-bell" />Guardar alerta con estos filtros
         </button>
       </aside>
 
@@ -1089,18 +1106,316 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
   );
 }
 
-function SeccionNotificaciones() {
+// ── SeccionMensajes ───────────────────────────────────────────────────────────
+
+interface Conversacion {
+  offerId: string;
+  loadTitle: string;
+  otherParty: string | null;
+  lastMessage: string | null;
+  lastMessageAt: string | null;
+  unreadCount: number;
+}
+
+interface MsgChat {
+  id: string;
+  senderId: string;
+  texto: string;
+  hora: string;
+}
+
+function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadge: () => void }) {
+  const [convs, setConvs] = useState<Conversacion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Conversacion | null>(null);
+  const [mensajes, setMensajes] = useState<MsgChat[]>([]);
+  const [texto, setTexto] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    fetch("/api/conversations")
+      .then((r) => r.json())
+      .then((d) => {
+        const arr: Conversacion[] = (d.conversations ?? []).map((c: { offer_id: string; load_title: string; other_party: string | null; last_message: string | null; last_message_at: string | null; unread_count: number }) => ({
+          offerId: c.offer_id,
+          loadTitle: c.load_title,
+          otherParty: c.other_party,
+          lastMessage: c.last_message,
+          lastMessageAt: c.last_message_at,
+          unreadCount: c.unread_count ?? 0,
+        }));
+        setConvs(arr);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const fetchMensajes = (offerId: string) => {
+    fetch(`/api/messages?offerId=${offerId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const msgs: MsgChat[] = (d.messages ?? []).map((m: { id: string; sender_id: string; content: string; created_at: string }) => ({
+          id: m.id,
+          senderId: m.sender_id,
+          texto: m.content,
+          hora: new Date(m.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
+        }));
+        setMensajes(msgs);
+        // limpiar unread en local
+        setConvs((prev) => prev.map((c) => c.offerId === offerId ? { ...c, unreadCount: 0 } : c));
+        onClearBadge();
+      })
+      .catch(() => {});
+  };
+
+  const abrirConv = (conv: Conversacion) => {
+    setSelected(conv);
+    setMensajes([]);
+    fetchMensajes(conv.offerId);
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => fetchMensajes(conv.offerId), 4000);
+  };
+
+  useEffect(() => {
+    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [mensajes]);
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  const enviar = async () => {
+    if (!texto.trim() || !selected || enviando) return;
+    setEnviando(true);
+    await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offerId: selected.offerId, content: texto.trim() }),
+    });
+    setTexto("");
+    fetchMensajes(selected.offerId);
+    setEnviando(false);
+  };
+
+  const wrapper: React.CSSProperties = { padding: "24px 20px", maxWidth: 760, margin: "0 auto", width: "100%" };
+  const card: React.CSSProperties = { background: "var(--bg0)", border: "0.5px solid var(--border)", borderRadius: 12 };
+
+  if (loading) return <div style={{ ...wrapper, color: "var(--text2)", textAlign: "center", paddingTop: 60 }}>Cargando conversaciones...</div>;
+
   return (
-    <main style={{ padding: "28px 32px", flex: 1, maxWidth: 760, margin: "0 auto", width: "100%" }}>
-      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 20 }}>Notificaciones</div>
-      <div style={{ textAlign: "center", padding: "60px 20px", background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "1px solid var(--border)" }}>
-        <div style={{ width: 60, height: 60, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-          <i className="fa-solid fa-bell" style={{ fontSize: 22, color: "var(--green)" }} />
+    <div style={wrapper}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text1)", marginBottom: 20 }}>Mensajes</div>
+
+      {selected ? (
+        <div style={card}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "0.5px solid var(--border)" }}>
+            <button onClick={() => { setSelected(null); if (pollRef.current) clearInterval(pollRef.current); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 18, lineHeight: 1, padding: 0 }}>←</button>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text1)" }}>{selected.otherParty ?? "Dador de carga"}</div>
+              <div style={{ fontSize: 12, color: "var(--text2)" }}>{selected.loadTitle}</div>
+            </div>
+          </div>
+          {/* Chat */}
+          <div ref={listRef} style={{ height: 340, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, padding: "16px 18px" }}>
+            {mensajes.length === 0 && <div style={{ textAlign: "center", color: "var(--text2)", fontSize: 13, marginTop: 80 }}>Sin mensajes todavía.</div>}
+            {mensajes.map((m) => {
+              const esYo = m.senderId === userId;
+              return (
+                <div key={m.id} style={{ display: "flex", justifyContent: esYo ? "flex-end" : "flex-start" }}>
+                  <div style={{ maxWidth: "75%", padding: "9px 13px", borderRadius: esYo ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: esYo ? "var(--green)" : "var(--bg2)", color: esYo ? "#fff" : "var(--text1)", fontSize: 13, lineHeight: 1.5 }}>
+                    {m.texto}
+                    <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{m.hora}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Input */}
+          <div style={{ display: "flex", gap: 8, padding: "12px 18px", borderTop: "0.5px solid var(--border)" }}>
+            <input
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+              placeholder="Escribí un mensaje..."
+              style={{ flex: 1, fontSize: 13, padding: "9px 12px", borderRadius: 8, border: "0.5px solid var(--border2)", background: "var(--bg2)", color: "var(--text1)", outline: "none" }}
+            />
+            <button onClick={enviar} disabled={enviando} style={{ padding: "9px 16px", borderRadius: 8, border: "none", background: "var(--green)", color: "#fff", cursor: enviando ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 14, opacity: enviando ? 0.7 : 1 }}>→</button>
+          </div>
         </div>
-        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--text1)", marginBottom: 6, lineHeight: 1.7 }}>No tenés notificaciones</div>
-        <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.7 }}>Las notificaciones de ofertas, pagos y viajes aparecerán aquí.</div>
+      ) : (
+        <>
+          {convs.length === 0 ? (
+            <div style={{ ...card, padding: 40, textAlign: "center", color: "var(--text2)", fontSize: 14 }}>
+              No tenés conversaciones activas. Los chats aparecen cuando tenés un viaje en curso.
+            </div>
+          ) : (
+            <div style={card}>
+              {convs.map((c, i) => (
+                <button
+                  key={c.offerId}
+                  onClick={() => abrirConv(c)}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: "transparent", border: "none", borderTop: i === 0 ? "none" : "0.5px solid var(--border)", cursor: "pointer", textAlign: "left" }}
+                >
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--green-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16, color: "var(--green)", fontWeight: 700 }}>
+                    {(c.otherParty ?? "D")[0].toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 14, fontWeight: c.unreadCount > 0 ? 700 : 500, color: "var(--text1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {c.otherParty ?? "Dador de carga"}
+                      </span>
+                      {c.lastMessageAt && (
+                        <span style={{ fontSize: 11, color: "var(--text2)", flexShrink: 0, marginLeft: 8 }}>
+                          {new Date(c.lastMessageAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                      {c.lastMessage ?? c.loadTitle}
+                    </div>
+                  </div>
+                  {c.unreadCount > 0 && (
+                    <span style={{ minWidth: 20, height: 20, borderRadius: 10, background: "#ef4444", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px", flexShrink: 0 }}>
+                      {c.unreadCount > 9 ? "9+" : c.unreadCount}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+interface NotifItem { id: string; title: string; body: string; load_id: string | null; is_read: boolean; created_at: string; }
+interface AlertItem { id: string; name: string | null; cargo_types: string | null; truck_types: string | null; origin_city: string | null; dest_city: string | null; price_min: number | null; price_max: number | null; created_at: string; }
+
+function SeccionNotificaciones({ onClearBadge }: { onClearBadge: () => void }) {
+  const [tab, setTab] = useState<"notificaciones" | "alertas">("notificaciones");
+  const [notifs, setNotifs] = useState<NotifItem[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [loadingN, setLoadingN] = useState(true);
+  const [loadingA, setLoadingA] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/notifications")
+      .then((r) => r.json())
+      .then((d) => setNotifs(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoadingN(false));
+    fetch("/api/alerts")
+      .then((r) => r.json())
+      .then((d) => setAlerts(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoadingA(false));
+  }, []);
+
+  const markAllRead = async () => {
+    await fetch("/api/notifications/read-all", { method: "PATCH" });
+    setNotifs((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    onClearBadge();
+  };
+
+  const deleteAlert = async (id: string) => {
+    setDeletingId(id);
+    await fetch(`/api/alerts/${id}`, { method: "DELETE" });
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
+    setDeletingId(null);
+  };
+
+  const unread = notifs.filter((n) => !n.is_read).length;
+  const wrapper: React.CSSProperties = { padding: "24px 20px", maxWidth: 760, margin: "0 auto", width: "100%" };
+  const card: React.CSSProperties = { background: "var(--bg0)", border: "0.5px solid var(--border)", borderRadius: 12, overflow: "hidden" };
+
+  return (
+    <div style={wrapper}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text1)" }}>Notificaciones</div>
       </div>
-    </main>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 0, marginBottom: 20, borderBottom: "1px solid var(--border)" }}>
+        {(["notificaciones", "alertas"] as const).map((t) => (
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: "none", color: tab === t ? "var(--green)" : "var(--text2)", borderBottom: tab === t ? "2px solid var(--green)" : "2px solid transparent", marginBottom: -1, fontFamily: "inherit" }}>
+            {t === "notificaciones" ? `Notificaciones${unread > 0 ? ` (${unread})` : ""}` : `Mis alertas (${alerts.length})`}
+          </button>
+        ))}
+      </div>
+
+      {tab === "notificaciones" && (
+        <>
+          {unread > 0 && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+              <button onClick={markAllRead} style={{ fontSize: 12, color: "var(--text2)", background: "none", border: "1px solid var(--border2)", borderRadius: 6, padding: "5px 12px", cursor: "pointer" }}>
+                Marcar todo como leído
+              </button>
+            </div>
+          )}
+          {loadingN ? (
+            <div style={{ textAlign: "center", color: "var(--text2)", padding: 40 }}>Cargando...</div>
+          ) : notifs.length === 0 ? (
+            <div style={{ ...card, padding: 40, textAlign: "center", color: "var(--text2)", fontSize: 14 }}>
+              No tenés notificaciones todavía. Guardá alertas de búsqueda para recibir avisos de nuevas cargas.
+            </div>
+          ) : (
+            <div style={card}>
+              {notifs.map((n, i) => (
+                <div key={n.id} style={{ display: "flex", gap: 14, padding: "14px 18px", borderTop: i === 0 ? "none" : "0.5px solid var(--border)", background: n.is_read ? "transparent" : "rgba(58,128,107,0.06)" }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: n.is_read ? "transparent" : "var(--green)", marginTop: 6, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: n.is_read ? 400 : 600, color: "var(--text1)" }}>{n.title}</div>
+                    <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 2 }}>{n.body}</div>
+                    <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>{new Date(n.created_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === "alertas" && (
+        <>
+          {loadingA ? (
+            <div style={{ textAlign: "center", color: "var(--text2)", padding: 40 }}>Cargando...</div>
+          ) : alerts.length === 0 ? (
+            <div style={{ ...card, padding: 40, textAlign: "center", color: "var(--text2)", fontSize: 14 }}>
+              No tenés alertas guardadas. Usá el botón <strong>"Guardar alerta con estos filtros"</strong> en la sección Buscar cargas.
+            </div>
+          ) : (
+            <div style={card}>
+              {alerts.map((a, i) => (
+                <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", borderTop: i === 0 ? "none" : "0.5px solid var(--border)" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text1)" }}>{a.name ?? "Alerta"}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+                      {a.cargo_types && a.cargo_types.split(",").map((t) => <span key={t} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "var(--green-muted)", color: "var(--green)", fontWeight: 500 }}>{t}</span>)}
+                      {a.truck_types && a.truck_types.split(",").map((t) => <span key={t} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "var(--bg2)", color: "var(--text2)" }}>{t}</span>)}
+                      {a.origin_city && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "var(--bg2)", color: "var(--text2)" }}>Desde: {a.origin_city}</span>}
+                      {a.dest_city && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "var(--bg2)", color: "var(--text2)" }}>Hacia: {a.dest_city}</span>}
+                      {a.price_min != null && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "var(--bg2)", color: "var(--text2)" }}>Min: ${Number(a.price_min).toLocaleString("es-AR")}</span>}
+                      {a.price_max != null && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "var(--bg2)", color: "var(--text2)" }}>Max: ${Number(a.price_max).toLocaleString("es-AR")}</span>}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 6 }}>Creada {new Date(a.created_at).toLocaleDateString("es-AR")}</div>
+                  </div>
+                  <button
+                    onClick={() => deleteAlert(a.id)}
+                    disabled={deletingId === a.id}
+                    style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border2)", background: "none", color: "#ef4444", fontSize: 12, cursor: "pointer", opacity: deletingId === a.id ? 0.5 : 1, flexShrink: 0 }}
+                  >
+                    {deletingId === a.id ? "..." : "Eliminar"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -2726,6 +3041,8 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
   const initials  = userName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
   const primerNombre = userName.split(" ")[0];
   const [ofertasBadge, setOfertasBadge] = useState(0);
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
+  const [notifBadge, setNotifBadge] = useState(0);
   const [trucks, setTrucks] = useState<TruckData[]>([]);
   const [rootDrivers, setRootDrivers] = useState<Driver[]>([]);
   const [isMobile, setIsMobile] = useState(false);
@@ -2744,6 +3061,16 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
     }).catch(() => {});
     fetch("/api/fleet/trucks").then((r) => r.json()).then((d) => { if (d.trucks) setTrucks(d.trucks); }).catch(() => {});
     fetch("/api/fleet/drivers").then((r) => r.json()).then((d) => { if (d.drivers) setRootDrivers(d.drivers); }).catch(() => {});
+
+    const fetchUnread = () => fetch("/api/messages/unread-count").then((r) => r.json()).then((d) => setUnreadMsgCount(d.count ?? 0)).catch(() => {});
+    fetchUnread();
+    const unreadInterval = setInterval(fetchUnread, 30_000);
+
+    const fetchNotifCount = () => fetch("/api/notifications/unread-count").then((r) => r.json()).then((d) => setNotifBadge(d.count ?? 0)).catch(() => {});
+    fetchNotifCount();
+    const notifInterval = setInterval(fetchNotifCount, 60_000);
+
+    return () => { clearInterval(unreadInterval); clearInterval(notifInterval); };
   }, []);
 
   const mostrarToast = (msg: string) => setToast(msg);
@@ -2755,6 +3082,7 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
     "Planificar viaje": "fa-solid fa-map-location-dot",
     "Mis ofertas": "fa-solid fa-handshake",
     "Mis viajes": "fa-solid fa-route",
+    "Mensajes": "fa-solid fa-comment",
     "Notificaciones": "fa-solid fa-bell",
     "Mi flota": "fa-solid fa-truck-front",
     "Mi perfil": "fa-solid fa-user",
@@ -2768,7 +3096,7 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
           <Link href="/" style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>Carga<span style={{ color: "var(--green)" }}>Back</span></Link>
           <nav style={{ display: isMobile ? "none" : "flex", height: "100%" }}>
             {navItems.map((item) => {
-              const badge = item === "Mis ofertas" ? ofertasBadge : 0;
+              const badge = item === "Mis ofertas" ? ofertasBadge : item === "Mensajes" ? unreadMsgCount : item === "Notificaciones" ? notifBadge : 0;
               const active = navActivo === item;
               return (
                 <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
@@ -2799,7 +3127,7 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
         <div style={{ position: "fixed", top: 56, left: 0, right: 0, zIndex: 9, background: "var(--bg0)", borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>
           {navItems.map((item) => {
             const active = navActivo === item;
-            const badge = item === "Mis ofertas" ? ofertasBadge : 0;
+            const badge = item === "Mis ofertas" ? ofertasBadge : item === "Mensajes" ? unreadMsgCount : item === "Notificaciones" ? notifBadge : 0;
             return (
               <button key={item} onClick={() => { setNavActivo(item); setMobileMenuOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 24px", background: active ? "rgba(58,128,107,0.1)" : "transparent", border: "none", cursor: "pointer", color: active ? "var(--green)" : "var(--text2)", fontSize: 15, fontWeight: active ? 600 : 400, fontFamily: "inherit" }}>
                 <i className={NAV_ICONS[item]} style={{ fontSize: 14, width: 16 }} />
@@ -2817,7 +3145,8 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
         {navActivo === "Planificar viaje" && <SeccionPlanificar trucks={trucks} />}
         {navActivo === "Mis ofertas" && <SeccionMisOfertas onToast={mostrarToast} />}
         {navActivo === "Mis viajes" && <SeccionMisViajes userId={userId} mode={mode} />}
-        {navActivo === "Notificaciones" && <SeccionNotificaciones />}
+        {navActivo === "Mensajes" && <SeccionMensajes userId={userId} onClearBadge={() => setUnreadMsgCount(0)} />}
+        {navActivo === "Notificaciones" && <SeccionNotificaciones onClearBadge={() => setNotifBadge(0)} />}
         {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} mode={mode} />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} mode={mode} />}
       </div>

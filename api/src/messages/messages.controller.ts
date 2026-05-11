@@ -35,4 +35,9 @@ export class MessagesController {
   getConversations(@Request() req: AuthReq) {
     return this.messagesService.getConversations(req.user.id);
   }
+
+  @Get('messages/unread-count')
+  getUnreadCount(@Request() req: AuthReq) {
+    return this.messagesService.getUnreadCount(req.user.id);
+  }
 }
