@@ -1889,96 +1889,162 @@ function ModalSeguro({
   );
 }
 
+interface InsuranceProduct { id: string; name: string; insurer: string; coverage_type: string; price: number; conditions: string; is_active: boolean; created_at: string; }
+
 function SeccionSeguros() {
+  type SegurosTab = "catalogo" | "polizas";
+  const [tab, setTab] = useState<SegurosTab>("catalogo");
+
+  // catálogo
+  const [productos, setProductos] = useState<InsuranceProduct[]>([]);
+  const [loadingProd, setLoadingProd] = useState(true);
+  const [expandido, setExpandido] = useState<string | null>(null);
+
+  // pólizas
   const [polizas, setPolizas] = useState<InsurancePolicy[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingPol, setLoadingPol] = useState(true);
   const [modalAbierto, setModalAbierto] = useState(false);
 
+  useEffect(() => {
+    fetch("/api/insurance/products")
+      .then((r) => r.json())
+      .then((d) => setProductos(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoadingProd(false));
+  }, []);
+
   const cargarPolizas = () => {
-    setLoading(true);
+    setLoadingPol(true);
     fetch("/api/insurance/policies")
       .then((r) => r.json())
       .then((d) => setPolizas(Array.isArray(d) ? d : []))
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingPol(false));
   };
-
   useEffect(() => { cargarPolizas(); }, []);
 
   const statusColor = (s: string) =>
     s === "active" ? { bg: "rgba(22,163,74,0.1)", text: "#16a34a" }
     : s === "claimed" ? { bg: "rgba(234,88,12,0.1)", text: "#ea580c" }
     : { bg: "rgba(107,114,128,0.1)", text: "#6b7280" };
-
   const statusLabel = (s: string) =>
     s === "active" ? "Activa" : s === "claimed" ? "Siniestro" : "Vencida";
 
+  const tabStyle = (active: boolean): React.CSSProperties => ({
+    padding: "7px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+    border: "none", background: "none",
+    color: active ? "var(--color-brand)" : "var(--color-text-secondary)",
+    borderBottom: active ? "2px solid var(--color-brand)" : "2px solid transparent",
+    marginBottom: -1,
+  });
+
   return (
     <main style={{ padding: 20, flex: 1 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)" }}>Mis seguros de carga</div>
-        <button
-          onClick={() => setModalAbierto(true)}
-          style={{ fontSize: 13, padding: "7px 16px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, cursor: "pointer" }}
-        >
-          + Cotizar seguro
-        </button>
+      {/* Header + tabs */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 0 }}>
+        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)" }}>Seguros de carga</div>
+        {tab === "polizas" && (
+          <button onClick={() => setModalAbierto(true)} style={{ fontSize: 13, padding: "7px 16px", borderRadius: 8, border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
+            + Cotizar seguro
+          </button>
+        )}
       </div>
 
-      {!loading && polizas.length === 0 && (
-        <div style={{ textAlign: "center", padding: 48, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-tertiary)" }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>🛡️</div>
-          <div style={{ fontWeight: 500, marginBottom: 6 }}>Sin pólizas activas</div>
-          <div>Contratá un seguro para proteger tu mercadería durante el transporte.</div>
-        </div>
+      <div style={{ display: "flex", borderBottom: "1px solid var(--color-border-tertiary)", marginBottom: 20, marginTop: 14 }}>
+        <button style={tabStyle(tab === "catalogo")} onClick={() => setTab("catalogo")}>Catálogo</button>
+        <button style={tabStyle(tab === "polizas")} onClick={() => setTab("polizas")}>Mis pólizas</button>
+      </div>
+
+      {/* Tab catálogo */}
+      {tab === "catalogo" && (
+        <>
+          {loadingProd && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+          {!loadingProd && productos.length === 0 && (
+            <div style={{ textAlign: "center", padding: 48, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-tertiary)" }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>🛡️</div>
+              <div style={{ fontWeight: 500, marginBottom: 4 }}>Sin seguros disponibles</div>
+              <div>El equipo de CargaBack está incorporando opciones de cobertura pronto.</div>
+            </div>
+          )}
+          {!loadingProd && productos.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {productos.map((p) => (
+                <div key={p.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, overflow: "hidden" }}>
+                  <div style={{ padding: "16px 18px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 3 }}>{p.name}</div>
+                        <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{p.insurer} · {p.coverage_type}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-brand)" }}>${Number(p.price).toLocaleString("es-AR")}</div>
+                        <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>ARS</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setExpandido(expandido === p.id ? null : p.id)}
+                      style={{ marginTop: 12, fontSize: 12, color: "var(--color-brand)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}
+                    >
+                      {expandido === p.id ? "▲ Ocultar condiciones" : "▼ Ver condiciones"}
+                    </button>
+                  </div>
+                  {expandido === p.id && (
+                    <div style={{ borderTop: "0.5px solid var(--color-border-tertiary)", padding: "14px 18px", background: "var(--color-background-secondary)" }}>
+                      <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Condiciones</div>
+                      <div style={{ fontSize: 13, color: "var(--color-text-primary)", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{p.conditions}</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      {loading && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
-
-      {!loading && polizas.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {polizas.map((p) => {
-            const sc = statusColor(p.status);
-            const fecha = new Date(p.created_at).toLocaleDateString("es-AR");
-            const vence = new Date(p.coverage_ends_at).toLocaleDateString("es-AR");
-            return (
-              <div key={p.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, padding: "16px 18px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>
-                      {p.pickup_city} → {p.dropoff_city}
+      {/* Tab mis pólizas */}
+      {tab === "polizas" && (
+        <>
+          {loadingPol && <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14 }}>Cargando...</div>}
+          {!loadingPol && polizas.length === 0 && (
+            <div style={{ textAlign: "center", padding: 48, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-tertiary)" }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>🛡️</div>
+              <div style={{ fontWeight: 500, marginBottom: 4 }}>Sin pólizas activas</div>
+              <div>Cotizá un seguro para proteger tu mercadería durante el transporte.</div>
+            </div>
+          )}
+          {!loadingPol && polizas.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {polizas.map((p) => {
+                const sc = statusColor(p.status);
+                const fecha = new Date(p.created_at).toLocaleDateString("es-AR");
+                const vence = new Date(p.coverage_ends_at).toLocaleDateString("es-AR");
+                return (
+                  <div key={p.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, padding: "16px 18px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{p.pickup_city} → {p.dropoff_city}</div>
+                        <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{CARGO_TYPE_LABELS[p.cargo_type] ?? p.cargo_type} · Emitida el {fecha}</div>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: sc.bg, color: sc.text }}>{statusLabel(p.status)}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
-                      {CARGO_TYPE_LABELS[p.cargo_type] ?? p.cargo_type} · Emitida el {fecha}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                      {[["Prima pagada", `$${Number(p.premium).toLocaleString("es-AR")}`], ["Valor asegurado", `$${Number(p.declared_value).toLocaleString("es-AR")}`], ["Vence", vence]].map(([label, val]) => (
+                        <div key={label}>
+                          <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{val}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: sc.bg, color: sc.text }}>
-                    {statusLabel(p.status)}
-                  </span>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                  {[
-                    ["Prima pagada", `$${Number(p.premium).toLocaleString("es-AR")}`],
-                    ["Valor asegurado", `$${Number(p.declared_value).toLocaleString("es-AR")}`],
-                    ["Vence", vence],
-                  ].map(([label, val]) => (
-                    <div key={label}>
-                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 2 }}>{label}</div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{val}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       {modalAbierto && (
-        <ModalSeguro
-          onClose={() => setModalAbierto(false)}
-          onContratado={() => { setModalAbierto(false); cargarPolizas(); }}
-        />
+        <ModalSeguro onClose={() => setModalAbierto(false)} onContratado={() => { setModalAbierto(false); cargarPolizas(); }} />
       )}
     </main>
   );

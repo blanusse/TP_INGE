@@ -55,7 +55,18 @@ interface ReportData {
   reported: { id: string; name: string; email: string; role: string };
 }
 
-type AdminTab = "usuarios" | "retiros" | "reportes" | "audit";
+type AdminTab = "usuarios" | "retiros" | "reportes" | "audit" | "seguros";
+
+interface InsuranceProduct {
+  id: string;
+  name: string;
+  insurer: string;
+  coverage_type: string;
+  price: number;
+  conditions: string;
+  is_active: boolean;
+  created_at: string;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -113,6 +124,7 @@ export default function AdminPage() {
             { key: "retiros",  label: "Retiros" },
             { key: "reportes", label: "Reportes" },
             { key: "audit",    label: "Audit log" },
+            { key: "seguros",  label: "Seguros" },
           ] as const).map((t) => (
             <button
               key={t.key}
@@ -133,6 +145,7 @@ export default function AdminPage() {
         {tab === "retiros"  && <SeccionRetiros />}
         {tab === "reportes" && <SeccionReportes />}
         {tab === "audit"    && <SeccionAuditLog />}
+        {tab === "seguros"  && <SeccionSegurosAdmin />}
       </div>
     </div>
   );
@@ -730,6 +743,166 @@ function SeccionAuditLog() {
           <button disabled={page >= pages} onClick={() => setPage((p) => p + 1)} style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: page >= pages ? "not-allowed" : "pointer", opacity: page >= pages ? 0.5 : 1 }}>
             Siguiente →
           </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Seguros Section ──────────────────────────────────────────────────────────
+
+const COVERAGE_TYPES = [
+  "Todo riesgo",
+  "Robo y hurto",
+  "Daño parcial",
+  "Responsabilidad civil",
+  "Carga refrigerada",
+  "Mercadería peligrosa",
+  "Otro",
+];
+
+const EMPTY_FORM = { name: "", insurer: "", coverage_type: "Todo riesgo", price: "", conditions: "" };
+
+function SeccionSegurosAdmin() {
+  const [products, setProducts] = React.useState<InsuranceProduct[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [form, setForm] = React.useState(EMPTY_FORM);
+  const [saving, setSaving] = React.useState(false);
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [feedback, setFeedback] = React.useState<string | null>(null);
+  const [deleting, setDeleting] = React.useState<string | null>(null);
+
+  const cargar = () => {
+    setLoading(true);
+    fetch("/api/insurance/products/all")
+      .then((r) => r.json())
+      .then((d) => setProducts(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  React.useEffect(() => { cargar(); }, []);
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!form.name.trim()) e.name = "El nombre es obligatorio.";
+    if (!form.insurer.trim()) e.insurer = "La aseguradora es obligatoria.";
+    if (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0) e.price = "El precio debe ser mayor a 0.";
+    if (!form.conditions.trim()) e.conditions = "Las condiciones son obligatorias.";
+    return e;
+  };
+
+  const guardar = async () => {
+    const e = validate();
+    setErrors(e);
+    if (Object.keys(e).length > 0) return;
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/insurance/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, price: Number(form.price) }),
+      });
+      if (!res.ok) throw new Error();
+      setForm(EMPTY_FORM);
+      setFeedback("Seguro creado correctamente.");
+      cargar();
+    } catch {
+      setFeedback("Error al guardar. Intentá de nuevo.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const desactivar = async (id: string) => {
+    setDeleting(id);
+    try {
+      await fetch(`/api/insurance/products/${id}`, { method: "DELETE" });
+      cargar();
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "8px 11px", borderRadius: 8,
+    border: "1px solid #d1d5db", fontSize: 14, color: "#111827",
+    background: "#fff", boxSizing: "border-box",
+  };
+  const errStyle: React.CSSProperties = { fontSize: 12, color: "#ef4444", marginTop: 3 };
+
+  return (
+    <>
+      <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 24, marginBottom: 24 }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 18 }}>Nuevo seguro</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Nombre del seguro *</label>
+            <input style={{ ...inputStyle, borderColor: errors.name ? "#ef4444" : "#d1d5db" }} placeholder="Ej: Seguro básico de carga" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            {errors.name && <div style={errStyle}>{errors.name}</div>}
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Aseguradora *</label>
+            <input style={{ ...inputStyle, borderColor: errors.insurer ? "#ef4444" : "#d1d5db" }} placeholder="Ej: Sura, Zurich, MAPFRE" value={form.insurer} onChange={(e) => setForm({ ...form, insurer: e.target.value })} />
+            {errors.insurer && <div style={errStyle}>{errors.insurer}</div>}
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Tipo de cobertura *</label>
+            <select style={inputStyle} value={form.coverage_type} onChange={(e) => setForm({ ...form, coverage_type: e.target.value })}>
+              {COVERAGE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Precio (ARS) *</label>
+            <input type="number" min={1} style={{ ...inputStyle, borderColor: errors.price ? "#ef4444" : "#d1d5db" }} placeholder="Ej: 15000" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+            {errors.price && <div style={errStyle}>{errors.price}</div>}
+          </div>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Condiciones *</label>
+            <textarea rows={4} style={{ ...inputStyle, resize: "vertical" as React.CSSProperties["resize"], borderColor: errors.conditions ? "#ef4444" : "#d1d5db" }} placeholder="Detallá qué cubre y qué no cubre el seguro, exclusiones, etc." value={form.conditions} onChange={(e) => setForm({ ...form, conditions: e.target.value })} />
+            {errors.conditions && <div style={errStyle}>{errors.conditions}</div>}
+          </div>
+        </div>
+        {feedback && <div style={{ marginTop: 12, fontSize: 13, color: feedback.startsWith("Error") ? "#ef4444" : "#16a34a" }}>{feedback}</div>}
+        <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={guardar} disabled={saving} style={{ padding: "9px 24px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontSize: 14, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
+            {saving ? "Guardando..." : "Guardar seguro"}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 12 }}>Seguros en el catálogo ({products.length})</div>
+
+      {loading && <div style={{ textAlign: "center", padding: 32, color: "#9ca3af", fontSize: 14 }}>Cargando...</div>}
+
+      {!loading && products.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40, color: "#9ca3af", fontSize: 14, background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+          No hay seguros cargados todavía.
+        </div>
+      )}
+
+      {!loading && products.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {products.map((p) => (
+            <div key={p.id} style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: "16px 20px", opacity: p.is_active ? 1 : 0.5 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                    <span style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>{p.name}</span>
+                    {!p.is_active && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "#f3f4f6", color: "#6b7280" }}>Desactivado</span>}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>{p.insurer} · {p.coverage_type} · <strong style={{ color: "#111827" }}>${Number(p.price).toLocaleString("es-AR")}</strong></div>
+                  <div style={{ fontSize: 13, color: "#374151", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{p.conditions}</div>
+                </div>
+                {p.is_active && (
+                  <button onClick={() => desactivar(p.id)} disabled={deleting === p.id} style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 8, border: "1px solid #fca5a5", background: "#fff5f5", color: "#ef4444", fontSize: 13, cursor: "pointer" }}>
+                    {deleting === p.id ? "..." : "Desactivar"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </>
