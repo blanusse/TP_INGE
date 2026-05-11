@@ -71,6 +71,9 @@ export class Load {
   @Column({ nullable: true, type: 'text' })
   description: string;
 
+  @Column({ nullable: true, type: 'integer' })
+  distance_km: number;
+
   @Column({ type: 'varchar', default: 'available' })
   status: LoadStatus;
 

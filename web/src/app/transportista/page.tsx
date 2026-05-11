@@ -115,13 +115,17 @@ function dbLoadToCard(load: Record<string, unknown>): CargaCard {
   const hace = diffH > 24 ? `Publicado hace ${Math.floor(diffH / 24)} día${Math.floor(diffH / 24) > 1 ? "s" : ""}` : diffH > 0 ? `Publicado hace ${diffH} hora${diffH > 1 ? "s" : ""}` : "Publicado hace unos minutos";
   const shipper = load.shipper as Record<string, string> | null;
   let distancia = "—";
-  const pLat = load.pickup_lat as number | null;
-  const pLon = load.pickup_lon as number | null;
-  const dLat = load.dropoff_lat as number | null;
-  const dLon = load.dropoff_lon as number | null;
-  if (pLat != null && pLon != null && dLat != null && dLon != null) {
-    const km = Math.round(haversineKm(pLat, pLon, dLat, dLon));
-    distancia = `${km.toLocaleString("es-AR")} km`;
+  if (load.distance_km != null) {
+    distancia = `${(load.distance_km as number).toLocaleString("es-AR")} km`;
+  } else {
+    const pLat = load.pickup_lat as number | null;
+    const pLon = load.pickup_lon as number | null;
+    const dLat = load.dropoff_lat as number | null;
+    const dLon = load.dropoff_lon as number | null;
+    if (pLat != null && pLon != null && dLat != null && dLon != null) {
+      const km = Math.round(haversineKm(pLat, pLon, dLat, dLon));
+      distancia = `${km.toLocaleString("es-AR")} km`;
+    }
   }
   return { id: (load.id ?? load.id) as string, titulo, empresa: shipper?.razon_social ?? "Dador de carga", hace, precio: (load.price_base as number) ?? 0, peso: load.weight_kg ? `${(load.weight_kg as number).toLocaleString("es-AR")} kg` : "—", camion: load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required as string] ?? "Cualquiera") : "Cualquiera", retiro: load.ready_at ? new Date(load.ready_at as string).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—", distancia, rating: 0, viajes: 0, badge: null, destacado: false };
 }
