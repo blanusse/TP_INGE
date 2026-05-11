@@ -2689,11 +2689,6 @@ export default function DadorDashboard() {
               );
             })}
           </nav>
-          {isMobile && (
-            <button onClick={() => setMobileMenuOpen((m) => !m)} style={{ background: "transparent", border: "none", cursor: "pointer", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
-              <i className={mobileMenuOpen ? "fa-solid fa-xmark" : "fa-solid fa-bars"} style={{ fontSize: 18, color: darkMode === false ? "#374151" : "rgba(255,255,255,0.8)" }} />
-            </button>
-          )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {!isMobile && (
@@ -2720,6 +2715,11 @@ export default function DadorDashboard() {
           >
             + Publicar carga
           </button>
+          {isMobile && (
+            <button onClick={() => setMobileMenuOpen((m) => !m)} style={{ background: "transparent", border: "none", cursor: "pointer", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
+              <i className={mobileMenuOpen ? "fa-solid fa-xmark" : "fa-solid fa-bars"} style={{ fontSize: 18, color: darkMode === false ? "#374151" : "rgba(255,255,255,0.8)" }} />
+            </button>
+          )}
           <button
             onClick={() => setNavActivo("Mi perfil")}
             title="Ver mi perfil"
