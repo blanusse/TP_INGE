@@ -16,6 +16,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { InsuranceModule } from './insurance/insurance.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { AlertsModule } from './alerts/alerts.module';
     ReportsModule,
     AdminModule,
     AlertsModule,
+    InsuranceModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
