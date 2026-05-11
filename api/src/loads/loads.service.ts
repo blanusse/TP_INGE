@@ -10,6 +10,7 @@ import { Load } from '../entities/load.entity';
 import { Shipper } from '../entities/shipper.entity';
 import { Offer } from '../entities/offer.entity';
 import { User } from '../entities/user.entity';
+import { AlertsService } from '../alerts/alerts.service';
 
 const TRUCK_TYPE_MAP: Record<string, string> = {
   'Furgón cerrado': 'camion',
@@ -25,6 +26,7 @@ export class LoadsService {
     @InjectRepository(Shipper) private shippersRepo: Repository<Shipper>,
     @InjectRepository(Offer) private offersRepo: Repository<Offer>,
     @InjectRepository(User) private usersRepo: Repository<User>,
+    private alertsService: AlertsService,
   ) {}
 
   async getMyLoads(userId: string) {
@@ -118,7 +120,9 @@ export class LoadsService {
       status: 'available',
     });
 
-    return this.loadsRepo.save(load);
+    const saved = await this.loadsRepo.save(load);
+    this.alertsService.checkAndNotify(saved); // fire-and-forget
+    return saved;
   }
 
   async getAvailableLoads(cargoType?: string, origin?: string) {
