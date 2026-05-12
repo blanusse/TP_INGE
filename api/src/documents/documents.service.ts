@@ -15,6 +15,7 @@ import {
 import { User } from '../entities/user.entity';
 import { Truck } from '../entities/truck.entity';
 import { DniVisionService } from './dni-vision.service';
+import { AfipVerificationService } from './afip-verification.service';
 
 @Injectable()
 export class DocumentsService {
@@ -26,6 +27,7 @@ export class DocumentsService {
     @InjectRepository(Truck)
     private trucksRepo: Repository<Truck>,
     private visionService: DniVisionService,
+    private afipService: AfipVerificationService,
   ) {}
 
   async createDocument(
@@ -364,6 +366,47 @@ export class DocumentsService {
     return {
       verified: true,
       message: 'Habilitación RUCTT verificada correctamente.',
+    };
+  }
+
+  async verifyIdentityAfip(
+    userId: string,
+  ): Promise<{ verified: boolean; cuil?: string; message: string }> {
+    const user = await this.usersRepo.findOneBy({ id: userId });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (!user.dni)
+      throw new BadRequestException('El usuario no tiene DNI cargado');
+    if (!user.dni_verified)
+      throw new BadRequestException(
+        'Primero debe verificar el DNI con foto',
+      );
+    if (user.identity_verified)
+      return { verified: true, message: 'La identidad ya fue verificada' };
+
+    const resultado = await this.afipService.verificarIdentidad(
+      user.dni,
+      user.name,
+    );
+
+    if (resultado.verified) {
+      await this.usersRepo.update(userId, { identity_verified: true });
+    }
+
+    return {
+      verified: resultado.verified,
+      cuil: resultado.cuil_encontrado,
+      message: resultado.message,
+    };
+  }
+
+  async getIdentityStatus(
+    userId: string,
+  ): Promise<{ identity_verified: boolean; dni_verified: boolean }> {
+    const user = await this.usersRepo.findOneBy({ id: userId });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    return {
+      identity_verified: user.identity_verified,
+      dni_verified: user.dni_verified,
     };
   }
 

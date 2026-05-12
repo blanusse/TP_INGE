@@ -40,6 +40,9 @@ export class User {
   dni_verified: boolean;
 
   @Column({ default: false })
+  identity_verified: boolean;
+
+  @Column({ default: false })
   license_verified: boolean;
 
   @Column({ default: false })

@@ -61,6 +61,16 @@ export class DocumentsController {
     return this.documentsService.getMyDocuments(req.user.id);
   }
 
+  @Post('verify-identity')
+  async verifyIdentity(@Request() req: AuthReq) {
+    return this.documentsService.verifyIdentityAfip(req.user.id);
+  }
+
+  @Get('identity-status')
+  async getIdentityStatus(@Request() req: AuthReq) {
+    return this.documentsService.getIdentityStatus(req.user.id);
+  }
+
   @Get('dni-status')
   getDniStatus(@Request() req: AuthReq) {
     return this.documentsService.getDniStatus(req.user.id);
