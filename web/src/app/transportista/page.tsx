@@ -2726,16 +2726,16 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
               );
             })}
           </nav>
-          {isMobile && (
-            <button onClick={() => setMobileMenuOpen((m) => !m)} style={{ background: "transparent", border: "none", cursor: "pointer", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
-              <i className={mobileMenuOpen ? "fa-solid fa-xmark" : "fa-solid fa-bars"} style={{ fontSize: 18, color: "var(--text1)" }} />
-            </button>
-          )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {!isMobile && (
             <button onClick={toggleTheme} title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"} style={{ width: 30, height: 30, borderRadius: 6, background: "var(--bg2)", border: "1px solid var(--border2)", color: "var(--text1)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <i className={theme === "dark" ? "fa-solid fa-sun" : "fa-solid fa-moon"} />
+            </button>
+          )}
+          {isMobile && (
+            <button onClick={() => setMobileMenuOpen((m) => !m)} style={{ background: "transparent", border: "none", cursor: "pointer", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
+              <i className={mobileMenuOpen ? "fa-solid fa-xmark" : "fa-solid fa-bars"} style={{ fontSize: 18, color: "var(--text1)" }} />
             </button>
           )}
           <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text1)" }}>{primerNombre}</span>
