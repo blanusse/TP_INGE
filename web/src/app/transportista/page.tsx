@@ -2222,6 +2222,9 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
   const [licenseVerified, setLicenseVerified] = useState(false);
   const [ructtVerified, setRucttVerified] = useState(false);
   const [cedulaAzulVerified, setCedulaAzulVerified] = useState(false);
+  const [identityVerified, setIdentityVerified] = useState(false);
+  const [verifyingIdentity, setVerifyingIdentity] = useState(false);
+  const [identityMessage, setIdentityMessage] = useState("");
   const [trucks, setTrucks] = useState<TruckData2[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Record<string, { ok: boolean; text: string }>>({});
@@ -2230,13 +2233,17 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
   const atLeastOneDriverVerified = dniVerified && licenseVerified;
   const atLeastOneTruckVerified = trucks.some(t => t.vtv_verified && t.seguro_verified && t.cedula_verde_verified);
   const todosAprobados = mode === "empleado"
-    ? atLeastOneDriverVerified && cedulaAzulVerified
-    : atLeastOneDriverVerified && ructtVerified && atLeastOneTruckVerified;
+    ? atLeastOneDriverVerified && cedulaAzulVerified && identityVerified
+    : atLeastOneDriverVerified && ructtVerified && atLeastOneTruckVerified && identityVerified;
 
   const fetchStatus = () => {
     fetch("/api/documents/verify-license")
       .then(r => r.json())
       .then(d => { setDniVerified(d.dni_verified ?? false); setLicenseVerified(d.license_verified ?? false); setRucttVerified(d.ructt_verified ?? false); setCedulaAzulVerified(d.cedula_azul_verified ?? false); })
+      .catch(() => {});
+    fetch("/api/documents/identity-status")
+      .then(r => r.json())
+      .then(d => { if (d.identity_verified) setIdentityVerified(true); })
       .catch(() => {});
     fetch("/api/fleet/trucks")
       .then(r => r.json())
@@ -2274,6 +2281,21 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
   const toggleShowAsDriver = async (val: boolean) => {
     setShowAsDriver(val);
     await fetch("/api/fleet/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show_as_fleet_driver: val }) });
+  };
+
+  const handleVerifyIdentity = async () => {
+    setVerifyingIdentity(true);
+    setIdentityMessage("");
+    try {
+      const res = await fetch("/api/documents/verify-identity", { method: "POST" });
+      const data = await res.json();
+      setIdentityMessage(data.message);
+      if (data.verified) setIdentityVerified(true);
+    } catch {
+      setIdentityMessage("Error de conexión. Intentá más tarde.");
+    } finally {
+      setVerifyingIdentity(false);
+    }
   };
 
   return (
@@ -2383,6 +2405,35 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
               );
             })}
           </div>
+
+          {/* Verificación de identidad AFIP */}
+          {dniVerified && (
+            <div style={{ background: identityVerified ? "#d1fae5" : "#fef3c7", borderRadius: 12, padding: 18, marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>
+                <i className={`fa-solid ${identityVerified ? "fa-circle-check" : "fa-id-card"}`} /> Verificación de identidad (AFIP)
+              </div>
+              {identityVerified ? (
+                <span style={{ color: "#166534" }}>Identidad verificada contra AFIP ✓</span>
+              ) : (
+                <>
+                  <p style={{ fontSize: 14, marginBottom: 10 }}>
+                    Validamos tu nombre contra el padrón de AFIP para confirmar tu identidad.
+                  </p>
+                  <button
+                    onClick={handleVerifyIdentity}
+                    disabled={verifyingIdentity}
+                    style={{ padding: "8px 20px", borderRadius: 8, border: "none",
+                      background: "#2563eb", color: "#fff", fontWeight: 600, cursor: "pointer" }}
+                  >
+                    {verifyingIdentity ? "Verificando..." : "Verificar identidad"}
+                  </button>
+                  {identityMessage && (
+                    <p style={{ marginTop: 8, fontSize: 13, color: "#92400e" }}>{identityMessage}</p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {/* Documentos por camión — solo para dueños de camiones, no empleados */}
           {mode !== "empleado" && <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mis camiones</div>}
