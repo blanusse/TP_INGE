@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { AxiosResponse } from 'axios';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
@@ -33,7 +34,7 @@ export class AfipVerificationService {
   ): Promise<{ nombre: string; apellido: string } | null> {
     const url = `https://soa.afip.gob.ar/sr-padron/v2/persona/${cuil}`;
     try {
-      const response = await firstValueFrom(
+      const response: AxiosResponse = await firstValueFrom(
         this.httpService.get(url, { timeout: 8000 }),
       );
       if (response.data?.data) {
