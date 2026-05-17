@@ -14,7 +14,10 @@ function irARegistro(page: import("@playwright/test").Page) {
 
 /** Selecciona un perfil en la grilla de cards (click en "Elegir →" de la card correcta) */
 async function elegirPerfil(page: import("@playwright/test").Page, titulo: string) {
-  const card = page.locator("div").filter({ hasText: titulo }).filter({ has: page.getByRole("button", { name: /Elegir/i }) });
+  const card = page.locator("div")
+    .filter({ hasText: titulo })
+    .filter({ has: page.getByRole("button", { name: /Elegir/i }) })
+    .last();
   await card.getByRole("button", { name: /Elegir/i }).click();
 }
 
@@ -147,12 +150,12 @@ test.describe("Registro — Validaciones inline", () => {
 
   test("DADO contraseña corta CUANDO intenta registrar ENTONCES muestra error de contraseña", async ({ page }) => {
     await page.locator("#nombre").fill("Test User");
-    await page.locator("#dni").fill("40123456");
-    await page.locator("#tel").fill("11991234567");
+    await page.locator("#dni").fill("41" + String(UID).slice(-6));
+    await page.locator("#tel").fill("1198" + String(UID).slice(-6));
     await page.locator("#email").fill(`short_pwd_${UID}@testmail.com`);
     await page.locator('input[type="password"]').fill("123");
     await page.locator("#terminos").check();
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
 
     await page.getByRole("button", { name: /Crear cuenta|Registrarme/i }).click();
     await expect(page.getByText(/contraseña debe tener al menos 8/i)).toBeVisible();
@@ -160,15 +163,15 @@ test.describe("Registro — Validaciones inline", () => {
 
   test("DADO términos sin aceptar CUANDO intenta registrar ENTONCES muestra error", async ({ page }) => {
     await page.locator("#nombre").fill("Test User");
-    await page.locator("#dni").fill("40123456");
-    await page.locator("#tel").fill("11991234567");
+    await page.locator("#dni").fill("42" + String(UID).slice(-6));
+    await page.locator("#tel").fill("1197" + String(UID).slice(-6));
     await page.locator("#email").fill(`terms_${UID}@testmail.com`);
     await page.locator('input[type="password"]').fill("TestPass123!");
     // No checkea términos
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
 
     await page.getByRole("button", { name: /Crear cuenta|Registrarme/i }).click();
-    await expect(page.getByText(/términos/i)).toBeVisible();
+    await expect(page.getByText(/Aceptá los términos/i)).toBeVisible();
   });
 });
 
