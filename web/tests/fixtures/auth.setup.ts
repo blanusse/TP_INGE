@@ -31,31 +31,43 @@ setup.beforeAll(() => {
 });
 
 setup("autenticar dador", async ({ page }) => {
+  const file = path.join(AUTH_DIR, "dador.json");
+  if (fs.existsSync(file)) return;
   await loginAs(page, CREDS.dador.email, CREDS.dador.password);
   await expect(page).toHaveURL(/\/dador/);
-  await page.context().storageState({ path: path.join(AUTH_DIR, "dador.json") });
+  await page.evaluate(() => localStorage.setItem("dador-onboarding-done", "1"));
+  await page.context().storageState({ path: file });
 });
 
 setup("autenticar transportista", async ({ page }) => {
+  const file = path.join(AUTH_DIR, "transportista.json");
+  if (fs.existsSync(file)) return;
   await loginAs(page, CREDS.transportista.email, CREDS.transportista.password);
   await expect(page).toHaveURL(/\/transportista/);
-  await page.context().storageState({ path: path.join(AUTH_DIR, "transportista.json") });
+  await page.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
+  await page.context().storageState({ path: file });
 });
 
 setup("autenticar flota", async ({ page }) => {
+  const file = path.join(AUTH_DIR, "flota.json");
+  if (fs.existsSync(file)) return;
   await loginAs(page, CREDS.flota.email, CREDS.flota.password);
   await expect(page).toHaveURL(/\/flota/);
-  await page.context().storageState({ path: path.join(AUTH_DIR, "flota.json") });
+  await page.context().storageState({ path: file });
 });
 
 setup("autenticar empleado", async ({ page }) => {
+  const file = path.join(AUTH_DIR, "empleado.json");
+  if (fs.existsSync(file)) return;
   await loginAs(page, CREDS.empleado.email, CREDS.empleado.password);
   await expect(page).toHaveURL(/\/empleado/);
-  await page.context().storageState({ path: path.join(AUTH_DIR, "empleado.json") });
+  await page.context().storageState({ path: file });
 });
 
 setup("autenticar admin", async ({ page }) => {
+  const file = path.join(AUTH_DIR, "admin.json");
+  if (fs.existsSync(file)) return;
   await loginAs(page, CREDS.admin.email, CREDS.admin.password);
   await expect(page).toHaveURL(/\/admin/);
-  await page.context().storageState({ path: path.join(AUTH_DIR, "admin.json") });
+  await page.context().storageState({ path: file });
 });

@@ -1,0 +1,45 @@
+{
+  "cookies": [
+    {
+      "name": "__Host-authjs.csrf-token",
+      "value": "cbc5db1f601ef846515006a822d826f30251b78f46f8aa5bde1a6c5856220499%7Cf58830cc38c91ab09f8705c28c52398ee0a9f2e1498dc38d01be7f4c40d16169",
+      "domain": "cargaback.up.railway.app",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__Secure-authjs.callback-url",
+      "value": "https%3A%2F%2Fcargaback.up.railway.app%2Flogin",
+      "domain": "cargaback.up.railway.app",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__Secure-authjs.session-token",
+      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwia2lkIjoiVmJYcWxVeFVFOWdlUUdaeEVBTUNaWGsxTHlZbFlTYXFWX3BMMk5BY1JpWUJPUFcydkgycWJ3ZnliUnRQcG84VkJ2M2xtVjhIcm00d0g5SWozXzMtWGcifQ..qWDUl5KdUPOurkYg8pPtlw.z6Z9OPsxahVXd-D6E9CelJ_f3ipxrVCeD3_fFY4QhLtB5odnZ-5BSSyFhH0T0B5eLKc_zK1Sw64AzyAhiJN4v-r7WnK-rHz-qOmU2B0yi90EV58Il2nmb34rCVnVHli95HCtEokTg-N2w2rLhSP-hYHWUYI5hw6OsdQNDCWamBXUA9wiXw67OYmfDonK1UnPtefA5EcdOxWECOaS3XKk-u_iEWHpeSmGhEdNsTqY1A45A2gVpdaVB6t7ypm3o31RgTG43b2mmx5QMbMAGYw6BjxyANwm0B_JWKS85Y5-jR3o58c5vXrtOdLhozrRDPxP2_EujueyMSzfW-qfR-_eKDMglxZTbhXkIZvpuhp5N92VZEDno5ZSDuAzPmFmpTAPtvYb4aaGWKjTH7bSgiZIQf1w7ZNsk2dcQVaRtB64yZh7cB3nG-fS3FL2oQcy9PCpFaJdFq9L-J8wcfCGs7aSqRSJa0SnrPqGJGSW9sJDhd3lynmF6JIpC7c8typeycAXb7g1_qLVdDBLomohl5vjK5DSvoAal77WeBMVPlvek7kJhjamSj3xInrL9hQMO23J5Wh3HeCtxZQOhgD2_zhp6xN-xM9l_C-QYnTsFWtG_r5cm9EQf6WlbEOLcyPE4A8a6PAxtgBbLJzEPjK7h1oG9t2Rb6BlNU-AvKIJ6xLLrmhRCF5M6TgBe67aZUxtmr4A.3KnVnSN0yK7qH3pl_9x9XG9Od2aW-4uh_H0f-boWH_I",
+      "domain": "cargaback.up.railway.app",
+      "path": "/",
+      "expires": 1779088708.153112,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://cargaback.up.railway.app",
+      "localStorage": [
+        {
+          "name": "transportista-onboarding-done",
+          "value": "1"
+        }
+      ]
+    }
+  ]
+}
