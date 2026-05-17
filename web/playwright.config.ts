@@ -19,7 +19,7 @@ export default defineConfig({
 
   projects: [
     // Setup project: guarda las sesiones autenticadas en disco
-    { name: "setup", testMatch: /.*\.setup\.ts/ },
+    { name: "setup", testDir: "./tests/fixtures", testMatch: /.*\.setup\.ts/ },
 
     {
       name: "guest",
@@ -93,6 +93,19 @@ export default defineConfig({
       name: "documentos",
       testMatch: /documentos\.spec\.ts/,
       dependencies: ["setup"],
+    },
+
+    // ── Fase 2: tests de mensajes y flota ────────────────────────────────
+    {
+      name: "mensajes",
+      testMatch: /mensajes\.spec\.ts/,
+      dependencies: ["setup"],
+    },
+    {
+      name: "flota-agregar-conductor",
+      testMatch: /flota-agregar-conductor\.spec\.ts/,
+      dependencies: ["setup"],
+      use: { storageState: "tests/fixtures/.auth/flota.json" },
     },
   ],
 

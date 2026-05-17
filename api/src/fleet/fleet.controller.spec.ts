@@ -65,6 +65,17 @@ describe('FleetController', () => {
     expect(service.addFleetDriver).toHaveBeenCalledWith('u1', body);
   });
 
+  test('GIVEN id y body WHEN updateDriver THEN delega', async () => {
+    const body = { name: 'Nuevo Nombre', phone: '1166660000' };
+    await controller.updateDriver(REQ, 'd1', body);
+    expect(service.updateDriver).toHaveBeenCalledWith('u1', 'd1', body);
+  });
+
+  test('GIVEN id WHEN deleteDriver THEN delega', async () => {
+    await controller.deleteDriver(REQ, 'd1');
+    expect(service.deleteDriver).toHaveBeenCalledWith('u1', 'd1');
+  });
+
   test('GIVEN email WHEN inviteDriver THEN delega', async () => {
     await controller.inviteDriver(REQ, { email: 'x@x.com' });
     expect(service.inviteDriver).toHaveBeenCalledWith('u1', 'x@x.com');

@@ -186,6 +186,19 @@ describe('AuthService', () => {
       expect(shippersRepo.save).toHaveBeenCalledTimes(1);
     });
 
+    test('GIVEN CUIT duplicado WHEN registra como empresa THEN lanza ConflictException', async () => {
+      const dto = {
+        ...VALID_REGISTER,
+        role: 'dador' as const,
+        tipo_dador: 'empresa' as const,
+        cuit: '20301234563',
+        razon_social: 'Empresa Duplicada SA',
+      };
+      shippersRepo.findOne.mockResolvedValue({ id: 'existing-shipper', cuit: '20301234563' });
+
+      await expect(service.register(dto)).rejects.toThrow(ConflictException);
+    });
+
     test('GIVEN CUIT inválido WHEN registra como empresa THEN lanza BadRequestException', async () => {
       const dto = {
         ...VALID_REGISTER,
@@ -266,6 +279,61 @@ describe('AuthService', () => {
 
       // WHEN / THEN
       await expect(service.register(dto)).rejects.toThrow(ForbiddenException);
+    });
+
+    test('GIVEN invitation válida y role empleado WHEN registra THEN seta fleet_id y marca invitación aceptada', async () => {
+      const dto = {
+        ...VALID_REGISTER,
+        email: 'test@example.com',
+        role: 'empleado' as const,
+        invitation_token: 'valid-token',
+      };
+      invitationsRepo.findOne.mockResolvedValue({
+        token: 'valid-token',
+        status: 'pending',
+        expires_at: new Date(Date.now() + 60000),
+        email: 'test@example.com',
+        fleet_owner_id: 'fleet-owner-uuid',
+      });
+      invitationsRepo.save.mockResolvedValue({});
+      usersRepo.findOne
+        .mockResolvedValueOnce(null)   // byEmail - not taken
+        .mockResolvedValueOnce(null)   // byDni - not taken
+        .mockResolvedValueOnce({ id: 'fleet-owner-uuid', is_fleet_owner: false }); // fleet owner lookup
+
+      const result = await service.register(dto);
+
+      expect(result).toEqual({ ok: true });
+      expect(usersRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ fleet_id: 'fleet-owner-uuid' }),
+      );
+      expect(invitationsRepo.save).toHaveBeenCalled();
+      expect(usersRepo.save).toHaveBeenCalledTimes(2); // once for user, once for fleet owner
+    });
+
+    test('GIVEN invitation válida y fleetOwner ya es fleet_owner WHEN registra empleado THEN no guarda fleet owner de nuevo', async () => {
+      const dto = {
+        ...VALID_REGISTER,
+        email: 'test@example.com',
+        role: 'empleado' as const,
+        invitation_token: 'valid-token-2',
+      };
+      invitationsRepo.findOne.mockResolvedValue({
+        token: 'valid-token-2',
+        status: 'pending',
+        expires_at: new Date(Date.now() + 60000),
+        email: 'test@example.com',
+        fleet_owner_id: 'fleet-owner-uuid',
+      });
+      invitationsRepo.save.mockResolvedValue({});
+      usersRepo.findOne
+        .mockResolvedValueOnce(null)   // byEmail - not taken
+        .mockResolvedValueOnce(null)   // byDni - not taken
+        .mockResolvedValueOnce({ id: 'fleet-owner-uuid', is_fleet_owner: true }); // already fleet owner
+
+      await service.register(dto);
+
+      expect(usersRepo.save).toHaveBeenCalledTimes(1); // only for the new user
     });
 
     test('GIVEN role flota WHEN registra THEN usuario tiene is_fleet_owner true', async () => {
@@ -537,6 +605,15 @@ describe('AuthService', () => {
     test('GIVEN email no registrado WHEN resend THEN lanza NotFoundException', async () => {
       usersRepo.findOne.mockResolvedValue(null);
       await expect(service.resendCode('no@existe.com')).rejects.toThrow(NotFoundException);
+    });
+
+    test('GIVEN fallo al enviar email WHEN resend THEN no lanza error (catch silencioso)', async () => {
+      usersRepo.findOne.mockResolvedValue({ id: 'u1', email: 'test@example.com', is_verified: false });
+      verificationsRepo.update.mockResolvedValue({});
+      verificationsRepo.save.mockResolvedValue({});
+      emailService.sendVerificationCode.mockRejectedValue(new Error('SMTP error'));
+
+      await expect(service.resendCode('test@example.com')).resolves.toEqual({ ok: true });
     });
 
     test('GIVEN cuenta ya verificada WHEN resend THEN lanza ConflictException', async () => {

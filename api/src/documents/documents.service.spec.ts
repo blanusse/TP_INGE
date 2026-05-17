@@ -131,6 +131,11 @@ describe('DocumentsService', () => {
   describe('verifyDni', () => {
     const user = { id: 'u1', dni: '30123456' };
 
+    test('GIVEN usuario no existe WHEN verifyDni THEN lanza NotFoundException', async () => {
+      usersRepo.findOne.mockResolvedValue(null);
+      await expect(service.verifyDni('u1', '/path')).rejects.toThrow(NotFoundException);
+    });
+
     test('GIVEN usuario sin DNI WHEN verifyDni THEN lanza BadRequestException', async () => {
       usersRepo.findOne.mockResolvedValue({ id: 'u1', dni: null });
       await expect(service.verifyDni('u1', '/path')).rejects.toThrow(BadRequestException);
@@ -154,11 +159,12 @@ describe('DocumentsService', () => {
       );
     });
 
-    test('GIVEN DNI no coincide WHEN verifyDni THEN devuelve verified false', async () => {
+    test('GIVEN DNI no coincide WHEN verifyDni THEN devuelve verified false y actualiza photo_url', async () => {
       usersRepo.findOne.mockResolvedValue(user);
       visionService.dniFoundInText.mockReturnValue(false);
       const result = await service.verifyDni('u1', '/path/foto.jpg');
       expect(result.verified).toBe(false);
+      expect(usersRepo.update).toHaveBeenCalledWith({ id: 'u1' }, expect.objectContaining({ dni_photo_url: expect.any(String) }));
     });
   });
 
@@ -166,6 +172,16 @@ describe('DocumentsService', () => {
 
   describe('verifyLicense', () => {
     const user = { id: 'u1', dni: '30123456' };
+
+    test('GIVEN usuario no existe WHEN verifyLicense THEN lanza NotFoundException', async () => {
+      usersRepo.findOne.mockResolvedValue(null);
+      await expect(service.verifyLicense('u1', '/path')).rejects.toThrow(NotFoundException);
+    });
+
+    test('GIVEN usuario sin DNI WHEN verifyLicense THEN lanza BadRequestException', async () => {
+      usersRepo.findOne.mockResolvedValue({ id: 'u1', dni: null });
+      await expect(service.verifyLicense('u1', '/path')).rejects.toThrow(BadRequestException);
+    });
 
     test('GIVEN no es licencia WHEN verifyLicense THEN devuelve false', async () => {
       usersRepo.findOne.mockResolvedValue(user);
@@ -180,6 +196,13 @@ describe('DocumentsService', () => {
       const result = await service.verifyLicense('u1', '/path');
       expect(result.verified).toBe(true);
       expect(usersRepo.update).toHaveBeenCalledWith({ id: 'u1' }, { license_verified: true });
+    });
+
+    test('GIVEN DNI no coincide en licencia WHEN verifyLicense THEN devuelve verified false', async () => {
+      usersRepo.findOne.mockResolvedValue(user);
+      visionService.dniFoundInText.mockReturnValue(false);
+      const result = await service.verifyLicense('u1', '/path');
+      expect(result.verified).toBe(false);
     });
   });
 
@@ -198,10 +221,32 @@ describe('DocumentsService', () => {
       await expect(service.verifyTruckVtv('u1', 't1', '/p')).rejects.toThrow(ForbiddenException);
     });
 
+    test('GIVEN no es documento VTV WHEN verifyTruckVtv THEN devuelve verified false', async () => {
+      trucksRepo.findOne.mockResolvedValue(truck);
+      visionService.isVtvDocument.mockReturnValue(false);
+      const result = await service.verifyTruckVtv('u1', 't1', '/p');
+      expect(result.verified).toBe(false);
+    });
+
+    test('GIVEN patente no encontrada en VTV WHEN verifyTruckVtv THEN devuelve verified false', async () => {
+      trucksRepo.findOne.mockResolvedValue(truck);
+      visionService.plateFoundInText.mockReturnValue(false);
+      const result = await service.verifyTruckVtv('u1', 't1', '/p');
+      expect(result.verified).toBe(false);
+    });
+
     test('GIVEN VTV válida con patente WHEN verifyTruckVtv THEN devuelve verified true', async () => {
       trucksRepo.findOne.mockResolvedValue(truck);
       const result = await service.verifyTruckVtv('u1', 't1', '/p');
       expect(result.verified).toBe(true);
+    });
+
+    test('GIVEN VTV válida con fecha de vencimiento futura WHEN verifyTruckVtv THEN incluye expiry en respuesta', async () => {
+      trucksRepo.findOne.mockResolvedValue(truck);
+      visionService.extractExpiryDate.mockReturnValue(new Date('2030-06-01'));
+      const result = await service.verifyTruckVtv('u1', 't1', '/p');
+      expect(result.verified).toBe(true);
+      expect(result.expiry).toBe('2030-06-01');
     });
 
     test('GIVEN VTV vencida WHEN verifyTruckVtv THEN devuelve verified false', async () => {
@@ -217,10 +262,32 @@ describe('DocumentsService', () => {
   describe('verifyTruckSeguro', () => {
     const truck = { id: 't1', owner_id: 'u1', patente: 'AB123CD' };
 
+    test('GIVEN no es póliza de seguro WHEN verifyTruckSeguro THEN devuelve verified false', async () => {
+      trucksRepo.findOne.mockResolvedValue(truck);
+      visionService.isSeguroDocument.mockReturnValue(false);
+      const result = await service.verifyTruckSeguro('u1', 't1', '/p');
+      expect(result.verified).toBe(false);
+    });
+
+    test('GIVEN patente no encontrada en seguro WHEN verifyTruckSeguro THEN devuelve verified false', async () => {
+      trucksRepo.findOne.mockResolvedValue(truck);
+      visionService.plateFoundInText.mockReturnValue(false);
+      const result = await service.verifyTruckSeguro('u1', 't1', '/p');
+      expect(result.verified).toBe(false);
+    });
+
     test('GIVEN seguro válido WHEN verifyTruckSeguro THEN devuelve verified true', async () => {
       trucksRepo.findOne.mockResolvedValue(truck);
       const result = await service.verifyTruckSeguro('u1', 't1', '/p');
       expect(result.verified).toBe(true);
+    });
+
+    test('GIVEN seguro con fecha futura WHEN verifyTruckSeguro THEN incluye expiry', async () => {
+      trucksRepo.findOne.mockResolvedValue(truck);
+      visionService.extractExpiryDate.mockReturnValue(new Date('2030-06-01'));
+      const result = await service.verifyTruckSeguro('u1', 't1', '/p');
+      expect(result.verified).toBe(true);
+      expect(result.expiry).toBe('2030-06-01');
     });
 
     test('GIVEN seguro vencido WHEN verifyTruckSeguro THEN devuelve verified false', async () => {
@@ -235,6 +302,23 @@ describe('DocumentsService', () => {
 
   describe('verifyCedulaVerde', () => {
     const truck = { id: 't1', owner_id: 'u1', patente: 'AB123CD' };
+
+    test('GIVEN camión no existe WHEN verifyCedulaVerde THEN lanza NotFoundException', async () => {
+      trucksRepo.findOne.mockResolvedValue(null);
+      await expect(service.verifyCedulaVerde('u1', 't1', '/p')).rejects.toThrow(NotFoundException);
+    });
+
+    test('GIVEN no es owner WHEN verifyCedulaVerde THEN lanza ForbiddenException', async () => {
+      trucksRepo.findOne.mockResolvedValue({ ...truck, owner_id: 'otro' });
+      await expect(service.verifyCedulaVerde('u1', 't1', '/p')).rejects.toThrow(ForbiddenException);
+    });
+
+    test('GIVEN no es cédula verde WHEN verifyCedulaVerde THEN devuelve verified false', async () => {
+      trucksRepo.findOne.mockResolvedValue(truck);
+      visionService.isCedulaVerdeDocument.mockReturnValue(false);
+      const result = await service.verifyCedulaVerde('u1', 't1', '/p');
+      expect(result.verified).toBe(false);
+    });
 
     test('GIVEN cédula verde válida WHEN verifyCedulaVerde THEN actualiza truck', async () => {
       trucksRepo.findOne.mockResolvedValue(truck);
@@ -254,6 +338,18 @@ describe('DocumentsService', () => {
   // ── verifyCedulaAzul ──────────────────────────────────────────────────────
 
   describe('verifyCedulaAzul', () => {
+    test('GIVEN usuario no existe WHEN verifyCedulaAzul THEN lanza NotFoundException', async () => {
+      usersRepo.findOne.mockResolvedValue(null);
+      await expect(service.verifyCedulaAzul('u1', '/p')).rejects.toThrow(NotFoundException);
+    });
+
+    test('GIVEN usuario sin DNI WHEN verifyCedulaAzul THEN verifica sin chequear DNI', async () => {
+      usersRepo.findOne.mockResolvedValue({ id: 'u1', dni: null });
+      const result = await service.verifyCedulaAzul('u1', '/p');
+      expect(result.verified).toBe(true);
+      expect(visionService.dniFoundInText).not.toHaveBeenCalled();
+    });
+
     test('GIVEN cédula azul válida WHEN verifyCedulaAzul THEN actualiza user', async () => {
       usersRepo.findOne.mockResolvedValue({ id: 'u1', dni: '30123456' });
       const result = await service.verifyCedulaAzul('u1', '/p');
@@ -272,6 +368,11 @@ describe('DocumentsService', () => {
   // ── verifyRuctt ───────────────────────────────────────────────────────────
 
   describe('verifyRuctt', () => {
+    test('GIVEN usuario no existe WHEN verifyRuctt THEN lanza NotFoundException', async () => {
+      usersRepo.findOne.mockResolvedValue(null);
+      await expect(service.verifyRuctt('u1', '/p')).rejects.toThrow(NotFoundException);
+    });
+
     test('GIVEN RUCTT válido WHEN verifyRuctt THEN actualiza user', async () => {
       usersRepo.findOne.mockResolvedValue({ id: 'u1' });
       const result = await service.verifyRuctt('u1', '/p');

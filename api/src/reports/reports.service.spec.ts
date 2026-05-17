@@ -114,6 +114,19 @@ describe('ReportsService', () => {
       );
     });
 
+    test('GIVEN reporter no existe WHEN createReport THEN usa "Usuario" como nombre y no lanza error', async () => {
+      usersRepo.findOne
+        .mockResolvedValueOnce({ id: REPORTED_ID, name: 'Target' })  // reported
+        .mockResolvedValueOnce(null);                                  // reporter not found
+      reportsRepo.findOne.mockResolvedValue(null);
+      reportsRepo.save.mockImplementation((r) => Promise.resolve({ id: 'rep-2', ...r }));
+
+      await expect(service.createReport(REPORTER_ID, VALID_BODY)).resolves.toBeDefined();
+      expect(mailService.sendNuevoReporte).toHaveBeenCalledWith(
+        expect.objectContaining({ reporterName: 'Usuario' }),
+      );
+    });
+
     test('GIVEN fallo en envío de email WHEN createReport THEN no lanza error', async () => {
       usersRepo.findOne
         .mockResolvedValueOnce({ id: REPORTED_ID, name: 'Target' })
@@ -167,6 +180,31 @@ describe('ReportsService', () => {
       expect(result.trips_completed).toBe(7);
     });
   });
+
+    test('GIVEN ratingResult y tripCount nulos WHEN getPublicProfile THEN devuelve 0 para avg y trips', async () => {
+      usersRepo.findOne.mockResolvedValue({
+        id: 'u2', name: 'Ana', role: 'shipper', created_at: new Date(),
+      });
+
+      const qbNull = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        innerJoin: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue(null),
+      };
+      reportsRepo.manager.createQueryBuilder
+        .mockReturnValueOnce(qbNull)
+        .mockReturnValueOnce(qbNull);
+
+      const result = await service.getPublicProfile('u2');
+
+      expect(result.avg_rating).toBe(0);
+      expect(result.rating_count).toBe(0);
+      expect(result.trips_completed).toBe(0);
+    });
 
   // ── getAdminReports ───────────────────────────────────────────────────────
 

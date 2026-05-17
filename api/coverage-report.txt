@@ -1,0 +1,105 @@
+-------------------------------|---------|----------|---------|---------|-------------------------------------------------------------
+File                           | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                           
+-------------------------------|---------|----------|---------|---------|-------------------------------------------------------------
+All files                      |   95.59 |    81.43 |   94.25 |   96.08 |                                                             
+ src                           |   55.55 |    21.42 |    37.5 |   50.87 |                                                             
+  app.controller.ts            |     100 |       75 |     100 |     100 | 6                                                           
+  app.module.ts                |   95.65 |      100 |       0 |   95.23 | 30                                                          
+  app.service.ts               |     100 |      100 |     100 |     100 |                                                             
+  main.ts                      |       0 |        0 |       0 |       0 | 1-56                                                        
+  types.d.ts                   |       0 |        0 |       0 |       0 |                                                             
+ src/admin                     |     100 |    86.84 |     100 |     100 |                                                             
+  admin.controller.ts          |     100 |    91.66 |     100 |     100 | 19                                                          
+  admin.module.ts              |     100 |      100 |     100 |     100 |                                                             
+  admin.service.ts             |     100 |    84.61 |     100 |     100 | 20-24                                                       
+ src/alerts                    |   98.78 |       86 |     100 |   98.57 |                                                             
+  alerts.controller.ts         |     100 |       75 |     100 |     100 | 10                                                          
+  alerts.module.ts             |     100 |      100 |     100 |     100 |                                                             
+  alerts.service.ts            |   98.14 |    86.95 |     100 |   97.82 | 92                                                          
+ src/auth                      |   98.52 |    85.22 |   96.29 |   99.59 |                                                             
+  auth.controller.ts           |     100 |    76.47 |     100 |     100 | 9-21,35                                                     
+  auth.module.ts               |   94.73 |      100 |       0 |   94.11 | 28                                                          
+  auth.service.ts              |   98.23 |     86.7 |     100 |     100 | 28-33,52-58,75-82,97,168,201-205,255,335-336,385            
+  jwt-auth.guard.ts            |     100 |      100 |     100 |     100 |                                                             
+  jwt.strategy.ts              |     100 |    83.33 |     100 |     100 | 12                                                          
+  mp-oauth.controller.ts       |     100 |    66.66 |     100 |     100 | 8-28                                                        
+  mp-oauth.service.ts          |     100 |       90 |     100 |     100 | 8                                                           
+ src/auth/dto                  |     100 |      100 |     100 |     100 |                                                             
+  login.dto.ts                 |     100 |      100 |     100 |     100 |                                                             
+  register.dto.ts              |     100 |      100 |     100 |     100 |                                                             
+ src/documents                 |   87.16 |    69.73 |   83.75 |   87.42 |                                                             
+  afip-verification.service.ts |   85.71 |    63.63 |    87.5 |   83.72 | 35-48                                                       
+  dni-vision.service.ts        |   70.31 |    38.46 |   81.81 |   69.09 | 7-52,213,222                                                
+  documents.controller.ts      |   76.81 |    48.14 |      68 |      75 | 41-42,90-91,110-111,135-136,160-161,180-181,205-206,225-226 
+  documents.module.ts          |     100 |      100 |     100 |     100 |                                                             
+  documents.service.ts         |   96.64 |     86.5 |     100 |   99.34 | 329                                                         
+ src/email                     |     100 |    83.33 |     100 |     100 |                                                             
+  email.module.ts              |     100 |      100 |     100 |     100 |                                                             
+  email.service.ts             |     100 |    83.33 |     100 |     100 | 8                                                           
+ src/entities                  |     100 |       75 |     100 |     100 |                                                             
+  audit-log.entity.ts          |     100 |       75 |     100 |     100 | 28                                                          
+  email-verification.entity.ts |     100 |       75 |     100 |     100 | 20-29                                                       
+  fleet-invitation.entity.ts   |     100 |       75 |     100 |     100 | 26-38                                                       
+  insurance-policy.entity.ts   |     100 |       75 |     100 |     100 | 65-68                                                       
+  insurance-product.entity.ts  |     100 |       75 |     100 |     100 | 27                                                          
+  load-alert.entity.ts         |     100 |       75 |     100 |     100 | 36                                                          
+  load.entity.ts               |     100 |       75 |     100 |     100 | 28-81                                                       
+  message.entity.ts            |     100 |       75 |     100 |     100 | 24-40                                                       
+  notification.entity.ts       |     100 |       75 |     100 |     100 | 25                                                          
+  offer.entity.ts              |     100 |       75 |     100 |     100 | 32-68                                                       
+  payment.entity.ts            |     100 |       75 |     100 |     100 | 24-68                                                       
+  rating.entity.ts             |     100 |       75 |     100 |     100 | 25-52                                                       
+  report.entity.ts             |     100 |       75 |     100 |     100 | 34-65                                                       
+  shipper.entity.ts            |     100 |       75 |     100 |     100 | 22                                                          
+  truck.entity.ts              |     100 |       75 |     100 |     100 | 20                                                          
+  trucker-document.entity.ts   |     100 |       75 |     100 |     100 | 36-42                                                       
+  user.entity.ts               |     100 |       75 |     100 |     100 | 80                                                          
+ src/fleet                     |   90.72 |    79.79 |     100 |   92.44 |                                                             
+  fleet.controller.ts          |     100 |       75 |     100 |     100 | 28                                                          
+  fleet.module.ts              |     100 |      100 |     100 |     100 |                                                             
+  fleet.service.ts             |   88.72 |    79.89 |     100 |   90.81 | 35-39,75,131-140,148,154,232,360                            
+ src/insurance                 |     100 |    83.33 |     100 |     100 |                                                             
+  insurance.controller.ts      |     100 |     62.5 |     100 |     100 | 10-38                                                       
+  insurance.module.ts          |     100 |      100 |     100 |     100 |                                                             
+  insurance.provider.ts        |     100 |      100 |     100 |     100 |                                                             
+  insurance.service.ts         |     100 |     90.9 |     100 |     100 | 14                                                          
+ src/insurance/providers       |     100 |      100 |     100 |     100 |                                                             
+  mock.provider.ts             |     100 |      100 |     100 |     100 |                                                             
+ src/loads                     |   96.51 |       85 |     100 |     100 |                                                             
+  loads.controller.ts          |     100 |    83.33 |     100 |     100 | 30                                                          
+  loads.module.ts              |     100 |      100 |     100 |     100 |                                                             
+  loads.service.ts             |   95.62 |    85.08 |     100 |     100 | 37-40,80-84,124-125,181,195,236,248,258-261,279             
+ src/location                  |     100 |    78.57 |     100 |     100 |                                                             
+  location.controller.ts       |     100 |       80 |     100 |     100 | 19                                                          
+  location.module.ts           |     100 |      100 |     100 |     100 |                                                             
+  location.service.ts          |     100 |      100 |     100 |     100 |                                                             
+  trip-location.entity.ts      |     100 |       75 |     100 |     100 | 15                                                          
+ src/mail                      |     100 |    72.22 |     100 |     100 |                                                             
+  mail.module.ts               |     100 |      100 |     100 |     100 |                                                             
+  mail.service.ts              |     100 |    72.22 |     100 |     100 | 31,276-338,352-374                                          
+ src/messages                  |     100 |    82.01 |     100 |     100 |                                                             
+  messages.controller.ts       |     100 |       75 |     100 |     100 | 20                                                          
+  messages.gateway.ts          |     100 |    83.63 |     100 |     100 | 23-30,41,60                                                 
+  messages.module.ts           |     100 |      100 |     100 |     100 |                                                             
+  messages.service.ts          |     100 |    81.57 |     100 |     100 | 17-20,204-235,237-238                                       
+ src/offers                    |   99.55 |    87.36 |     100 |     100 |                                                             
+  offers.controller.ts         |     100 |       75 |     100 |     100 | 28                                                          
+  offers.module.ts             |     100 |      100 |     100 |     100 |                                                             
+  offers.service.ts            |   99.47 |    87.64 |     100 |     100 | 22-29,56-58,81,135-139,184-201,300,320,332,359,381,393      
+ src/payments                  |   98.96 |    91.15 |   96.29 |   99.25 |                                                             
+  payments.controller.ts       |     100 |    94.44 |     100 |     100 | 23                                                          
+  payments.module.ts           |     100 |      100 |     100 |     100 |                                                             
+  payments.service.ts          |   98.77 |    90.69 |   94.11 |   99.11 | 432-433                                                     
+ src/ratings                   |     100 |    88.09 |     100 |     100 |                                                             
+  ratings.controller.ts        |     100 |       75 |     100 |     100 | 10                                                          
+  ratings.module.ts            |     100 |      100 |     100 |     100 |                                                             
+  ratings.service.ts           |     100 |    89.47 |     100 |     100 | 17-19                                                       
+ src/reports                   |   94.56 |    86.15 |   84.61 |   93.75 |                                                             
+  reports.controller.ts        |   85.29 |    68.42 |      75 |   83.33 | 58-67                                                       
+  reports.module.ts            |     100 |      100 |     100 |     100 |                                                             
+  reports.service.ts           |     100 |    93.47 |     100 |     100 | 21-22                                                       
+ src/stats                     |   97.54 |     82.4 |   96.77 |   99.25 |                                                             
+  stats.controller.ts          |     100 |       75 |     100 |     100 | 10                                                          
+  stats.module.ts              |     100 |      100 |     100 |     100 |                                                             
+  stats.service.ts             |   97.03 |    82.64 |   96.15 |   99.09 | 86                                                          
+-------------------------------|---------|----------|---------|---------|-------------------------------------------------------------

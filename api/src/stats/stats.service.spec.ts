@@ -207,6 +207,69 @@ describe('StatsService', () => {
       expect(result.totalConductores).toBe(0);
       expect(result.totalCamiones).toBe(0);
     });
+
+    test('GIVEN flota con viajes entregados WHEN getFleetStats THEN calcula totales y mejorConductor', async () => {
+      const SUB_ID = 'sub-1';
+      usersRepo.findOne.mockResolvedValueOnce({ id: DRIVER_ID, role: 'transportista' });
+      usersRepo.find
+        .mockResolvedValueOnce([{ id: SUB_ID }]) // subDrivers
+        .mockResolvedValueOnce([
+          { id: DRIVER_ID, name: 'Owner' },
+          { id: SUB_ID, name: 'Sub Driver' },
+        ]); // driverUsers
+      offersRepo.find.mockResolvedValue([
+        { id: 'o1', driver_id: DRIVER_ID, truck_id: 'tk1', price: 30000, created_at: new Date(), load: { status: 'delivered' } },
+        { id: 'o2', driver_id: SUB_ID, truck_id: 'tk1', price: 50000, created_at: new Date(), load: { status: 'delivered' } },
+        { id: 'o3', driver_id: DRIVER_ID, truck_id: 'tk2', price: 20000, created_at: new Date(), load: { status: 'pending' } },
+      ]);
+      mockRatingQb(ratingsRepo, '4.2');
+      trucksRepo.find.mockResolvedValue([{ id: 'tk1' }, { id: 'tk2' }]);
+
+      const result = await service.getFleetStats(DRIVER_ID);
+
+      expect(result.totalViajes).toBe(2);
+      expect(result.totalIngresos).toBe(80000);
+      expect(result.calificacionPromedio).toBe('4.2');
+      expect(result.mejorConductor).not.toBeNull();
+      expect(result.perConductor).toHaveLength(2);
+    });
+
+    test('GIVEN filtro de fechas WHEN getFleetStats THEN excluye ofertas fuera del rango', async () => {
+      usersRepo.findOne.mockResolvedValueOnce({ id: DRIVER_ID, role: 'transportista' });
+      usersRepo.find
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: DRIVER_ID, name: 'Owner' }]);
+      offersRepo.find.mockResolvedValue([
+        { id: 'o-in', driver_id: DRIVER_ID, truck_id: null, price: 40000, created_at: new Date('2025-07-15'), load: { status: 'delivered' } },
+        { id: 'o-out', driver_id: DRIVER_ID, truck_id: null, price: 99000, created_at: new Date('2025-06-01'), load: { status: 'delivered' } },
+      ]);
+      mockRatingQb(ratingsRepo, null);
+      trucksRepo.find.mockResolvedValue([]);
+
+      const result = await service.getFleetStats(DRIVER_ID, '2025-07-01', '2025-07-31');
+
+      expect(result.totalViajes).toBe(1);
+      expect(result.totalIngresos).toBe(40000);
+    });
+
+    test('GIVEN driverId específico WHEN getFleetStats THEN filtra solo para ese conductor', async () => {
+      const SUB_ID = 'sub-2';
+      usersRepo.findOne.mockResolvedValueOnce({ id: DRIVER_ID, role: 'transportista' });
+      usersRepo.find
+        .mockResolvedValueOnce([{ id: SUB_ID }])
+        .mockResolvedValueOnce([{ id: DRIVER_ID, name: 'Owner' }, { id: SUB_ID, name: 'Sub 2' }]);
+      offersRepo.find.mockResolvedValue([
+        { id: 'o-sub', driver_id: SUB_ID, truck_id: null, price: 60000, created_at: new Date(), load: { status: 'delivered' } },
+      ]);
+      mockRatingQb(ratingsRepo, '3.8');
+      trucksRepo.find.mockResolvedValue([]);
+
+      const result = await service.getFleetStats(DRIVER_ID, undefined, undefined, SUB_ID);
+
+      expect(result.totalViajes).toBe(1);
+      expect(result.perConductor).toHaveLength(1);
+      expect(result.perConductor[0].id).toBe(SUB_ID);
+    });
   });
 
   // ── getShipperStats ───────────────────────────────────────────────────────
