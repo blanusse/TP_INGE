@@ -1,0 +1,35 @@
+{
+  "cookies": [
+    {
+      "name": "__Host-authjs.csrf-token",
+      "value": "00dacbe3fe9f0e2e97dec21474e0c38965626231367d72b7be8dad443dac0965%7C4117f4357630be4230ae87c7c90117fd3741886f4cb2620aea00a008e9398fa9",
+      "domain": "cargaback.up.railway.app",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__Secure-authjs.callback-url",
+      "value": "https%3A%2F%2Fcargaback.up.railway.app%2Flogin",
+      "domain": "cargaback.up.railway.app",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__Secure-authjs.session-token",
+      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwia2lkIjoiVmJYcWxVeFVFOWdlUUdaeEVBTUNaWGsxTHlZbFlTYXFWX3BMMk5BY1JpWUJPUFcydkgycWJ3ZnliUnRQcG84VkJ2M2xtVjhIcm00d0g5SWozXzMtWGcifQ..z4U3z7kO5YbLJLk8rxeE3Q.ZAJiO4kxlKW4KqpT4AKbdUxbMGCuvgFwtERMkORnadWbp9aZN-Psm-hpo3RCEHJGfFfKURd4iF3uRq4tZOzsE_LfoIn6L4vrzK-kV-ehi5uCz5HUL0AyFgWFixa0iIVftxQV7DVN5E4SbIC0LMD4zzjoUz8tzW0D_lmEVsbqK1eClCMG_XIClZHb2N_zD4ELTgEY0rvBQE-Kf0HjIhon_zEFAq_dXgtpZ1qOWr4OdJetilcqt99lpEZSM5REJDhyuSm3urgYGnLCIh4kiULL6XilADULMcumRqsbQf7s8hibxqoO5xk1SYIqQ0J1RbieJxSa0vlkRqfkexws14866dBuJnbGx_oE1dOukBGxT1vzLWpceRNd8PGo9G3w_y51MbWx5-mQK9RWZavd9yvNTJ-lqHBkQg48gSRfFhnSVwYNRX2L2TDbsQeoqqrDZ-_6hTxPy4H6pykE7WH4g-OCivAKX1W9HwfxfC2cKxEIR4LeF7Lf-K2k_17PIpss2H9QJfgHFMcMg-nw-49Y7ciq64lPPrgBtTaEngwSkS3Ahj07W6hwbAc-0Xb2kcaCqPhNM2RGOQRDYzGEXXOsjLLlatwlb9o7NaCQ8qfLF3tBTqi2BapOu_EjOqP7D_YFtKDjvFCfI0EO8ER2MG-x2b4mWw.Wr1TJhXf6btBZSLBzRf1Dl_-n_i4nVi8hGawoj1JGTc",
+      "domain": "cargaback.up.railway.app",
+      "path": "/",
+      "expires": 1779084140.884209,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}
