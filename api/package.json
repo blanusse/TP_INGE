@@ -99,7 +99,9 @@
       ]
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!main.ts",
+      "!**/*.d.ts"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"

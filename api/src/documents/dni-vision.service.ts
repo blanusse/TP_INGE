@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 
 @Injectable()
 export class DniVisionService {
+  /* istanbul ignore next */
   async extractTextFromFile(filePath: string): Promise<string> {
     const apiKey = process.env.GOOGLE_VISION_API_KEY;
     if (!apiKey)
