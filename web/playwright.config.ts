@@ -78,6 +78,22 @@ export default defineConfig({
       testMatch: /flujo-completo\.spec\.ts/,
       dependencies: ["setup"],
     },
+
+    // ── Fase 1: tests nuevos ─────────────────────────────────────────────
+    {
+      name: "registro-completo",
+      testMatch: /registro-completo\.spec\.ts/,
+    },
+    {
+      name: "flujo-pago",
+      testMatch: /flujo-pago\.spec\.ts/,
+      dependencies: ["setup"],
+    },
+    {
+      name: "documentos",
+      testMatch: /documentos\.spec\.ts/,
+      dependencies: ["setup"],
+    },
   ],
 
   // No arranca servidor local — corre contra el sitio desplegado
