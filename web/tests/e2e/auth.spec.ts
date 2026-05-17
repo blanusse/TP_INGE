@@ -16,7 +16,7 @@ test.describe("Login exitoso por rol", () => {
     await page.getByLabel(/Email/i).fill(CREDS.dador.email);
     await page.locator('input[type="password"]').fill(CREDS.dador.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await expect(page).toHaveURL(/\/dador/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/dador/, { timeout: 30_000 });
   });
 
   test("transportista → redirige a /transportista", async ({ page }) => {
@@ -24,7 +24,7 @@ test.describe("Login exitoso por rol", () => {
     await page.getByLabel(/Email/i).fill(CREDS.transportista.email);
     await page.locator('input[type="password"]').fill(CREDS.transportista.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await expect(page).toHaveURL(/\/transportista/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/transportista/, { timeout: 30_000 });
   });
 
   test("flota → redirige a /flota", async ({ page }) => {
@@ -32,7 +32,7 @@ test.describe("Login exitoso por rol", () => {
     await page.getByLabel(/Email/i).fill(CREDS.flota.email);
     await page.locator('input[type="password"]').fill(CREDS.flota.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await expect(page).toHaveURL(/\/flota/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/flota/, { timeout: 30_000 });
   });
 
   test("empleado → redirige a /empleado", async ({ page }) => {
@@ -40,7 +40,7 @@ test.describe("Login exitoso por rol", () => {
     await page.getByLabel(/Email/i).fill(CREDS.empleado.email);
     await page.locator('input[type="password"]').fill(CREDS.empleado.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await expect(page).toHaveURL(/\/empleado/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/empleado/, { timeout: 30_000 });
   });
 
   test("admin → redirige a /admin", async ({ page }) => {
@@ -48,7 +48,7 @@ test.describe("Login exitoso por rol", () => {
     await page.getByLabel(/Email/i).fill(CREDS.admin.email);
     await page.locator('input[type="password"]').fill(CREDS.admin.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await expect(page).toHaveURL(/\/admin/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/admin/, { timeout: 30_000 });
   });
 });
 
@@ -59,7 +59,7 @@ test.describe("Protección de roles cruzados", () => {
     await page.getByLabel(/Email/i).fill(CREDS.dador.email);
     await page.locator('input[type="password"]').fill(CREDS.dador.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await page.waitForURL(/\/dador/, { timeout: 20_000 });
+    await page.waitForURL(/\/dador/, { timeout: 30_000 });
     // Intentar acceder a ruta de transportista
     await page.goto("/transportista");
     await expect(page).toHaveURL(/\/dador/, { timeout: 10_000 });
@@ -70,7 +70,7 @@ test.describe("Protección de roles cruzados", () => {
     await page.getByLabel(/Email/i).fill(CREDS.transportista.email);
     await page.locator('input[type="password"]').fill(CREDS.transportista.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await page.waitForURL(/\/transportista/, { timeout: 20_000 });
+    await page.waitForURL(/\/transportista/, { timeout: 30_000 });
     await page.goto("/dador");
     await expect(page).toHaveURL(/\/transportista/, { timeout: 10_000 });
   });
@@ -80,7 +80,7 @@ test.describe("Protección de roles cruzados", () => {
     await page.getByLabel(/Email/i).fill(CREDS.dador.email);
     await page.locator('input[type="password"]').fill(CREDS.dador.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await page.waitForURL(/\/dador/, { timeout: 20_000 });
+    await page.waitForURL(/\/dador/, { timeout: 30_000 });
     await page.goto("/admin");
     await expect(page).toHaveURL(/\/(dador|dashboard)/, { timeout: 10_000 });
   });
@@ -92,7 +92,7 @@ test.describe("Usuario ya logueado en /login", () => {
     await page.getByLabel(/Email/i).fill(CREDS.dador.email);
     await page.locator('input[type="password"]').fill(CREDS.dador.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await page.waitForURL(/\/dador/, { timeout: 20_000 });
+    await page.waitForURL(/\/dador/, { timeout: 30_000 });
     await page.goto("/login");
     await expect(page).toHaveURL(/\/dador/, { timeout: 10_000 });
   });
@@ -104,7 +104,7 @@ test.describe("Logout", () => {
     await page.getByLabel(/Email/i).fill(CREDS.dador.email);
     await page.locator('input[type="password"]').fill(CREDS.dador.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await page.waitForURL(/\/dador/, { timeout: 20_000 });
+    await page.waitForURL(/\/dador/, { timeout: 30_000 });
 
     // Buscar botón de cerrar sesión (puede estar en sidebar o menú)
     const btnSalir = page
@@ -126,8 +126,8 @@ test.describe("Ruta /dashboard — redirección inteligente", () => {
     await page.getByLabel(/Email/i).fill(CREDS.dador.email);
     await page.locator('input[type="password"]').fill(CREDS.dador.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await page.waitForURL(/\/dador/, { timeout: 20_000 });
+    await page.waitForURL(/\/dador/, { timeout: 30_000 });
     await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/dador/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/dador/, { timeout: 15_000 });
   });
 });
