@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">7.64% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/170</span>
+                <span class='fraction'>13/170</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">11.39% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/158</span>
+                <span class='fraction'>18/158</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">7% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/157</span>
+                <span class='fraction'>11/157</span>
             </div>
         
             
@@ -454,7 +454,7 @@
 <a name='L389'></a><a href='#L389'>389</a>
 <a name='L390'></a><a href='#L390'>390</a>
 <a name='L391'></a><a href='#L391'>391</a>
-<a name='L392'></a><a href='#L392'>392</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L392'></a><a href='#L392'>392</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -464,15 +464,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -501,7 +501,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -845,7 +845,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import {</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import {
   Injectable,
   ConflictException,
   UnauthorizedException,
@@ -855,15 +855,15 @@
   GoneException,
   Logger,
 } from '@nestjs/common';
-<span class="cstat-no" title="statement not covered" >import { InjectRepository } from '@nestjs/typeorm';</span>
-<span class="cstat-no" title="statement not covered" >import { Repository } from 'typeorm';</span>
-<span class="cstat-no" title="statement not covered" >import { JwtService } from '@nestjs/jwt';</span>
-<span class="cstat-no" title="statement not covered" >import * as bcrypt from 'bcryptjs';</span>
-<span class="cstat-no" title="statement not covered" >import { User } from '../entities/user.entity';</span>
-<span class="cstat-no" title="statement not covered" >import { Shipper } from '../entities/shipper.entity';</span>
-<span class="cstat-no" title="statement not covered" >import { EmailVerification } from '../entities/email-verification.entity';</span>
-<span class="cstat-no" title="statement not covered" >import { FleetInvitation } from '../entities/fleet-invitation.entity';</span>
-<span class="cstat-no" title="statement not covered" >import { EmailService } from '../email/email.service';</span>
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcryptjs';
+import { User } from '../entities/user.entity';
+import { Shipper } from '../entities/shipper.entity';
+import { EmailVerification } from '../entities/email-verification.entity';
+import { FleetInvitation } from '../entities/fleet-invitation.entity';
+import { EmailService } from '../email/email.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 &nbsp;
@@ -892,18 +892,18 @@ function <span class="fstat-no" title="function not covered" >validarDni(</span>
 // ── Servicio ─────────────────────────────────────────────────────────────────
 &nbsp;
 @Injectable()
-export class <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" >AuthService<span class="cstat-no" title="statement not covered" > </span>{</span></span>
+export class AuthService {
   private readonly logger = <span class="cstat-no" title="statement not covered" >new Logger(AuthService.name);</span>
 &nbsp;
 <span class="fstat-no" title="function not covered" >  constructor(</span>
-    @InjectRepository(User) private <span class="cstat-no" title="statement not covered" >usersRepo: R</span>epository&lt;User&gt;,
-    @InjectRepository(Shipper) private <span class="cstat-no" title="statement not covered" >shippersRepo: R</span>epository&lt;Shipper&gt;,
+    @InjectRepository(User) private <span class="cstat-no" title="statement not covered" >usersRepo: R</span>epository<span class="branch-1 cbranch-no" title="branch not covered" >&lt;User&gt;,</span>
+    @InjectRepository(Shipper) private <span class="cstat-no" title="statement not covered" >shippersRepo: R</span>epository<span class="branch-1 cbranch-no" title="branch not covered" >&lt;Shipper&gt;,</span>
     @InjectRepository(EmailVerification)
-    private <span class="cstat-no" title="statement not covered" >verificationsRepo: R</span>epository&lt;EmailVerification&gt;,
+    private <span class="cstat-no" title="statement not covered" >verificationsRepo: R</span>epository<span class="branch-1 cbranch-no" title="branch not covered" >&lt;EmailVerification&gt;,</span>
     @InjectRepository(FleetInvitation)
-    private <span class="cstat-no" title="statement not covered" >invitationsRepo: R</span>epository&lt;FleetInvitation&gt;,
-    private <span class="cstat-no" title="statement not covered" >jwtService: J</span>wtService,
-    private <span class="cstat-no" title="statement not covered" >emailService: E</span>mailService,
+    private <span class="cstat-no" title="statement not covered" >invitationsRepo: R</span>epository<span class="branch-1 cbranch-no" title="branch not covered" >&lt;FleetInvitation&gt;,</span>
+    private <span class="cstat-no" title="statement not covered" >jwtService: J</span>wtService<span class="branch-1 cbranch-no" title="branch not covered" >,</span>
+    private <span class="cstat-no" title="statement not covered" >emailService: E</span>mailService<span class="branch-1 cbranch-no" title="branch not covered" >,</span>
   ) {}
 &nbsp;
 <span class="fstat-no" title="function not covered" >  async </span>register(dto: RegisterDto) {
@@ -1243,7 +1243,7 @@ export class <span class="cstat-no" title="statement not covered" ><span class="
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-16T16:17:05.576Z
+                at 2026-05-17T14:26:16.701Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

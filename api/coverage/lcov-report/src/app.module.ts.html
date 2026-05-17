@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">95.65% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/23</span>
+                <span class='fraction'>22/23</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">95.23% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/21</span>
+                <span class='fraction'>20/21</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -118,25 +118,25 @@
 <a name='L53'></a><a href='#L53'>53</a>
 <a name='L54'></a><a href='#L54'>54</a>
 <a name='L55'></a><a href='#L55'>55</a>
-<a name='L56'></a><a href='#L56'>56</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<a name='L56'></a><a href='#L56'>56</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -172,26 +172,26 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { Module } from '@nestjs/common';</span>
-<span class="cstat-no" title="statement not covered" >import { ConfigModule, ConfigService } from '@nestjs/config';</span>
-<span class="cstat-no" title="statement not covered" >import { TypeOrmModule } from '@nestjs/typeorm';</span>
-<span class="cstat-no" title="statement not covered" >import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';</span>
-<span class="cstat-no" title="statement not covered" >import { APP_GUARD } from '@nestjs/core';</span>
-<span class="cstat-no" title="statement not covered" >import { AuthModule } from './auth/auth.module';</span>
-<span class="cstat-no" title="statement not covered" >import { LoadsModule } from './loads/loads.module';</span>
-<span class="cstat-no" title="statement not covered" >import { OffersModule } from './offers/offers.module';</span>
-<span class="cstat-no" title="statement not covered" >import { FleetModule } from './fleet/fleet.module';</span>
-<span class="cstat-no" title="statement not covered" >import { MessagesModule } from './messages/messages.module';</span>
-<span class="cstat-no" title="statement not covered" >import { RatingsModule } from './ratings/ratings.module';</span>
-<span class="cstat-no" title="statement not covered" >import { StatsModule } from './stats/stats.module';</span>
-<span class="cstat-no" title="statement not covered" >import { PaymentsModule } from './payments/payments.module';</span>
-<span class="cstat-no" title="statement not covered" >import { LocationModule } from './location/location.module';</span>
-<span class="cstat-no" title="statement not covered" >import { DocumentsModule } from './documents/documents.module';</span>
-<span class="cstat-no" title="statement not covered" >import { ReportsModule } from './reports/reports.module';</span>
-<span class="cstat-no" title="statement not covered" >import { AdminModule } from './admin/admin.module';</span>
-<span class="cstat-no" title="statement not covered" >import { AlertsModule } from './alerts/alerts.module';</span>
-<span class="cstat-no" title="statement not covered" >import { InsuranceModule } from './insurance/insurance.module';</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { AuthModule } from './auth/auth.module';
+import { LoadsModule } from './loads/loads.module';
+import { OffersModule } from './offers/offers.module';
+import { FleetModule } from './fleet/fleet.module';
+import { MessagesModule } from './messages/messages.module';
+import { RatingsModule } from './ratings/ratings.module';
+import { StatsModule } from './stats/stats.module';
+import { PaymentsModule } from './payments/payments.module';
+import { LocationModule } from './location/location.module';
+import { DocumentsModule } from './documents/documents.module';
+import { ReportsModule } from './reports/reports.module';
+import { AdminModule } from './admin/admin.module';
+import { AlertsModule } from './alerts/alerts.module';
+import { InsuranceModule } from './insurance/insurance.module';
 &nbsp;
 @Module({
   imports: [
@@ -227,7 +227,7 @@
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export <span class="cstat-no" title="statement not covered" >class <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" >AppModule </span>{}</span></span>
+export class AppModule {}
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -235,7 +235,7 @@ export <span class="cstat-no" title="statement not covered" >class <span class="
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-16T16:17:05.576Z
+                at 2026-05-17T14:26:16.701Z
             </div>
         <script src="../prettify.js"></script>
         <script>

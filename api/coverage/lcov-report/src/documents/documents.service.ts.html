@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">6.7% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/179</span>
+                <span class='fraction'>12/179</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">11.9% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/126</span>
+                <span class='fraction'>15/126</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">6.53% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/153</span>
+                <span class='fraction'>10/153</span>
             </div>
         
             
@@ -523,27 +523,27 @@
 <a name='L458'></a><a href='#L458'>458</a>
 <a name='L459'></a><a href='#L459'>459</a>
 <a name='L460'></a><a href='#L460'>460</a>
-<a name='L461'></a><a href='#L461'>461</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L461'></a><a href='#L461'>461</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -983,36 +983,36 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import {</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import {
   Injectable,
   NotFoundException,
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-<span class="cstat-no" title="statement not covered" >import { InjectRepository } from '@nestjs/typeorm';</span>
-<span class="cstat-no" title="statement not covered" >import { In, Repository } from 'typeorm';</span>
-<span class="cstat-no" title="statement not covered" >import { basename } from 'path';</span>
-<span class="cstat-no" title="statement not covered" >import {</span>
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
+import { basename } from 'path';
+import {
   TruckerDocument,
   DocumentTipo,
   DocumentStatus,
 } from '../entities/trucker-document.entity';
-<span class="cstat-no" title="statement not covered" >import { User } from '../entities/user.entity';</span>
-<span class="cstat-no" title="statement not covered" >import { Truck } from '../entities/truck.entity';</span>
-<span class="cstat-no" title="statement not covered" >import { DniVisionService } from './dni-vision.service';</span>
-<span class="cstat-no" title="statement not covered" >import { AfipVerificationService } from './afip-verification.service';</span>
+import { User } from '../entities/user.entity';
+import { Truck } from '../entities/truck.entity';
+import { DniVisionService } from './dni-vision.service';
+import { AfipVerificationService } from './afip-verification.service';
 &nbsp;
 @Injectable()
-export <span class="cstat-no" title="statement not covered" >class <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" >DocumentsService </span>{</span></span>
+export class DocumentsService {
 <span class="fstat-no" title="function not covered" >  constructor(</span>
     @InjectRepository(TruckerDocument)
-    private <span class="cstat-no" title="statement not covered" >documentsRepo: R</span>epository&lt;TruckerDocument&gt;,
+    private <span class="cstat-no" title="statement not covered" >documentsRepo: R</span>epository<span class="branch-1 cbranch-no" title="branch not covered" >&lt;TruckerDocument&gt;,</span>
     @InjectRepository(User)
-    private <span class="cstat-no" title="statement not covered" >usersRepo: R</span>epository&lt;User&gt;,
+    private <span class="cstat-no" title="statement not covered" >usersRepo: R</span>epository<span class="branch-1 cbranch-no" title="branch not covered" >&lt;User&gt;,</span>
     @InjectRepository(Truck)
-    private <span class="cstat-no" title="statement not covered" >trucksRepo: R</span>epository&lt;Truck&gt;,
-    private <span class="cstat-no" title="statement not covered" >visionService: D</span>niVisionService,
-    private <span class="cstat-no" title="statement not covered" >afipService: A</span>fipVerificationService,
+    private <span class="cstat-no" title="statement not covered" >trucksRepo: R</span>epository<span class="branch-1 cbranch-no" title="branch not covered" >&lt;Truck&gt;,</span>
+    private <span class="cstat-no" title="statement not covered" >visionService: D</span>niVisionService<span class="branch-1 cbranch-no" title="branch not covered" >,</span>
+    private <span class="cstat-no" title="statement not covered" >afipService: A</span>fipVerificationService<span class="branch-1 cbranch-no" title="branch not covered" >,</span>
   ) {}
 &nbsp;
 <span class="fstat-no" title="function not covered" >  async </span>createDocument(
@@ -1450,7 +1450,7 @@ export <span class="cstat-no" title="statement not covered" >class <span class="
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-16T16:17:05.576Z
+                at 2026-05-17T14:26:16.701Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
