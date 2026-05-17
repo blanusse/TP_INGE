@@ -256,6 +256,36 @@ describe('MessagesService', () => {
       expect(result[0]).toMatchObject({ offer_id: 'offer-1' });
     });
 
+    it('covers lastMessages and unreadRaw map lambdas with non-empty results', async () => {
+      shippersRepo.findOne.mockResolvedValue(null); // driver path
+      offersRepo.find.mockResolvedValue([acceptedOffer]);
+      loadsRepo.find.mockResolvedValue([matchedLoad]);
+      usersRepo.find
+        .mockResolvedValueOnce([driverUser])
+        .mockResolvedValueOnce([{ id: 'shipper-user-1', name: 'Carlos' }]);
+
+      const lastMsgItem = { offer_id: 'offer-1', content: 'Hola', created_at: new Date() };
+      const qb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        distinctOn: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([lastMsgItem]),
+        getRawMany: jest.fn().mockResolvedValue([{ offer_id: 'offer-1', count: '3' }]),
+      };
+      messagesRepo.createQueryBuilder.mockReturnValue(qb);
+      shippersRepo.find.mockResolvedValue([shipperRecord]);
+
+      const result = await service.getConversations('driver-1');
+      expect(result).toHaveLength(1);
+      expect(result[0].unread_count).toBe(3);
+      expect(result[0].last_message).toBe('Hola');
+    });
+
     it('returns conversations for a shipper', async () => {
       shippersRepo.findOne.mockResolvedValue(shipperRecord);
       loadsRepo.find.mockResolvedValue([matchedLoad]);

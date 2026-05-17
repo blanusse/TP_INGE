@@ -126,6 +126,27 @@ describe('LoadsService', () => {
       expect(loadsRepo.save).not.toHaveBeenCalled();
     });
 
+    test('GIVEN carga con lat/lon WHEN createLoad THEN calcula distance_km usando haversineKm', async () => {
+      shippersRepo.findOne.mockResolvedValue(MOCK_SHIPPER);
+      usersRepo.findOne.mockResolvedValue(MOCK_USER_VERIFIED);
+      const bodyWithCoords = {
+        ...VALID_BODY,
+        pickup_lat: -34.6037,
+        pickup_lon: -58.3816,
+        dropoff_lat: -31.4201,
+        dropoff_lon: -64.1888,
+      };
+      const savedLoad = { id: 'load-2', ...bodyWithCoords, shipper_id: SHIPPER_ID, status: 'available', distance_km: 700 };
+      loadsRepo.create.mockReturnValue(savedLoad);
+      loadsRepo.save.mockResolvedValue(savedLoad);
+      alertsService.checkAndNotify.mockReturnValue(undefined);
+
+      const result = await service.createLoad(USER_ID, bodyWithCoords);
+
+      expect(result.distance_km).toBeDefined();
+      expect(loadsRepo.save).toHaveBeenCalledTimes(1);
+    });
+
     test('GIVEN peso igual a 0 WHEN publica carga THEN lanza BadRequestException', async () => {
       // GIVEN
       shippersRepo.findOne.mockResolvedValue(MOCK_SHIPPER);
@@ -341,6 +362,39 @@ describe('LoadsService', () => {
       await expect(
         service.updateLoad(USER_ID, 'l1', { price_base: 0 }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN truck_type_required válido WHEN updateLoad THEN aplica mapeo de tipo', async () => {
+      shippersRepo.findOne.mockResolvedValue(MOCK_SHIPPER);
+      const load = { id: 'l1', shipper_id: SHIPPER_ID, status: 'available', truck_type_required: 'camion' };
+      loadsRepo.findOne.mockResolvedValue(load);
+      loadsRepo.save.mockImplementation((l) => Promise.resolve(l));
+
+      const result = await service.updateLoad(USER_ID, 'l1', { truck_type_required: 'Plataforma' });
+
+      expect(result.truck_type_required).toBe('semi');
+    });
+
+    test('GIVEN weight_kg válido WHEN updateLoad THEN actualiza weight_kg', async () => {
+      shippersRepo.findOne.mockResolvedValue(MOCK_SHIPPER);
+      const load = { id: 'l1', shipper_id: SHIPPER_ID, status: 'available', weight_kg: 1000 };
+      loadsRepo.findOne.mockResolvedValue(load);
+      loadsRepo.save.mockImplementation((l) => Promise.resolve(l));
+
+      const result = await service.updateLoad(USER_ID, 'l1', { weight_kg: 5000 });
+
+      expect(result.weight_kg).toBe(5000);
+    });
+
+    test('GIVEN price_base válido WHEN updateLoad THEN actualiza price_base', async () => {
+      shippersRepo.findOne.mockResolvedValue(MOCK_SHIPPER);
+      const load = { id: 'l1', shipper_id: SHIPPER_ID, status: 'available', price_base: 50000 };
+      loadsRepo.findOne.mockResolvedValue(load);
+      loadsRepo.save.mockImplementation((l) => Promise.resolve(l));
+
+      const result = await service.updateLoad(USER_ID, 'l1', { price_base: 90000 });
+
+      expect(result.price_base).toBe(90000);
     });
 
     test('GIVEN datos válidos WHEN updateLoad THEN actualiza campos', async () => {

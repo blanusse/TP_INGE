@@ -285,4 +285,144 @@ describe('FleetService', () => {
     const result = await service.getFleetDrivers('u1');
     expect(result).toHaveLength(2);
   });
+
+  test('GIVEN show_as_fleet_driver false WHEN getFleetDrivers THEN devuelve solo conductores', async () => {
+    usersRepo.find.mockResolvedValue([{ id: 'd1', name: 'Driver' }]);
+    usersRepo.findOne.mockResolvedValue({ id: 'u1', name: 'Owner', show_as_fleet_driver: false });
+    const result = await service.getFleetDrivers('u1');
+    expect(result).toHaveLength(1);
+  });
+
+  test('GIVEN owner ya en lista WHEN getFleetDrivers THEN no duplica al owner', async () => {
+    usersRepo.find.mockResolvedValue([{ id: 'u1', name: 'Owner' }]);
+    usersRepo.findOne.mockResolvedValue({ id: 'u1', name: 'Owner', show_as_fleet_driver: true });
+    const result = await service.getFleetDrivers('u1');
+    expect(result).toHaveLength(1);
+  });
+
+  // ── acceptInvitation (additional paths) ────────────────────────────────
+
+  describe('acceptInvitation (additional)', () => {
+    test('GIVEN inv.status expired WHEN acceptInvitation THEN lanza GoneException', async () => {
+      invitationsRepo.findOne.mockResolvedValue({ status: 'expired', expires_at: new Date(Date.now() + 100000) });
+      await expect(service.acceptInvitation('tok', 'u1')).rejects.toThrow(GoneException);
+    });
+
+    test('GIVEN expires_at vencido WHEN acceptInvitation THEN guarda expired y lanza GoneException', async () => {
+      const inv = { status: 'pending', expires_at: new Date('2020-01-01') };
+      invitationsRepo.findOne.mockResolvedValue(inv);
+      await expect(service.acceptInvitation('tok', 'u1')).rejects.toThrow(GoneException);
+      expect(invitationsRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'expired' }));
+    });
+
+    test('GIVEN user no es transportista WHEN acceptInvitation THEN lanza ForbiddenException', async () => {
+      invitationsRepo.findOne.mockResolvedValue({ status: 'pending', expires_at: new Date(Date.now() + 100000), email: 'x@x.com', fleet_owner_id: 'owner1' });
+      usersRepo.findOne.mockResolvedValue({ id: 'u1', role: 'shipper', email: 'x@x.com' });
+      await expect(service.acceptInvitation('tok', 'u1')).rejects.toThrow(ForbiddenException);
+    });
+
+    test('GIVEN fleet_owner_id === userId WHEN acceptInvitation THEN lanza BadRequestException', async () => {
+      invitationsRepo.findOne.mockResolvedValue({ status: 'pending', expires_at: new Date(Date.now() + 100000), email: 'x@x.com', fleet_owner_id: 'u1' });
+      usersRepo.findOne.mockResolvedValue({ id: 'u1', role: 'transportista', email: 'x@x.com' });
+      await expect(service.acceptInvitation('tok', 'u1')).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN fleetOwner ya es is_fleet_owner WHEN acceptInvitation THEN no llama save extra', async () => {
+      const inv = { status: 'pending', expires_at: new Date(Date.now() + 100000), email: 'driver@x.com', fleet_owner_id: 'owner1' };
+      invitationsRepo.findOne.mockResolvedValue(inv);
+      usersRepo.findOne
+        .mockResolvedValueOnce({ id: 'u1', role: 'transportista', email: 'driver@x.com' })
+        .mockResolvedValueOnce({ id: 'owner1', is_fleet_owner: true });
+      const result = await service.acceptInvitation('tok', 'u1');
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  // ── addFleetDriver (additional paths) ──────────────────────────────────
+
+  describe('addFleetDriver (additional)', () => {
+    const owner = { id: 'u1', role: 'transportista', email: 'owner@x.com', is_fleet_owner: false };
+
+    test('GIVEN body.email igual a owner.email WHEN addFleetDriver THEN lanza BadRequest', async () => {
+      usersRepo.findOne.mockResolvedValueOnce(owner);
+      await expect(service.addFleetDriver('u1', { email: 'OWNER@X.COM', password: '12345678', name: 'X' })).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN teléfono inválido WHEN addFleetDriver THEN lanza BadRequest', async () => {
+      usersRepo.findOne
+        .mockResolvedValueOnce(owner)
+        .mockResolvedValueOnce(null);
+      await expect(service.addFleetDriver('u1', { email: 'new@x.com', password: '12345678', name: 'X', phone: '123' })).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN DNI inválido WHEN addFleetDriver THEN lanza BadRequest', async () => {
+      usersRepo.findOne
+        .mockResolvedValueOnce(owner)
+        .mockResolvedValueOnce(null);
+      await expect(service.addFleetDriver('u1', { email: 'new@x.com', password: '12345678', name: 'X', dni: '123' })).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN DNI duplicado WHEN addFleetDriver THEN lanza ConflictException', async () => {
+      usersRepo.findOne
+        .mockResolvedValueOnce(owner)
+        .mockResolvedValueOnce(null) // byEmail
+        .mockResolvedValueOnce({ id: 'other' }); // byDni
+      await expect(service.addFleetDriver('u1', { email: 'new@x.com', password: '12345678', name: 'X', dni: '12345678' })).rejects.toThrow(ConflictException);
+    });
+
+    test('GIVEN owner ya es is_fleet_owner WHEN addFleetDriver THEN no actualiza is_fleet_owner', async () => {
+      const alreadyOwner = { ...owner, is_fleet_owner: true };
+      usersRepo.findOne
+        .mockResolvedValueOnce(alreadyOwner)
+        .mockResolvedValueOnce(null);
+      await service.addFleetDriver('u1', { email: 'new@x.com', password: '12345678', name: 'X' });
+      // save only called once (the new driver), not again for owner
+      expect(usersRepo.save).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ── updateDriver (additional paths) ────────────────────────────────────
+
+  describe('updateDriver (additional)', () => {
+    test('GIVEN teléfono inválido WHEN updateDriver THEN lanza BadRequest', async () => {
+      usersRepo.findOne.mockResolvedValue({ id: 'd1', fleet_id: 'u1' });
+      await expect(service.updateDriver('u1', 'd1', { phone: '123' })).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN DNI inválido WHEN updateDriver THEN lanza BadRequest', async () => {
+      usersRepo.findOne.mockResolvedValue({ id: 'd1', fleet_id: 'u1' });
+      await expect(service.updateDriver('u1', 'd1', { dni: 'abc' })).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN DNI duplicado de otro conductor WHEN updateDriver THEN lanza ConflictException', async () => {
+      usersRepo.findOne
+        .mockResolvedValueOnce({ id: 'd1', fleet_id: 'u1' })
+        .mockResolvedValueOnce({ id: 'otro-driver' }); // byDni → different driver
+      await expect(service.updateDriver('u1', 'd1', { dni: '12345678' })).rejects.toThrow(ConflictException);
+    });
+
+    test('GIVEN DNI propio WHEN updateDriver THEN actualiza correctamente', async () => {
+      usersRepo.findOne
+        .mockResolvedValueOnce({ id: 'd1', fleet_id: 'u1', name: 'Pedro' })
+        .mockResolvedValueOnce({ id: 'd1' }); // byDni → same driver, not a conflict
+      await service.updateDriver('u1', 'd1', { dni: '12345678' });
+      expect(usersRepo.save).toHaveBeenCalled();
+    });
+  });
+
+  // ── getInvitation (success path) ───────────────────────────────────────
+
+  test('GIVEN invitación válida pendiente WHEN getInvitation THEN devuelve datos', async () => {
+    const expiresAt = new Date(Date.now() + 100000);
+    invitationsRepo.findOne.mockResolvedValue({
+      status: 'pending',
+      expires_at: expiresAt,
+      token: 'tok123',
+      email: 'driver@x.com',
+      fleet_owner: { name: 'El Dueño' },
+    });
+    const result = await service.getInvitation('tok123');
+    expect(result.ownerName).toBe('El Dueño');
+    expect(result.email).toBe('driver@x.com');
+  });
 });

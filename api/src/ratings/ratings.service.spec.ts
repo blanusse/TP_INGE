@@ -115,6 +115,18 @@ describe('RatingsService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
+    test('GIVEN driver califica pero shipperRecord no existe WHEN submitRating THEN lanza ForbiddenException', async () => {
+      offersRepo.findOne.mockResolvedValue(MOCK_OFFER);
+      loadsRepo.findOne.mockResolvedValue(MOCK_LOAD);
+      shippersRepo.findOne
+        .mockResolvedValueOnce(null)   // user is not a shipper
+        .mockResolvedValueOnce(null);  // shipperRecord not found
+
+      await expect(
+        service.submitRating(DRIVER_ID, { offer_id: OFFER_ID, score: 4 }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
     test('GIVEN driver califica shipper WHEN submitRating THEN crea rating con to_user_id del shipper', async () => {
       offersRepo.findOne.mockResolvedValue(MOCK_OFFER);
       loadsRepo.findOne.mockResolvedValue(MOCK_LOAD);

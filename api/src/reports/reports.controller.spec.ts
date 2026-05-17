@@ -73,6 +73,23 @@ describe('ReportsController', () => {
     });
   });
 
+  describe('uploadEvidence', () => {
+    test('GIVEN file y BACKEND_URL WHEN uploadEvidence THEN devuelve url correcta', () => {
+      process.env.BACKEND_URL = 'http://test.com';
+      const file = { filename: 'evidence.jpg' } as any;
+      const result = controller.uploadEvidence(REQ, file);
+      expect(result).toEqual({ url: 'http://test.com/uploads/reports/evidence.jpg' });
+    });
+
+    test('GIVEN sin BACKEND_URL WHEN uploadEvidence THEN usa localhost', () => {
+      delete process.env.BACKEND_URL;
+      delete process.env.PORT;
+      const file = { filename: 'ev.jpg' } as any;
+      const result = controller.uploadEvidence(REQ, file);
+      expect(result.url).toContain('/uploads/reports/ev.jpg');
+    });
+  });
+
   describe('updateReport', () => {
     test('GIVEN secret válido WHEN updateReport THEN delega al service', async () => {
       process.env.INTERNAL_SECRET = 'secret123';

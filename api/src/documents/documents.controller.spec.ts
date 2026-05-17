@@ -88,4 +88,72 @@ describe('DocumentsController', () => {
   test('GIVEN no admin WHEN updateStatus THEN lanza ForbiddenException', () => {
     expect(() => controller.updateStatus(REQ, 'doc-1', { status: 'approved' })).toThrow(ForbiddenException);
   });
+
+  test('GIVEN usuario WHEN getDniStatus THEN delega con userId', async () => {
+    await controller.getDniStatus(REQ);
+    expect(service.getDniStatus).toHaveBeenCalledWith('u1');
+  });
+
+  test('GIVEN usuario WHEN getDriverStatus THEN delega con userId', async () => {
+    await controller.getDriverStatus(REQ);
+    expect(service.getDriverVerificationStatus).toHaveBeenCalledWith('u1');
+  });
+
+  test('GIVEN file WHEN verifyLicense THEN delega con userId y path', async () => {
+    const file = { path: '/uploads/license.jpg' } as any;
+    await controller.verifyLicense(REQ, file);
+    expect(service.verifyLicense).toHaveBeenCalledWith('u1', '/uploads/license.jpg');
+  });
+
+  test('GIVEN file y truckId WHEN verifyTruckVtv THEN delega correctamente', async () => {
+    const file = { path: '/uploads/vtv.jpg' } as any;
+    await controller.verifyTruckVtv(REQ, 'truck-1', file);
+    expect(service.verifyTruckVtv).toHaveBeenCalledWith('u1', 'truck-1', '/uploads/vtv.jpg');
+  });
+
+  test('GIVEN file y truckId WHEN verifyTruckSeguro THEN delega correctamente', async () => {
+    const file = { path: '/uploads/seguro.jpg' } as any;
+    await controller.verifyTruckSeguro(REQ, 'truck-1', file);
+    expect(service.verifyTruckSeguro).toHaveBeenCalledWith('u1', 'truck-1', '/uploads/seguro.jpg');
+  });
+
+  test('GIVEN file WHEN verifyDni THEN delega con userId y path', async () => {
+    const file = { path: '/uploads/dni.jpg' } as any;
+    await controller.verifyDni(REQ, file);
+    expect(service.verifyDni).toHaveBeenCalledWith('u1', '/uploads/dni.jpg');
+  });
+
+  test('GIVEN file y truckId WHEN verifyCedulaVerde THEN delega correctamente', async () => {
+    const file = { path: '/uploads/cedula.jpg' } as any;
+    await controller.verifyCedulaVerde(REQ, 'truck-1', file);
+    expect(service.verifyCedulaVerde).toHaveBeenCalledWith('u1', 'truck-1', '/uploads/cedula.jpg');
+  });
+
+  test('GIVEN file WHEN verifyCedulaAzul THEN delega con userId y path', async () => {
+    const file = { path: '/uploads/azul.jpg' } as any;
+    await controller.verifyCedulaAzul(REQ, file);
+    expect(service.verifyCedulaAzul).toHaveBeenCalledWith('u1', '/uploads/azul.jpg');
+  });
+
+  test('GIVEN file WHEN verifyRuctt THEN delega con userId y path', async () => {
+    const file = { path: '/uploads/ructt.jpg' } as any;
+    await controller.verifyRuctt(REQ, file);
+    expect(service.verifyRuctt).toHaveBeenCalledWith('u1', '/uploads/ructt.jpg');
+  });
+
+  test('GIVEN file y tipo WHEN uploadDocument THEN construye url y delega al service', async () => {
+    process.env.BACKEND_URL = 'http://test.com';
+    const file = { filename: 'doc.jpg' } as any;
+    await controller.uploadDocument(REQ, file, { tipo: 'dni' } as any);
+    expect(service.createDocument).toHaveBeenCalledWith('u1', 'dni', 'http://test.com/uploads/documents/doc.jpg');
+  });
+
+  test('GIVEN admin WHEN getAll THEN delega al service', async () => {
+    await controller.getAll(ADMIN_REQ);
+    expect(service.getAllDocuments).toHaveBeenCalled();
+  });
+
+  test('GIVEN no admin WHEN getAll THEN lanza ForbiddenException', () => {
+    expect(() => controller.getAll(REQ)).toThrow(ForbiddenException);
+  });
 });

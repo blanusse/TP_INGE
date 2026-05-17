@@ -226,6 +226,17 @@ describe('AdminService', () => {
       });
     });
 
+    test('GIVEN sin parámetros WHEN getAuditLog THEN usa defaults page=1 limit=50', async () => {
+      auditRepo.findAndCount.mockResolvedValue([[], 0]);
+
+      const result = await service.getAuditLog();
+
+      expect(result).toEqual({ logs: [], total: 0, page: 1, limit: 50 });
+      expect(auditRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 50 }),
+      );
+    });
+
     test('GIVEN página 3 WHEN getAuditLog THEN skip es correcto', async () => {
       auditRepo.findAndCount.mockResolvedValue([[], 0]);
 
