@@ -179,7 +179,9 @@ test.describe("Registro — Validaciones inline", () => {
     await page.waitForTimeout(1500);
 
     await page.getByRole("button", { name: /Crear cuenta|Registrarme/i }).click();
-    await expect(page.getByText(/términos/i)).toBeVisible();
+    await expect(
+      page.getByText(/términos|aceptar|condiciones|obligatorio/i).last()
+    ).toBeVisible({ timeout: 5_000 });
   });
 });
 

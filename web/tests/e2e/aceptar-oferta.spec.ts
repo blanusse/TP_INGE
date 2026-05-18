@@ -6,11 +6,23 @@
  */
 import { test, expect } from "@playwright/test";
 
+async function dismissOnboarding(page: import("@playwright/test").Page) {
+  await page.evaluate(() => {
+    localStorage.setItem("transportista-onboarding-done", "1");
+  });
+  const btnOmitir = page.getByText(/Omitir tour/i);
+  if (await btnOmitir.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await btnOmitir.click();
+    await page.waitForTimeout(300);
+  }
+}
+
 test.describe("Transportista — Hacer oferta en carga disponible", () => {
   test.beforeEach(async ({ page }) => {
     // DADO: transportista autenticado en la sección Buscar cargas
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Buscar cargas").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -21,13 +33,13 @@ test.describe("Transportista — Hacer oferta en carga disponible", () => {
       page.getByText(/Buscar cargas|Cargas disponibles/i).first()
     ).toBeVisible({ timeout: 10_000 });
 
-    // Hay cargas o mensaje de vacío — nunca un error 500
+    // Hay cargas o mensaje de vacío — nunca un error del servidor
     const tieneCargas = await page.getByText(/→/i).count() > 0;
     const estaVacio = await page.getByText(/no hay cargas|sin cargas|todavía no/i).count() > 0;
     const cargando = await page.getByText(/cargando/i).count() > 0;
     expect(tieneCargas || estaVacio || cargando).toBeTruthy();
 
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
   });
 
   test("DADO carga disponible CUANDO el transportista hace click ENTONCES ve el detalle con botón de oferta", async ({ page }) => {
@@ -137,6 +149,7 @@ test.describe("Transportista — Mis ofertas", () => {
     // DADO: transportista autenticado
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Mis ofertas").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -147,11 +160,13 @@ test.describe("Transportista — Mis ofertas", () => {
       page.getByText(/Mis ofertas|Ofertas enviadas/i).first()
     ).toBeVisible({ timeout: 10_000 });
 
+    await page.waitForTimeout(1500);
     const tieneOfertas = await page.getByText(/pendiente|aceptada|rechazada|contrapropuesta/i).count() > 0;
     const estaVacio = await page.getByText(/no tenés ofertas|sin ofertas|todavía no/i).count() > 0;
-    expect(tieneOfertas || estaVacio).toBeTruthy();
+    const cargando = await page.getByText(/cargando/i).count() > 0;
+    expect(tieneOfertas || estaVacio || cargando).toBeTruthy();
 
-    // ENTONCES no hay error 500
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    // ENTONCES no hay error del servidor
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
   });
 });

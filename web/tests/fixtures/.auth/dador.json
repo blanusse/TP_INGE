@@ -2,7 +2,7 @@
   "cookies": [
     {
       "name": "__Host-authjs.csrf-token",
-      "value": "946be81532e689fbf13d7ca81507e6a53b62a562b18a835182b2187af029b7c3%7C023a4ffb4588f4e92aad2a5433a6d37524eb9ba05118df8a906eb531109f2657",
+      "value": "1843d5420303a3b775ed8bf6f480021011f3f75a873b6e583a0f7058bb38f7eb%7C97e221eb5299566b0bfb80af2bc117cd73afe9c648b60d7ce32b0eaeb5fdfe4c",
       "domain": "cargaback.up.railway.app",
       "path": "/",
       "expires": -1,
@@ -22,10 +22,10 @@
     },
     {
       "name": "__Secure-authjs.session-token",
-      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwia2lkIjoiVmJYcWxVeFVFOWdlUUdaeEVBTUNaWGsxTHlZbFlTYXFWX3BMMk5BY1JpWUJPUFcydkgycWJ3ZnliUnRQcG84VkJ2M2xtVjhIcm00d0g5SWozXzMtWGcifQ..6wJPO-CCa1dczgQKKg_HsA.2a6bKre6gtbCeDtF4gaInb6yQ54SpYKG1bUhR9Rii5CrOp3siCfvLqkBrquzBRbAJawVJpwnA2zjnaj0WfO1FPiVqKdasaR-sssbG7JoQBJ3CHh3eohiPMDNpyvvebQSbVqw2kasgN9MV3dNIVXqvTmK-hPdshgijFSTuMXBAhPk52hhfWb9tsQVmreBpdFip-Bd1uTMoovECK0ZginyNKWc5kDTsVn8ojadKy95ehZqba581fnk8VQ-cNYDbpOSvGmNu0rroUOz_5q_HW1PAyVqNBbV0b3EmFhNqP17HZo8caRC7tj_0oU9UipWiPzG_1FA8429xjQ_AjHr67MWmRK2K4vP8SXR2Nb_t6D2CgMfWCYW-tzk1yYwTgRP1JvxdOn30-AsUE8K6X9MXlhKdMnU99sikiIqlEOpf6PA-grlg8xWdiK3ME0fYWIRsrDPeo4TubW1dKoEugXtNUx8GyLlrIz9c4C-29MRpBNoeK7ZKSCv9zAvABQPuYmkiXJeDoZs19qxoP_0pUd_ccRmpqb7ZhBAvN_YqraxCip9maojs1wxFFh-02lKY-_EquVCKxGPQbqmskKjQogBfNep1RV1IPyopCzBvrZlcV0jMv_nDFNoQdqqf3FzvITHDDcQLSLsG3AG9vRmg6J2DDCHzQ.W5YY4JyJ-78OawKkUR7G1ZkrF-X0MNkOidZSHmi2xmc",
+      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwia2lkIjoiVmJYcWxVeFVFOWdlUUdaeEVBTUNaWGsxTHlZbFlTYXFWX3BMMk5BY1JpWUJPUFcydkgycWJ3ZnliUnRQcG84VkJ2M2xtVjhIcm00d0g5SWozXzMtWGcifQ..W27zhqZxTPw_0HAjSicMNg.-h30SPrU6ig-uOciS_G780Op0_DjOmUuMYM6Xv7vXSc2TZA2EHyYbm7cUoEgTVUlVyziHFvVTlK_YrbVZABLlnrP6zHv1wwTkHvI5MQxC9kgOJlQmekZhllga7e6Dk1PLAmIRh-L9CXLIj0S2pSrETRNoslT8YmZjAblK5pNNP8_ffSHMNM3uwJXy1lqXWRZtl1bGm36rbJ9D-8OWmwZjrlUqwBM7WxTLJEkEvwOtTx4xDWZ1j9ODqYp6wteUF5mPy30oCW2cdG6Nq5z3VchEk_TN1CvYFJ6S_HCaeRYrFU47bv6Adtu5yHI3Od6xi79SMwtB1np8x1wpUflwfD1odb7LqflAW5mjjsH8lWX8iJGdTydpi5V9yQ-0Wc1-jHI4Xje8gXePMvXagvUd0U7ByOnKUBCuApjL_RrrDVqHTFL_Iv76Fatlu39E31B-Mb5vwwoucJlKFydNLEH_yhPW2H8YMBT-Vq7cH91mKkWGyX5u4CUkmgeEAc6eOq06OEQsNBm849rmqxYFe8r7qQsu2qS7lUUGCnsm4oCMFtjOeetjoGkqM7AA6UBt8i-8PqrmwkQXnpxzPL39bKv5gTTXDRLCMNv54qiAN9U9NAVhdiMk6MIoY1dUudEi9jbtL0G08Tg_9Qj24y8DvX5rPkIuw.BdRKWmx2Y1Orus3iuEnQK7Wgck-gurGhzsSoNG1GvzA",
       "domain": "cargaback.up.railway.app",
       "path": "/",
-      "expires": 1779088705.914839,
+      "expires": 1779094174.855695,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"

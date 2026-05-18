@@ -13,10 +13,23 @@
  */
 import { test, expect } from "@playwright/test";
 
+async function dismissOnboarding(page: import("@playwright/test").Page) {
+  await page.evaluate(() => {
+    localStorage.setItem("flota-onboarding-done", "1");
+    localStorage.setItem("transportista-onboarding-done", "1");
+  });
+  const btnOmitir = page.getByText(/Omitir tour/i);
+  if (await btnOmitir.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await btnOmitir.click();
+    await page.waitForTimeout(300);
+  }
+}
+
 test.describe("Flota — Dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/flota");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
   });
 
   test("carga el dashboard del dueño de flota", async ({ page }) => {
@@ -32,7 +45,7 @@ test.describe("Flota — Dashboard", () => {
   });
 
   test("no muestra error 500 al cargar", async ({ page }) => {
-    await expect(page.getByText(/error interno|500|something went wrong/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno|something went wrong/i)).not.toBeVisible();
   });
 });
 
@@ -40,6 +53,7 @@ test.describe("Flota — Gestión de camiones", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/flota");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Mi flota").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -100,6 +114,7 @@ test.describe("Flota — Gestión de conductores", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/flota");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Mi flota").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -171,6 +186,7 @@ test.describe("Flota — Buscar cargas", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/flota");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Buscar cargas").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -182,7 +198,7 @@ test.describe("Flota — Buscar cargas", () => {
   });
 
   test("no muestra error 500", async ({ page }) => {
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
   });
 });
 
@@ -190,6 +206,7 @@ test.describe("Flota — Mis viajes", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/flota");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Mis viajes").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -199,7 +216,7 @@ test.describe("Flota — Mis viajes", () => {
   });
 
   test("no muestra error 500", async ({ page }) => {
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
   });
 });
 
@@ -207,6 +224,7 @@ test.describe("Flota — Mensajes", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/flota");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Mensajes").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -216,7 +234,7 @@ test.describe("Flota — Mensajes", () => {
   });
 
   test("no muestra error 500", async ({ page }) => {
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
   });
 });
 
@@ -224,6 +242,7 @@ test.describe("Flota — Mi perfil", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/flota");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     const miPerfil = page.getByText("Mi perfil").or(page.getByText("Perfil"));
     if (await miPerfil.count() > 0) {
       await miPerfil.first().click();

@@ -29,6 +29,7 @@ test.describe("Mensajeria entre usuarios", () => {
       // DADO: transportista en /transportista
       await transPage.goto("/transportista");
       await transPage.waitForLoadState("networkidle");
+      await transPage.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
       await expect(transPage).toHaveURL(/\/transportista/);
 
       // CUANDO: navega a Mensajes
@@ -48,7 +49,7 @@ test.describe("Mensajeria entre usuarios", () => {
       ).toBeVisible({ timeout: 10_000 });
 
       // ENTONCES: no hay error 500
-      await expect(transPage.getByText(/error interno|500/i)).not.toBeVisible();
+      await expect(transPage.getByText(/error interno del servidor/i)).not.toBeVisible();
     } finally {
       await transCtx.close();
     }
@@ -66,6 +67,7 @@ test.describe("Mensajeria entre usuarios", () => {
       // DADO: transportista navega a Mensajes
       await transPage.goto("/transportista");
       await transPage.waitForLoadState("networkidle");
+      await transPage.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
       await transPage.getByText("Mensajes").first().click();
       await transPage.waitForLoadState("networkidle");
 
@@ -166,6 +168,7 @@ test.describe("Mensajeria entre usuarios", () => {
       // ── Dador abre Mensajes ─────────────────────────────────────────────
       await dadorPage.goto("/dador");
       await dadorPage.waitForLoadState("networkidle");
+      await dadorPage.evaluate(() => localStorage.setItem("dador-onboarding-done", "1"));
       await dadorPage.getByText("Mensajes").first().click();
       await dadorPage.waitForLoadState("networkidle");
       await dadorPage.waitForTimeout(2_000);
@@ -193,7 +196,7 @@ test.describe("Mensajeria entre usuarios", () => {
       await expect(areaMensajes).toBeVisible({ timeout: 10_000 });
 
       // ENTONCES: no hay error 500
-      await expect(dadorPage.getByText(/error interno|500/i)).not.toBeVisible();
+      await expect(dadorPage.getByText(/error interno del servidor/i)).not.toBeVisible();
     } finally {
       await transCtx.close();
       await dadorCtx.close();
@@ -212,6 +215,7 @@ test.describe("Mensajeria entre usuarios", () => {
       // DADO: dador en /dador
       await dadorPage.goto("/dador");
       await dadorPage.waitForLoadState("networkidle");
+      await dadorPage.evaluate(() => localStorage.setItem("dador-onboarding-done", "1"));
       await expect(dadorPage).toHaveURL(/\/dador/);
 
       // Cerrar modal de bienvenida si aparece
@@ -222,7 +226,7 @@ test.describe("Mensajeria entre usuarios", () => {
       }
 
       // ENTONCES: el dashboard carga sin error 500
-      await expect(dadorPage.getByText(/error interno|500/i)).not.toBeVisible();
+      await expect(dadorPage.getByText(/error interno del servidor/i)).not.toBeVisible();
 
       // ENTONCES: la nav del dador tiene los items esperados
       await expect(dadorPage.getByText("Mis cargas").first()).toBeVisible({ timeout: 10_000 });

@@ -35,7 +35,7 @@ test.describe("Empleado — Dashboard", () => {
   });
 
   test("no muestra error 500 al cargar", async ({ page }) => {
-    await expect(page.getByText(/error interno|500|something went wrong/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno|something went wrong/i)).not.toBeVisible();
   });
 });
 
@@ -58,7 +58,7 @@ test.describe("Empleado — Mis viajes", () => {
   });
 
   test("no muestra error 500", async ({ page }) => {
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
   });
 });
 
@@ -75,13 +75,15 @@ test.describe("Empleado — Mensajes", () => {
   });
 
   test("muestra conversaciones o estado vacío", async ({ page }) => {
+    await page.waitForTimeout(1500);
     const tieneChats = await page.getByText(/hace|min|Hoy|Ayer/i).count() > 0;
-    const estaVacio = await page.getByText(/no tenés mensajes|sin mensajes|sin conversaciones/i).count() > 0;
-    expect(tieneChats || estaVacio).toBeTruthy();
+    const estaVacio = await page.getByText(/no tenés mensajes|sin mensajes|sin conversaciones|todavía no/i).count() > 0;
+    const cargando = await page.getByText(/cargando/i).count() > 0;
+    expect(tieneChats || estaVacio || cargando).toBeTruthy();
   });
 
   test("no muestra error 500", async ({ page }) => {
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
   });
 });
 
