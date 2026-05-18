@@ -95,7 +95,8 @@ export default function TripMap({
           "https://overpass.osm.ch/api/interpreter",
         ];
 
-        const fetchWithFallback = async (): Promise<unknown> => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const fetchWithFallback = async (): Promise<any> => {
           for (const mirror of OVERPASS_MIRRORS) {
             try {
               const r = await fetch(`${mirror}?data=${encodeURIComponent(query)}`);
