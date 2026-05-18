@@ -3002,114 +3002,10 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
   );
 }
 
-// ── Onboarding ────────────────────────────────────────────────────────────────
+// ── Onboarding (desactivado) ──────────────────────────────────────────────────
 
-const ONBOARDING_STEPS = [
-  {
-    titulo: "¡Bienvenido a CargaBack! 👋",
-    desc: "Te mostramos cómo sacarle el máximo provecho a la plataforma. Son solo 3 pasos rápidos.",
-    target: null,
-  },
-  {
-    titulo: "Buscá cargas disponibles",
-    desc: "En la sección Buscar cargas encontrás todas las cargas disponibles cerca de tu ruta. Filtrá por origen, destino, tipo de camión y precio.",
-    target: "Buscar cargas",
-  },
-  {
-    titulo: "Planificá tu próximo viaje",
-    desc: "En Planificar viaje podés armar tu ruta, ver qué cargas calzan con tu recorrido y optimizar tus tiempos para nunca volver vacío.",
-    target: "Planificar viaje",
-  },
-];
-
-function OnboardingOverlay({ onFinish, onNavegar }: { onFinish: () => void; onNavegar: (nav: NavItem) => void }) {
-  const [paso, setPaso] = useState(0);
-  const [arrowX, setArrowX] = useState<number | null>(null);
-  const step = ONBOARDING_STEPS[paso];
-  const esUltimo = paso === ONBOARDING_STEPS.length - 1;
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => {
-    if (!step.target) { setArrowX(null); return; }
-    const btns = document.querySelectorAll<HTMLButtonElement>("button");
-    for (const btn of btns) {
-      if (btn.textContent?.trim() === step.target) {
-        const rect = btn.getBoundingClientRect();
-        setArrowX(rect.left + rect.width / 2);
-        return;
-      }
-    }
-    setArrowX(null);
-  }, [paso, step.target]);
-
-  const siguiente = () => {
-    if (step.target) onNavegar(step.target as NavItem);
-    if (esUltimo) { onFinish(); return; }
-    setPaso(paso + 1);
-  };
-
-  return (
-    <>
-      <style>{`
-        @keyframes ob-bounce {
-          0%   { transform: translateX(-50%) translateY(0); }
-          100% { transform: translateX(-50%) translateY(-7px); }
-        }
-      `}</style>
-
-      {/* Overlay semitransparente */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.18)", pointerEvents: "none" }} />
-
-      {/* Flecha hacia el ítem de nav */}
-      {arrowX !== null && (
-        <div style={{
-          position: "fixed", left: arrowX, top: 60, zIndex: 1002,
-          transform: "translateX(-50%)",
-          animation: "ob-bounce 0.7s ease-in-out infinite alternate",
-          display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-          filter: "drop-shadow(0 2px 6px rgba(58,128,107,0.5))",
-          pointerEvents: "none",
-        }}>
-          <svg width="22" height="30" viewBox="0 0 22 30" fill="none">
-            <path d="M11 28 L11 4" stroke="#3a806b" strokeWidth="3" strokeLinecap="round"/>
-            <path d="M2 13 L11 4 L20 13" stroke="#3a806b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-      )}
-
-      {/* Card */}
-      <div style={{
-        position: "fixed", zIndex: 1001,
-        left: "50%", transform: "translateX(-50%)",
-        top: arrowX !== null ? 100 : "50%",
-        marginTop: arrowX !== null ? 0 : undefined,
-        translate: arrowX !== null ? undefined : "0 -50%",
-        background: "#3a806b", color: "#fff", borderRadius: 16,
-        padding: "32px 36px", maxWidth: 400, width: "90%",
-        boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
-      }}>
-        {/* Indicador de pasos */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
-          {ONBOARDING_STEPS.map((_, i) => (
-            <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= paso ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)" }} />
-          ))}
-        </div>
-
-        <h2 style={{ fontSize: 19, fontWeight: 800, color: "#fff", marginBottom: 10, lineHeight: 1.3 }}>{step.titulo}</h2>
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.65, marginBottom: 28 }}>{step.desc}</p>
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button onClick={onFinish} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer", padding: 0 }}>
-            Omitir tour
-          </button>
-          <button onClick={siguiente} style={{ background: "#fff", color: "#3a806b", border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-            {esUltimo ? "¡Empezar!" : "Siguiente →"}
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
+// const ONBOARDING_STEPS = [ ... ];
+// function OnboardingOverlay() { ... }
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
@@ -3120,14 +3016,14 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
   const [toast, setToast] = useState<string | null>(null);
   const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
   const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  // const [showOnboarding, setShowOnboarding] = useState(false);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     const saved = localStorage.getItem("transportista-theme") as "dark" | "light" | null;
     if (saved) setTheme(saved);
-    const visto = localStorage.getItem("transportista-onboarding-done");
-    if (!visto) setShowOnboarding(true);
+    // const visto = localStorage.getItem("transportista-onboarding-done");
+    // if (!visto) setShowOnboarding(true);
   }, []);
 
   const toggleTheme = () => {
@@ -3263,12 +3159,12 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
       {modalOferta && <ModalOfertar info={modalOferta} trucks={trucks} drivers={rootDrivers} mode={mode} userId={userId} userName={userName} isFleetOwner={isFleetOwner} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}
       {toast && <Toast mensaje={toast} onClose={() => setToast(null)} />}
     </div>
-    {showOnboarding && (
+    {/* showOnboarding && (
       <OnboardingOverlay
         onFinish={() => { localStorage.setItem("transportista-onboarding-done", "1"); setShowOnboarding(false); }}
         onNavegar={setNavActivo}
       />
-    )}
+    ) */}
     </>
   );
 }

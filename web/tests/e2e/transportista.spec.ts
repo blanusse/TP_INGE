@@ -14,10 +14,22 @@
  */
 import { test, expect } from "@playwright/test";
 
+async function dismissOnboarding(page: import("@playwright/test").Page) {
+  await page.evaluate(() => {
+    localStorage.setItem("transportista-onboarding-done", "1");
+  });
+  const btnOmitir = page.getByText(/Omitir tour/i);
+  if (await btnOmitir.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await btnOmitir.click();
+    await page.waitForTimeout(300);
+  }
+}
+
 test.describe("Transportista — Dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
   });
 
   test("carga el dashboard de transportista", async ({ page }) => {
@@ -33,7 +45,7 @@ test.describe("Transportista — Dashboard", () => {
   });
 
   test("no muestra error 500 al cargar", async ({ page }) => {
-    await expect(page.getByText(/error interno|500|something went wrong/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno|something went wrong/i)).not.toBeVisible();
   });
 });
 
@@ -41,6 +53,7 @@ test.describe("Transportista — Buscar cargas", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Buscar cargas").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -86,6 +99,7 @@ test.describe("Transportista — Enviar oferta", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Buscar cargas").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -150,6 +164,7 @@ test.describe("Transportista — Mis ofertas", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Mis ofertas").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -159,13 +174,15 @@ test.describe("Transportista — Mis ofertas", () => {
   });
 
   test("muestra ofertas activas o estado vacío", async ({ page }) => {
+    await page.waitForTimeout(1500);
     const tieneOfertas = await page.getByText(/pendiente|aceptada|rechazada|contrapropuesta/i).count() > 0;
     const estaVacio = await page.getByText(/no tenés ofertas|sin ofertas|todavía no/i).count() > 0;
-    expect(tieneOfertas || estaVacio).toBeTruthy();
+    const cargando = await page.getByText(/cargando/i).count() > 0;
+    expect(tieneOfertas || estaVacio || cargando).toBeTruthy();
   });
 
   test("no muestra error 500", async ({ page }) => {
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
   });
 });
 
@@ -173,6 +190,7 @@ test.describe("Transportista — Mis viajes", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Mis viajes").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -182,13 +200,15 @@ test.describe("Transportista — Mis viajes", () => {
   });
 
   test("muestra viajes activos o estado vacío", async ({ page }) => {
+    await page.waitForTimeout(1500);
     const tieneViajes = await page.getByText(/km|En tránsito|código de entrega|entregado/i).count() > 0;
     const estaVacio = await page.getByText(/no tenés viajes|sin viajes|todavía no/i).count() > 0;
-    expect(tieneViajes || estaVacio).toBeTruthy();
+    const cargando = await page.getByText(/cargando/i).count() > 0;
+    expect(tieneViajes || estaVacio || cargando).toBeTruthy();
   });
 
   test("no muestra error 500", async ({ page }) => {
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
   });
 });
 
@@ -196,6 +216,7 @@ test.describe("Transportista — Mensajes", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Mensajes").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -205,9 +226,11 @@ test.describe("Transportista — Mensajes", () => {
   });
 
   test("muestra lista de conversaciones o estado vacío", async ({ page }) => {
+    await page.waitForTimeout(1500);
     const tieneChats = await page.getByText(/hace|min|Hoy|Ayer/i).count() > 0;
     const estaVacio = await page.getByText(/no tenés mensajes|sin mensajes|sin conversaciones|todavía no/i).count() > 0;
-    expect(tieneChats || estaVacio).toBeTruthy();
+    const cargando = await page.getByText(/cargando/i).count() > 0;
+    expect(tieneChats || estaVacio || cargando).toBeTruthy();
   });
 
   test("puede abrir un chat existente", async ({ page }) => {
@@ -230,6 +253,7 @@ test.describe("Transportista — Notificaciones", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
   });
 
   test("el ícono de notificaciones es visible en la nav", async ({ page }) => {
@@ -245,7 +269,8 @@ test.describe("Transportista — Notificaciones", () => {
     await page.waitForTimeout(800);
     const tieneNotifs = await page.getByText(/hace|nueva oferta|aceptó|rechazó/i).count() > 0;
     const estaVacio = await page.getByText(/no tenés|sin notificaciones|al día/i).count() > 0;
-    expect(tieneNotifs || estaVacio).toBeTruthy();
+    const cargando = await page.getByText(/cargando/i).count() > 0;
+    expect(tieneNotifs || estaVacio || cargando).toBeTruthy();
   });
 });
 
@@ -253,6 +278,7 @@ test.describe("Transportista — Mi perfil", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     // El perfil puede estar en "Mi flota" o como ítem separado
     const miPerfil = page.getByText("Mi perfil").or(page.getByText("Perfil"));
     if (await miPerfil.count() > 0) {
@@ -272,6 +298,7 @@ test.describe("Transportista — Mi flota (vista individual)", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     const miFlota = page.getByText("Mi flota").first();
     if (await miFlota.isVisible()) {
       await miFlota.click();

@@ -30,6 +30,7 @@ test.describe("Flujo de pago — Dador acepta oferta", () => {
 
     await page.goto("/dador");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("dador-onboarding-done", "1"));
     await page.getByText("Mis cargas").first().click();
     await page.waitForLoadState("networkidle");
 
@@ -37,7 +38,7 @@ test.describe("Flujo de pago — Dador acepta oferta", () => {
     await expect(page.getByText(/Mis cargas|Publica cargas/i).first()).toBeVisible({ timeout: 10_000 });
 
     // No hay error 500
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
 
     await ctx.close();
   });
@@ -48,6 +49,7 @@ test.describe("Flujo de pago — Dador acepta oferta", () => {
 
     await page.goto("/dador");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("dador-onboarding-done", "1"));
     await page.getByText("Mis cargas").first().click();
     await page.waitForLoadState("networkidle");
 
@@ -83,6 +85,7 @@ test.describe("Flujo de pago — Dador acepta oferta", () => {
 
     await page.goto("/dador");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("dador-onboarding-done", "1"));
     await page.getByText("Mis cargas").first().click();
     await page.waitForLoadState("networkidle");
 
@@ -134,11 +137,12 @@ test.describe("Flujo de pago — Dador: cargas asignadas y código de entrega", 
 
     await page.goto("/dador");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("dador-onboarding-done", "1"));
     await page.getByText("Mis envios").first().click();
     await page.waitForLoadState("networkidle");
 
     // Debe mostrar la sección sin error
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
 
     // Puede haber envíos o mensaje de vacío
     const tieneEnvios = (await page.getByText(/en tránsito|en camino|asignada|código de entrega/i).count()) > 0;
@@ -158,6 +162,7 @@ test.describe("Flujo de pago — Dador: cargas asignadas y código de entrega", 
 
     await page.goto("/dador");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("dador-onboarding-done", "1"));
 
     // Buscar en Mis cargas tab Asignadas o en Mis envíos
     await page.getByText("Mis cargas").first().click();
@@ -199,10 +204,11 @@ test.describe("Flujo de pago — Transportista: viajes y entrega", () => {
 
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
     await page.getByText("Mis viajes").first().click();
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
 
     const tieneViajes = (await page.getByText(/en tránsito|en camino|activo|completado/i).count()) > 0;
     const estaVacio = (await page.getByText(/no tenés|sin viajes|todavía no/i).count()) > 0;

@@ -64,6 +64,20 @@ describe('FleetService', () => {
       await expect(service.addTruck('u1', { patente: '', truck_type: 'Semirremolque' })).rejects.toThrow(BadRequestException);
     });
 
+    test('GIVEN sin truck_type WHEN addTruck THEN lanza BadRequest', async () => {
+      await expect(service.addTruck('u1', { patente: 'AB123CD' } as any)).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN vtv_vence inválida WHEN addTruck THEN lanza BadRequest', async () => {
+      trucksRepo.findOne.mockResolvedValue(null);
+      await expect(service.addTruck('u1', { patente: 'AB123CD', truck_type: 'Semi', vtv_vence: 'not-a-date' })).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN vtv_vence pasada WHEN addTruck THEN lanza BadRequest', async () => {
+      trucksRepo.findOne.mockResolvedValue(null);
+      await expect(service.addTruck('u1', { patente: 'AB123CD', truck_type: 'Semi', vtv_vence: '2000-01-01' })).rejects.toThrow(BadRequestException);
+    });
+
     test('GIVEN patente inválida WHEN addTruck THEN lanza BadRequest', async () => {
       await expect(service.addTruck('u1', { patente: '123', truck_type: 'Semirremolque' })).rejects.toThrow(BadRequestException);
     });
@@ -108,6 +122,36 @@ describe('FleetService', () => {
       trucksRepo.findOne.mockResolvedValue({ id: 't1', owner_id: 'u1', patente: 'AB123CD' });
       await service.updateTruck('u1', 't1', { truck_type: 'Chasis' });
       expect(trucksRepo.save).toHaveBeenCalled();
+    });
+
+    test('GIVEN patente nueva inválida WHEN updateTruck THEN lanza BadRequest', async () => {
+      trucksRepo.findOne.mockResolvedValue({ id: 't1', owner_id: 'u1', patente: 'AB123CD' });
+      await expect(service.updateTruck('u1', 't1', { patente: '123' })).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN patente nueva válida no duplicada WHEN updateTruck THEN actualiza patente', async () => {
+      trucksRepo.findOne
+        .mockResolvedValueOnce({ id: 't1', owner_id: 'u1', patente: 'AB123CD' }) // primary lookup
+        .mockResolvedValueOnce(null); // no duplicate
+      await service.updateTruck('u1', 't1', { patente: 'XY456ZW' });
+      expect(trucksRepo.save).toHaveBeenCalled();
+    });
+
+    test('GIVEN patente nueva ya existe en otro camión WHEN updateTruck THEN lanza ConflictException', async () => {
+      trucksRepo.findOne
+        .mockResolvedValueOnce({ id: 't1', owner_id: 'u1', patente: 'AB123CD' }) // primary lookup
+        .mockResolvedValueOnce({ id: 't2', patente: 'XY456ZW' }); // duplicate found
+      await expect(service.updateTruck('u1', 't1', { patente: 'XY456ZW' })).rejects.toThrow(ConflictException);
+    });
+
+    test('GIVEN capacity_kg <= 0 WHEN updateTruck THEN lanza BadRequest', async () => {
+      trucksRepo.findOne.mockResolvedValue({ id: 't1', owner_id: 'u1', patente: 'AB123CD' });
+      await expect(service.updateTruck('u1', 't1', { capacity_kg: 0 })).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN año inválido WHEN updateTruck THEN lanza BadRequest', async () => {
+      trucksRepo.findOne.mockResolvedValue({ id: 't1', owner_id: 'u1', patente: 'AB123CD' });
+      await expect(service.updateTruck('u1', 't1', { año: 1900 })).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -172,6 +216,16 @@ describe('FleetService', () => {
   // ── acceptInvitation ────────────────────────────────────────────────────
 
   describe('acceptInvitation', () => {
+    test('GIVEN invitación ya aceptada WHEN acceptInvitation THEN lanza GoneException', async () => {
+      invitationsRepo.findOne.mockResolvedValue({ status: 'accepted' });
+      await expect(service.acceptInvitation('tok', 'u1')).rejects.toThrow(GoneException);
+    });
+
+    test('GIVEN invitación vencida WHEN acceptInvitation THEN lanza GoneException', async () => {
+      invitationsRepo.findOne.mockResolvedValue({ status: 'pending', expires_at: new Date('2020-01-01'), fleet_owner_id: 'owner1' });
+      await expect(service.acceptInvitation('tok', 'u1')).rejects.toThrow(GoneException);
+    });
+
     test('GIVEN usuario con email distinto WHEN acceptInvitation THEN lanza Forbidden', async () => {
       invitationsRepo.findOne.mockResolvedValue({
         status: 'pending',
@@ -207,6 +261,16 @@ describe('FleetService', () => {
     test('GIVEN owner no es transportista WHEN addFleetDriver THEN lanza Forbidden', async () => {
       usersRepo.findOne.mockResolvedValue({ id: 'u1', role: 'shipper' });
       await expect(service.addFleetDriver('u1', validBody)).rejects.toThrow(ForbiddenException);
+    });
+
+    test('GIVEN nombre vacío WHEN addFleetDriver THEN lanza BadRequest', async () => {
+      usersRepo.findOne.mockResolvedValue({ id: 'u1', role: 'transportista', email: 'owner@x.com', is_fleet_owner: false });
+      await expect(service.addFleetDriver('u1', { ...validBody, name: '   ' })).rejects.toThrow(BadRequestException);
+    });
+
+    test('GIVEN email igual al owner WHEN addFleetDriver THEN lanza BadRequest', async () => {
+      usersRepo.findOne.mockResolvedValue({ id: 'u1', role: 'transportista', email: 'new@x.com', is_fleet_owner: false });
+      await expect(service.addFleetDriver('u1', validBody)).rejects.toThrow(BadRequestException);
     });
 
     test('GIVEN email duplicado WHEN addFleetDriver THEN lanza Conflict', async () => {

@@ -343,6 +343,13 @@ describe('DocumentsService', () => {
       await expect(service.verifyCedulaAzul('u1', '/p')).rejects.toThrow(NotFoundException);
     });
 
+    test('GIVEN documento no es cédula azul WHEN verifyCedulaAzul THEN devuelve verified false', async () => {
+      usersRepo.findOne.mockResolvedValue({ id: 'u1', dni: '30123456' });
+      visionService.isCedulaAzulDocument.mockReturnValue(false);
+      const result = await service.verifyCedulaAzul('u1', '/p');
+      expect(result.verified).toBe(false);
+    });
+
     test('GIVEN usuario sin DNI WHEN verifyCedulaAzul THEN verifica sin chequear DNI', async () => {
       usersRepo.findOne.mockResolvedValue({ id: 'u1', dni: null });
       const result = await service.verifyCedulaAzul('u1', '/p');

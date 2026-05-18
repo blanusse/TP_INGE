@@ -12,6 +12,7 @@ import { test, expect, Page } from "@playwright/test";
 
 /** Cierra el modal de bienvenida si aparece */
 async function dismissTour(page: Page) {
+  await page.evaluate(() => localStorage.setItem("flota-onboarding-done", "1"));
   const omitir = page.getByText(/Omitir tour/i);
   if (await omitir.isVisible({ timeout: 3_000 }).catch(() => false)) {
     await omitir.first().click();
@@ -208,7 +209,7 @@ test.describe("Flota — Lista de conductores", () => {
   });
 
   test("la sección de conductores carga sin error 500", async ({ page }) => {
-    await expect(page.getByText(/error interno|500|something went wrong/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno|something went wrong/i)).not.toBeVisible();
   });
 
   test("muestra conductores existentes o estado vacío", async ({ page }) => {

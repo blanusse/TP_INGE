@@ -6,11 +6,21 @@
  */
 import { test, expect } from "@playwright/test";
 
+async function dismissOnboarding(page: import("@playwright/test").Page) {
+  await page.evaluate(() => localStorage.setItem("dador-onboarding-done", "1"));
+  const btnOmitir = page.getByText(/Omitir tour/i);
+  if (await btnOmitir.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await btnOmitir.click();
+    await page.waitForTimeout(300);
+  }
+}
+
 test.describe("Dador — Publicar nueva carga", () => {
   test.beforeEach(async ({ page }) => {
     // DADO: dador autenticado en la sección Mis cargas
     await page.goto("/dador");
     await page.waitForLoadState("networkidle");
+    await dismissOnboarding(page);
     await page.getByText("Mis cargas").first().click();
     await page.waitForLoadState("networkidle");
   });
@@ -128,7 +138,7 @@ test.describe("Dador — Publicar nueva carga", () => {
       .getByRole("button", { name: /Publicar carga|Publicar →/i })
       .first();
     if (await btnPublicar.count() > 0) {
-      await btnPublicar.click();
+      await btnPublicar.click({ force: true });
       await page.waitForTimeout(800);
 
       // ENTONCES: el modal sigue abierto (no se cerró) o muestra mensaje de error

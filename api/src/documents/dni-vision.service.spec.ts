@@ -109,10 +109,22 @@ describe('DniVisionService', () => {
       expect(result!.getFullYear()).toBe(2028);
     });
 
+    test('GIVEN múltiples fechas futuras DD/MM/YYYY WHEN extractExpiryDate THEN devuelve la más lejana', () => {
+      const result = service.extractExpiryDate('Desde 10/06/2027 hasta 15/12/2029');
+      expect(result).toBeInstanceOf(Date);
+      expect(result!.getFullYear()).toBe(2029);
+    });
+
     test('GIVEN fecha MM/YYYY futura WHEN extractExpiryDate THEN devuelve Date', () => {
       const result = service.extractExpiryDate('Vigencia: 06/2029');
       expect(result).toBeInstanceOf(Date);
       expect(result!.getFullYear()).toBe(2029);
+    });
+
+    test('GIVEN múltiples fechas MM/YYYY futuras WHEN extractExpiryDate THEN devuelve la más lejana', () => {
+      const result = service.extractExpiryDate('Vigente 06/2027 hasta 12/2030');
+      expect(result).toBeInstanceOf(Date);
+      expect(result!.getFullYear()).toBe(2030);
     });
 
     test('GIVEN sin fechas WHEN extractExpiryDate THEN devuelve null', () => {

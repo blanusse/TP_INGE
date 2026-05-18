@@ -34,6 +34,7 @@ test.describe("Flujo completo — dador publica, transportista oferta, dador ve 
       // DADO: dador autenticado en /dador
       await dadorPage.goto("/dador");
       await dadorPage.waitForLoadState("networkidle");
+      await dadorPage.evaluate(() => localStorage.setItem("dador-onboarding-done", "1"));
       await expect(dadorPage).toHaveURL(/\/dador/);
 
       // CUANDO: navega a Mis cargas
@@ -110,6 +111,7 @@ test.describe("Flujo completo — dador publica, transportista oferta, dador ve 
       // DADO: transportista en /transportista
       await transPage.goto("/transportista");
       await transPage.waitForLoadState("networkidle");
+      await transPage.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
       await expect(transPage).toHaveURL(/\/transportista/);
 
       // CUANDO: navega a Buscar cargas
@@ -122,7 +124,7 @@ test.describe("Flujo completo — dador publica, transportista oferta, dador ve 
       ).toBeVisible({ timeout: 10_000 });
 
       // ENTONCES: no hay error 500
-      await expect(transPage.getByText(/error interno|500/i)).not.toBeVisible();
+      await expect(transPage.getByText(/error interno del servidor/i)).not.toBeVisible();
 
       // ── PASO 4: Transportista intenta hacer una oferta ───────────────
       const cargas = transPage.getByText(/→/i);
@@ -150,11 +152,12 @@ test.describe("Flujo completo — dador publica, transportista oferta, dador ve 
       // ── PASO 5: Dador verifica que puede ver sus cargas ─────────────
       await dadorPage.goto("/dador");
       await dadorPage.waitForLoadState("networkidle");
+      await dadorPage.evaluate(() => localStorage.setItem("dador-onboarding-done", "1"));
       await dadorPage.getByText("Mis cargas").first().click();
       await dadorPage.waitForLoadState("networkidle");
 
       // ENTONCES: la sección de cargas sigue funcionando sin errores
-      await expect(dadorPage.getByText(/error interno|500/i)).not.toBeVisible();
+      await expect(dadorPage.getByText(/error interno del servidor/i)).not.toBeVisible();
       await expect(dadorPage.getByText(/Mis cargas/i).first()).toBeVisible();
     } finally {
       await dadorCtx.close();

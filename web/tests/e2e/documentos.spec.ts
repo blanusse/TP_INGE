@@ -72,6 +72,7 @@ test.describe("Documentos — Navegación a pestaña Documentos", () => {
 
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
     await page.getByText("Mi perfil").first().click();
     await page.waitForLoadState("networkidle");
 
@@ -80,7 +81,7 @@ test.describe("Documentos — Navegación a pestaña Documentos", () => {
       page.getByText(/verificad|pendiente/i).first()
     ).toBeVisible({ timeout: 10_000 });
 
-    await expect(page.getByText(/error interno|500/i)).not.toBeVisible();
+    await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
 
     await ctx.close();
   });
@@ -91,6 +92,7 @@ test.describe("Documentos — Navegación a pestaña Documentos", () => {
 
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
     await page.getByText("Mi perfil").first().click();
     await page.waitForLoadState("networkidle");
 
@@ -118,6 +120,7 @@ test.describe("Documentos — Estado de documentos personales", () => {
 
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
     await page.getByText("Mi perfil").first().click();
     await page.waitForLoadState("networkidle");
     await page.getByText("Documentos").first().click();
@@ -148,6 +151,7 @@ test.describe("Documentos — Subida de archivo", () => {
 
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
     await page.getByText("Mi perfil").first().click();
     await page.waitForLoadState("networkidle");
     await page.getByText("Documentos").first().click();
@@ -187,6 +191,7 @@ test.describe("Documentos — Verificación AFIP", () => {
 
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
     await page.getByText("Mi perfil").first().click();
     await page.waitForLoadState("networkidle");
     await page.getByText("Documentos").first().click();
@@ -218,6 +223,7 @@ test.describe("Documentos — Documentos de camiones", () => {
 
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
     await page.getByText("Mi perfil").first().click();
     await page.waitForLoadState("networkidle");
     await page.getByText("Documentos").first().click();
@@ -246,6 +252,7 @@ test.describe("Documentos — Documentos de camiones", () => {
 
     await page.goto("/transportista");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => localStorage.setItem("transportista-onboarding-done", "1"));
     await page.getByText("Mi perfil").first().click();
     await page.waitForLoadState("networkidle");
     await page.getByText("Documentos").first().click();

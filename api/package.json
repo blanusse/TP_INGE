@@ -1,6 +1,4 @@
 {
-
-  
   "name": "api",
   "version": "0.0.1",
   "description": "",
@@ -33,10 +31,10 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
-    "@nestjs/platform-socket.io": "^11.1.19",
+    "@nestjs/platform-socket.io": "^11.1.21",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
-    "@nestjs/websockets": "^11.1.19",
+    "@nestjs/websockets": "^11.1.21",
     "axios": "^1.16.0",
     "bcryptjs": "^3.0.3",
     "nodemailer": "^8.0.7",
@@ -101,16 +99,11 @@
       ]
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!main.ts",
+      "!**/*.d.ts"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }
-
-
-
 }
-
-
-
-

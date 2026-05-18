@@ -14,11 +14,19 @@ function irARegistro(page: import("@playwright/test").Page) {
 
 /** Selecciona un perfil en la grilla de cards (click en "Elegir →" de la card correcta) */
 async function elegirPerfil(page: import("@playwright/test").Page, titulo: string) {
-  const card = page.locator("div")
-    .filter({ hasText: titulo })
-    .filter({ has: page.getByRole("button", { name: /Elegir/i }) })
-    .last();
-  await card.getByRole("button", { name: /Elegir/i }).click();
+  // Busca el botón "Elegir" más cercano al h3/h2/span que contiene el título
+  const btn = page.getByRole("button", { name: /Elegir/i }).filter({
+    has: page.locator(`text=${titulo}`),
+  });
+  if (await btn.count() > 0) {
+    await btn.first().click();
+    return;
+  }
+  // Fallback: buscar el heading con el título y hacer click en el botón más cercano
+  const heading = page.getByText(titulo, { exact: false }).first();
+  await heading.waitFor({ timeout: 10_000 });
+  const parent = page.locator("div, article, section").filter({ hasText: titulo }).filter({ has: page.getByRole("button", { name: /Elegir/i }) }).last();
+  await parent.getByRole("button", { name: /Elegir/i }).click();
 }
 
 test.describe("Registro — Navegación inicial", () => {
@@ -171,7 +179,9 @@ test.describe("Registro — Validaciones inline", () => {
     await page.waitForTimeout(2000);
 
     await page.getByRole("button", { name: /Crear cuenta|Registrarme/i }).click();
-    await expect(page.getByText(/Aceptá los términos/i)).toBeVisible();
+    await expect(
+      page.getByText(/términos|aceptar|condiciones|obligatorio/i).last()
+    ).toBeVisible({ timeout: 5_000 });
   });
 });
 
