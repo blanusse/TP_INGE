@@ -565,6 +565,15 @@ describe('PaymentsService', () => {
       expect(Buffer.isBuffer(result)).toBe(true);
     });
 
+    test('generates PDF with cuil field present', async () => {
+      shippersRepo.findOne.mockResolvedValue({ ...baseShipper, cuil: '27-1234-5' });
+      paymentsRepo.findOne.mockResolvedValue(basePayment);
+      usersRepo.findOne.mockResolvedValue(dadorUser);
+
+      const result = await service.generateInvoicePdf(PAYMENT_ID, SHIPPER_USER_ID, 'F-0001-003');
+      expect(Buffer.isBuffer(result)).toBe(true);
+    });
+
     test('generates PDF when optional fields are missing (no cuit, no address, no driver details, no ready_at)', async () => {
       shippersRepo.findOne.mockResolvedValue({ ...baseShipper, cuit: null, cuil: null, address: null });
       paymentsRepo.findOne.mockResolvedValue({

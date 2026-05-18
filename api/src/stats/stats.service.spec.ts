@@ -98,6 +98,29 @@ describe('StatsService', () => {
       expect(result.calificacionPromedio).toBeNull();
     });
 
+    test('GIVEN transportista con distintas rutas WHEN getDriverStats THEN ordena rutasFrecuentes por cantidad', async () => {
+      const now = new Date();
+      usersRepo.findOne.mockResolvedValue({
+        id: DRIVER_ID, role: 'transportista', created_at: now, phone: '111', dni: '30123456',
+      });
+      offersRepo.find.mockResolvedValue([
+        { load_id: 'l1', driver_id: DRIVER_ID, price: 10000 },
+        { load_id: 'l2', driver_id: DRIVER_ID, price: 20000 },
+        { load_id: 'l3', driver_id: DRIVER_ID, price: 30000 },
+      ]);
+      loadsRepo.find.mockResolvedValue([
+        { id: 'l1', status: 'delivered', cargo_type: 'Granos', pickup_city: 'BA', dropoff_city: 'CBA', created_at: now },
+        { id: 'l2', status: 'delivered', cargo_type: 'Granos', pickup_city: 'BA', dropoff_city: 'CBA', created_at: now },
+        { id: 'l3', status: 'delivered', cargo_type: 'Frutas', pickup_city: 'MZA', dropoff_city: 'BA', created_at: now },
+      ]);
+      mockRatingQb(ratingsRepo, null);
+
+      const result = await service.getDriverStats(DRIVER_ID);
+
+      expect(result.rutasFrecuentes[0].ruta).toBe('BA → CBA');
+      expect(result.rutasFrecuentes[0].viajes).toBe(2);
+    });
+
     test('GIVEN transportista con viajes entregados WHEN getDriverStats THEN calcula stats correctas', async () => {
       const now = new Date();
       usersRepo.findOne.mockResolvedValue({

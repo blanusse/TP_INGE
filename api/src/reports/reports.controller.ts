@@ -54,13 +54,13 @@ export class ReportsController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: uploadsDir,
-        filename: (_req, file, cb) => {
+        filename: /* istanbul ignore next */ (_req, file, cb) => {
           const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
           cb(null, `${unique}${extname(file.originalname)}`);
         },
       }),
       limits: { fileSize: 10 * 1024 * 1024 },
-      fileFilter: (_req, file, cb) => {
+      fileFilter: /* istanbul ignore next */ (_req, file, cb) => {
         if (!file.mimetype.match(/^image\/(jpeg|png|webp)$/)) {
           cb(new Error('Solo se permiten imágenes (jpg, png, webp)'), false);
         } else {

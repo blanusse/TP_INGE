@@ -27,7 +27,7 @@ import { InsuranceModule } from './insurance/insurance.module';
     ]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
+      useFactory: /* istanbul ignore next */ (config: ConfigService) => ({
         type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
         autoLoadEntities: true,

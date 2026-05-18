@@ -268,6 +268,24 @@ describe('AlertsService', () => {
       expect(notifRepo.save).toHaveBeenCalledTimes(1);
     });
 
+    test('GIVEN carga con truck_type_required WHEN checkAndNotify THEN agrega andWhere de truck_types', async () => {
+      // GIVEN
+      const load = { id: 'load-4', cargo_type: 'Granos', truck_type_required: 'Semirremolque', pickup_city: 'BA', dropoff_city: 'CBA', price_base: 80000 };
+      const qb = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      alertsRepo.createQueryBuilder.mockReturnValue(qb);
+
+      // WHEN
+      await service.checkAndNotify(load as any);
+
+      // THEN
+      const calls = qb.andWhere.mock.calls.map((c: any[]) => c[0]);
+      expect(calls.some((s: string) => s.includes('truck_types'))).toBe(true);
+    });
+
     test('GIVEN ninguna alerta matchea WHEN se publica carga THEN no crea notificaciones', async () => {
       // GIVEN
       const load = { id: 'load-2', cargo_type: 'Químicos' };

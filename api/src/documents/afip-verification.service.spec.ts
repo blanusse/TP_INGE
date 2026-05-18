@@ -1,5 +1,6 @@
 jest.mock('@nestjs/axios', () => ({ HttpService: class {} }));
 
+import { of, throwError } from 'rxjs';
 import { AfipVerificationService } from './afip-verification.service';
 
 describe('AfipVerificationService', () => {
@@ -64,6 +65,30 @@ describe('AfipVerificationService', () => {
 
     test('GIVEN nombre con un solo token WHEN compararNombres THEN necesita solo 1 coincidencia', () => {
       expect(service.compararNombres('Juan', 'JUAN', 'PEREZ')).toBe(true);
+    });
+  });
+
+  // ── consultarAfip ─────────────────────────────────────────────────────────
+
+  describe('consultarAfip', () => {
+    test('GIVEN respuesta exitosa con data WHEN consultarAfip THEN devuelve nombre y apellido', async () => {
+      httpService.get.mockReturnValue(
+        of({ data: { data: { nombre: 'JUAN', apellido: 'PEREZ' } } }),
+      );
+      const result = await service.consultarAfip('20301234563');
+      expect(result).toEqual({ nombre: 'JUAN', apellido: 'PEREZ' });
+    });
+
+    test('GIVEN respuesta sin data.data WHEN consultarAfip THEN devuelve null', async () => {
+      httpService.get.mockReturnValue(of({ data: {} }));
+      const result = await service.consultarAfip('20301234563');
+      expect(result).toBeNull();
+    });
+
+    test('GIVEN error de red WHEN consultarAfip THEN devuelve null', async () => {
+      httpService.get.mockReturnValue(throwError(() => new Error('network error')));
+      const result = await service.consultarAfip('20301234563');
+      expect(result).toBeNull();
     });
   });
 

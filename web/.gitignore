@@ -12,6 +12,15 @@
 
 # testing
 /coverage
+test-results/
+playwright-report/
+tests/fixtures/.auth/
+blob-report/
+*.zip
+*.webm
+*.png
+*.jpg
+*.jpeg
 
 # next.js
 /.next/
