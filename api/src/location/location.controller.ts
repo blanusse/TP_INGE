@@ -46,4 +46,41 @@ export class LocationController {
   stream(@Param('loadId') loadId: string) {
     return this.locationService.stream(loadId);
   }
+
+  /** Solo para desarrollo: simula un viaje interpolando posiciones */
+  @Post(':loadId/simulate')
+  simulate(
+    @Param('loadId') loadId: string,
+    @Body()
+    body: {
+      originLat: number;
+      originLng: number;
+      destLat: number;
+      destLng: number;
+      steps?: number;
+      delayMs?: number;
+    },
+  ) {
+    const {
+      originLat,
+      originLng,
+      destLat,
+      destLng,
+      steps = 50,
+      delayMs = 2000,
+    } = body;
+
+    (async () => {
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const lat = originLat + (destLat - originLat) * t;
+        const lng = originLng + (destLng - originLng) * t;
+        await this.repo.upsert({ load_id: loadId, lat, lng }, ['load_id']);
+        this.locationService.emit(loadId, lat, lng);
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    })();
+
+    return { ok: true, message: 'Simulation started' };
+  }
 }

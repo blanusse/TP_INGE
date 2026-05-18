@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 const TRUCK_ICON: Record<string, string> = {
   camion:      "/trucks/Camion.svg",
@@ -12,6 +12,8 @@ const TRUCK_ICON: Record<string, string> = {
   batea:       "/trucks/Batea.svg",
 };
 const DEFAULT_TRUCK_ICON = "/trucks/Camion.svg";
+
+const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 
 interface TripMapProps {
   loadId: string;
@@ -38,11 +40,11 @@ export default function TripMap({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const truckRef = useRef<any>(null);
+  const truckMarkerRef = useRef<any>(null);
   const esRef = useRef<EventSource | null>(null);
   const watchIdRef = useRef<number | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const gasLayerRef = useRef<any>(null);
+  const gasMarkersRef = useRef<any[]>([]);
   const lastGasUpdatePosRef = useRef<[number, number] | null>(null);
   const showGasRef = useRef(false);
   const updateGasStationsRef = useRef<((lat: number, lng: number) => void) | null>(null);
@@ -60,89 +62,23 @@ export default function TripMap({
   useEffect(() => {
     let cancelled = false;
 
-    import("leaflet").then((L) => {
+    import("maplibre-gl").then((ml) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const maplibregl: any = ml.default ?? ml;
       if (cancelled || !containerRef.current || mapRef.current) return;
 
-      // Fix Leaflet default icon paths broken by webpack
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      const map = new maplibregl.Map({
+        container: containerRef.current!,
+        style: OPENFREEMAP_STYLE,
+        center: [-58.3816, -34.6037],
+        zoom: 5,
       });
-
-      const defaultCenter: [number, number] = [-34.6037, -58.3816];
-      const map = L.map(containerRef.current!).setView(defaultCenter, 5);
       mapRef.current = map;
 
-      L.tileLayer(
-        "https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/capabaseargenmap@EPSG%3A3857@png/{z}/{x}/{-y}.png",
-        {
-          attribution:
-            '© <a href="https://www.ign.gob.ar/">IGN Argentina</a>',
-          maxZoom: 17,
-        },
-      ).addTo(map);
-
-      // Marcador de origen (verde)
-      if (originLat && originLng) {
-        L.circleMarker([originLat, originLng], {
-          radius: 8,
-          fillColor: "#16a34a",
-          color: "white",
-          weight: 2,
-          fillOpacity: 1,
-        })
-          .addTo(map)
-          .bindPopup("Origen");
-      }
-
-      // Marcador de destino (rojo)
-      if (destLat && destLng) {
-        L.circleMarker([destLat, destLng], {
-          radius: 8,
-          fillColor: "#3b82f6",
-          color: "white",
-          weight: 2,
-          fillOpacity: 1,
-        })
-          .addTo(map)
-          .bindPopup("Destino");
-      }
-
-      // Ajustar bounds si tenemos origen y destino
-      if (originLat && originLng && destLat && destLng) {
-        map.fitBounds(
-          [
-            [originLat, originLng],
-            [destLat, destLng],
-          ],
-          { padding: [40, 40] }
-        );
-      } else if (originLat && originLng) {
-        map.setView([originLat, originLng], 9);
-      }
-
-      const truckIcon = L.divIcon({
-        className: "",
-        html: `<div style="width:33px;height:33px;overflow:hidden;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))"><img src="${TRUCK_ICON[truckType ?? ""] ?? DEFAULT_TRUCK_ICON}" style="width:33px;height:33px;display:block;object-fit:contain;filter:brightness(0) saturate(100%) invert(43%) sepia(18%) saturate(1000%) hue-rotate(124deg) brightness(82%)" /></div>`,
-        iconSize: [33, 33],
-        iconAnchor: [17, 17],
-      });
+      const truckIconSrc = TRUCK_ICON[truckType ?? ""] ?? DEFAULT_TRUCK_ICON;
 
       const GAS_RADIUS_M = 15000;
-      const GAS_UPDATE_DIST = 0.045; // ~5 km en grados
-
-      const gasIcon = L.divIcon({
-        className: "",
-        html: `<div style="width:26px;height:26px;background:#f59e0b;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35)"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v15"/><path d="M14 7h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2 1 1 0 0 1 1 1v5a1 1 0 0 1-1 1 3 3 0 0 1-3-3V9"/><rect x="3" y="11" width="11" height="5" rx="1"/><line x1="3" y1="22" x2="17" y2="22"/></svg></div>`,
-        iconSize: [26, 26],
-        iconAnchor: [13, 13],
-      });
+      const GAS_UPDATE_DIST = 0.045;
 
       const updateGasStations = (lat: number, lng: number) => {
         if (lastGasUpdatePosRef.current) {
@@ -153,25 +89,45 @@ export default function TripMap({
         lastGasUpdatePosRef.current = [lat, lng];
 
         const query = `[out:json][timeout:15];(node[amenity=fuel](around:${GAS_RADIUS_M},${lat},${lng});way[amenity=fuel](around:${GAS_RADIUS_M},${lat},${lng}););out center;`;
+        const OVERPASS_MIRRORS = [
+          "https://overpass-api.de/api/interpreter",
+          "https://overpass.kumi.systems/api/interpreter",
+          "https://overpass.osm.ch/api/interpreter",
+        ];
 
-        fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`)
-          .then((r) => (r.ok ? r.json() : null))
+        const fetchWithFallback = async (): Promise<unknown> => {
+          for (const mirror of OVERPASS_MIRRORS) {
+            try {
+              const r = await fetch(`${mirror}?data=${encodeURIComponent(query)}`);
+              if (r.ok) return r.json();
+            } catch {}
+          }
+          return null;
+        };
+
+        fetchWithFallback()
           .then((data) => {
             if (!data || !mapRef.current) return;
-            if (!gasLayerRef.current) {
-              gasLayerRef.current = L.layerGroup().addTo(map);
-            } else {
-              gasLayerRef.current.clearLayers();
-            }
+            gasMarkersRef.current.forEach((m) => m.remove());
+            gasMarkersRef.current = [];
+
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (data.elements ?? []).forEach((el: any) => {
               const elLat = el.lat ?? el.center?.lat;
               const elLng = el.lon ?? el.center?.lon;
               if (!elLat || !elLng) return;
               const name = el.tags?.name ?? el.tags?.brand ?? "Estación de servicio";
-              L.marker([elLat, elLng], { icon: gasIcon })
-                .bindPopup(`<strong>${name}</strong>`)
-                .addTo(gasLayerRef.current);
+
+              const markerEl = document.createElement("div");
+              markerEl.style.cssText =
+                "width:26px;height:26px;background:#f59e0b;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);cursor:pointer";
+              markerEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v15"/><path d="M14 7h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2 1 1 0 0 1 1 1v5a1 1 0 0 1-1 1 3 3 0 0 1-3-3V9"/><rect x="3" y="11" width="11" height="5" rx="1"/><line x1="3" y1="22" x2="17" y2="22"/></svg>`;
+
+              const marker = new maplibregl.Marker({ element: markerEl })
+                .setLngLat([elLng, elLat])
+                .setPopup(new maplibregl.Popup().setHTML(`<strong>${name}</strong>`))
+                .addTo(map);
+              gasMarkersRef.current.push(marker);
             });
           })
           .catch(() => {});
@@ -180,46 +136,92 @@ export default function TripMap({
       updateGasStationsRef.current = updateGasStations;
 
       const moveTruck = (lat: number, lng: number) => {
-        if (!truckRef.current) {
-          truckRef.current = L.marker([lat, lng], { icon: truckIcon })
-            .addTo(map)
-            .bindPopup("Camión en tránsito");
+        if (!truckMarkerRef.current) {
+          const el = document.createElement("div");
+          el.style.cssText =
+            "width:33px;height:33px;overflow:hidden;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))";
+          el.innerHTML = `<img src="${truckIconSrc}" style="width:33px;height:33px;display:block;object-fit:contain;filter:brightness(0) saturate(100%) invert(43%) sepia(18%) saturate(1000%) hue-rotate(124deg) brightness(82%)" />`;
+          truckMarkerRef.current = new maplibregl.Marker({ element: el })
+            .setLngLat([lng, lat])
+            .setPopup(new maplibregl.Popup().setHTML("Camión en tránsito"))
+            .addTo(map);
         } else {
-          truckRef.current.setLatLng([lat, lng]);
+          truckMarkerRef.current.setLngLat([lng, lat]);
         }
-        map.panTo([lat, lng]);
+        map.easeTo({ center: [lng, lat] });
         currentTruckPosRef.current = [lat, lng];
         if (showGasRef.current) updateGasStations(lat, lng);
       };
 
-      // Carga la última posición conocida
-      fetch(`/api/location/${loadId}/last`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => {
-          if (data?.lat && data?.lng) {
-            moveTruck(Number(data.lat), Number(data.lng));
-            if (data.updated_at) setLastUpdate(new Date(data.updated_at));
-          }
-        })
-        .catch(() => {});
+      map.on("load", () => {
+        if (cancelled) return;
 
-      // Conecta al stream SSE para actualizaciones en tiempo real
-      const es = new EventSource(`/api/location/${loadId}/stream`);
-      esRef.current = es;
-      es.onmessage = (event) => {
-        try {
-          const { lat, lng } = JSON.parse(event.data);
-          moveTruck(Number(lat), Number(lng));
-          setLastUpdate(new Date());
-        } catch {}
-      };
+        // Marcador de origen (verde)
+        if (originLat && originLng) {
+          const el = document.createElement("div");
+          el.style.cssText =
+            "width:16px;height:16px;background:#16a34a;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3)";
+          new maplibregl.Marker({ element: el })
+            .setLngLat([originLng, originLat])
+            .setPopup(new maplibregl.Popup().setHTML("Origen"))
+            .addTo(map);
+        }
+
+        // Marcador de destino (azul)
+        if (destLat && destLng) {
+          const el = document.createElement("div");
+          el.style.cssText =
+            "width:16px;height:16px;background:#3b82f6;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3)";
+          new maplibregl.Marker({ element: el })
+            .setLngLat([destLng, destLat])
+            .setPopup(new maplibregl.Popup().setHTML("Destino"))
+            .addTo(map);
+        }
+
+        // Ajustar bounds si tenemos origen y destino
+        if (originLat && originLng && destLat && destLng) {
+          map.fitBounds(
+            [
+              [Math.min(originLng, destLng), Math.min(originLat, destLat)],
+              [Math.max(originLng, destLng), Math.max(originLat, destLat)],
+            ],
+            { padding: 40 }
+          );
+        } else if (originLat && originLng) {
+          map.setCenter([originLng, originLat]);
+          map.setZoom(9);
+        }
+
+        // Carga la última posición conocida
+        fetch(`/api/location/${loadId}/last`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => {
+            if (data?.lat && data?.lng) {
+              moveTruck(Number(data.lat), Number(data.lng));
+              if (data.updated_at) setLastUpdate(new Date(data.updated_at));
+            }
+          })
+          .catch(() => {});
+
+        // Conecta al stream SSE para actualizaciones en tiempo real
+        const es = new EventSource(`/api/location/${loadId}/stream`);
+        esRef.current = es;
+        es.onmessage = (event) => {
+          try {
+            const { lat, lng } = JSON.parse(event.data);
+            moveTruck(Number(lat), Number(lng));
+            setLastUpdate(new Date());
+          } catch {}
+        };
+      });
     });
 
     return () => {
       cancelled = true;
       esRef.current?.close();
       esRef.current = null;
-      gasLayerRef.current = null;
+      gasMarkersRef.current.forEach((m) => m.remove());
+      gasMarkersRef.current = [];
       lastGasUpdatePosRef.current = null;
       showGasRef.current = false;
       updateGasStationsRef.current = null;
@@ -228,7 +230,7 @@ export default function TripMap({
         mapRef.current.remove();
         mapRef.current = null;
       }
-      truckRef.current = null;
+      truckMarkerRef.current = null;
     };
   }, [loadId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -239,11 +241,9 @@ export default function TripMap({
     showGasRef.current = next;
     setShowGasStations(next);
     if (!next) {
-      gasLayerRef.current?.remove();
-      return;
-    }
-    if (gasLayerRef.current && mapRef.current) {
-      gasLayerRef.current.addTo(mapRef.current);
+      gasMarkersRef.current.forEach((m) => m.remove());
+      gasMarkersRef.current = [];
+      lastGasUpdatePosRef.current = null;
       return;
     }
     const query = updateGasStationsRef.current;
