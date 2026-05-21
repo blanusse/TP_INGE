@@ -154,6 +154,8 @@ export class OffersService {
   }
 
   async getOffersForLoad(userId: string, loadId: string) {
+    if (!loadId) throw new BadRequestException('loadId es requerido');
+
     const shipper = await this.shippersRepo.findOne({
       where: { user_id: userId },
     });
