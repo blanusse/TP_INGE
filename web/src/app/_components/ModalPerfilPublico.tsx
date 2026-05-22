@@ -12,6 +12,13 @@ interface PublicProfile {
   trips_completed: number;
 }
 
+interface RatingEntry {
+  id: string;
+  score: number;
+  comment: string | null;
+  created_at: string;
+}
+
 interface ModalPerfilPublicoProps {
   userId: string;
   onClose: () => void;
@@ -20,13 +27,20 @@ interface ModalPerfilPublicoProps {
 
 export default function ModalPerfilPublico({ userId, onClose, onReportar }: ModalPerfilPublicoProps) {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [ratings, setRatings] = useState<RatingEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/users/${userId}/public-profile`)
-      .then((r) => r.json())
-      .then((data) => { setProfile(data); setLoading(false); })
-      .catch(() => setLoading(false));
+    Promise.all([
+      fetch(`/api/users/${userId}/public-profile`).then((r) => r.json()),
+      fetch(`/api/ratings/user/${userId}`).then((r) => r.json()),
+    ])
+      .then(([profileData, ratingsData]) => {
+        setProfile(profileData);
+        if (Array.isArray(ratingsData)) setRatings(ratingsData);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [userId]);
 
   const iniciales = profile?.name
@@ -88,7 +102,26 @@ export default function ModalPerfilPublico({ userId, onClose, onReportar }: Moda
             </div>
 
             {/* Member since */}
-            <p className="text-xs text-gray-400 mb-6">Miembro desde {memberSince}</p>
+            <p className="text-xs text-gray-400 mb-4">Miembro desde {memberSince}</p>
+
+            {/* Ratings with comments */}
+            {ratings.filter((r) => r.comment).length > 0 && (
+              <div className="w-full mb-4 text-left">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Reseñas recientes</p>
+                <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                  {ratings.filter((r) => r.comment).map((r) => (
+                    <div key={r.id} className="bg-gray-50 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-1 mb-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <span key={s} style={{ fontSize: 12, color: s <= r.score ? "#f59e0b" : "#d1d5db" }}>★</span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-700">{r.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Report button */}
             <button

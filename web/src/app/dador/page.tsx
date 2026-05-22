@@ -772,6 +772,7 @@ function ModalPago({ sel, onClose }: {
 function ModalCalificarCamionero({ offerId, driverName, driverId, onClose }: { offerId: string; driverName: string; driverId?: string | null; onClose: () => void }) {
   const [score, setScore]       = useState(0);
   const [hover, setHover]       = useState(0);
+  const [comment, setComment]   = useState("");
   const [enviando, setEnviando] = useState(false);
   const [done, setDone]         = useState(false);
   const [showReportar, setShowReportar] = useState(false);
@@ -783,7 +784,7 @@ function ModalCalificarCamionero({ offerId, driverName, driverId, onClose }: { o
       await fetch("/api/ratings", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ offerId, score }),
+        body:    JSON.stringify({ offerId, score, ...(comment.trim() ? { comment: comment.trim() } : {}) }),
       });
       setDone(true);
     } finally {
@@ -826,6 +827,16 @@ function ModalCalificarCamionero({ offerId, driverName, driverId, onClose }: { o
             {["", "Muy malo", "Malo", "Regular", "Bueno", "Excelente"][score]}
           </div>
         )}
+        <div style={{ marginBottom: 16, textAlign: "left" }}>
+          <textarea
+            maxLength={300}
+            placeholder="Comentario opcional (máx. 300 caracteres)"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            style={{ width: "100%", minHeight: 72, fontSize: 13, padding: "8px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", resize: "vertical", color: "var(--color-text-primary)", background: "var(--color-background-primary)", boxSizing: "border-box" }}
+          />
+          <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "right", marginTop: 2 }}>{comment.length}/300</div>
+        </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
             Omitir

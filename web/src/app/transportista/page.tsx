@@ -547,10 +547,11 @@ interface TripData { offerId: string; loadId: string; titulo: string; empresa: s
 function ModalCalificarDador({ offerId, empresa, empresaUserId, onClose }: { offerId: string; empresa: string; empresaUserId?: string | null; onClose: () => void }) {
   const [score, setScore] = useState(0);
   const [hover, setHover] = useState(0);
+  const [comment, setComment] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [done, setDone] = useState(false);
   const [showReportar, setShowReportar] = useState(false);
-  const enviar = async () => { if (!score) return; setEnviando(true); try { await fetch("/api/ratings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offerId, score }) }); setDone(true); } finally { setEnviando(false); } };
+  const enviar = async () => { if (!score) return; setEnviando(true); try { await fetch("/api/ratings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offerId, score, ...(comment.trim() ? { comment: comment.trim() } : {}) }) }); setDone(true); } finally { setEnviando(false); } };
   if (done) return (<Modal title="¡Gracias por calificar!" onClose={onClose}><div style={{ textAlign: "center", padding: "28px 20px" }}><div style={{ width: 60, height: 60, borderRadius: "50%", background: "var(--green-muted)", border: "1px solid var(--green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}><i className="fa-solid fa-star" style={{ fontSize: 22, color: "var(--green)" }} /></div><div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 6 }}>Calificación enviada</div><div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 20 }}>Tu opinión ayuda a la comunidad de CargaBack.</div><button onClick={onClose} style={{ fontSize: 14, padding: "10px 28px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, cursor: "pointer" }}>Cerrar</button></div></Modal>);
   return (
     <Modal title={`Calificá a ${empresa}`} onClose={onClose}>
@@ -560,6 +561,16 @@ function ModalCalificarDador({ offerId, empresa, empresaUserId, onClose }: { off
           {[1, 2, 3, 4, 5].map((s) => (<button key={s} onMouseEnter={() => setHover(s)} onMouseLeave={() => setHover(0)} onClick={() => setScore(s)} style={{ fontSize: 36, background: "none", border: "none", cursor: "pointer", color: s <= (hover || score) ? "var(--color-brand)" : "var(--color-border-secondary)", transition: "color 0.1s", padding: "0 2px" }}>★</button>))}
         </div>
         {score > 0 && <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 16 }}>{["", "Muy malo", "Malo", "Regular", "Bueno", "Excelente"][score]}</div>}
+        <div style={{ marginBottom: 16, textAlign: "left" }}>
+          <textarea
+            maxLength={300}
+            placeholder="Comentario opcional (máx. 300 caracteres)"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            style={{ width: "100%", minHeight: 72, fontSize: 13, padding: "8px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", resize: "vertical", color: "var(--color-text-primary)", background: "var(--color-background-primary)", boxSizing: "border-box" }}
+          />
+          <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "right", marginTop: 2 }}>{comment.length}/300</div>
+        </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onClose} style={{ flex: 1, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>Omitir</button>
           <button onClick={enviar} disabled={!score || enviando} style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: score ? "var(--color-brand)" : "var(--color-background-secondary)", color: score ? "#fff" : "var(--color-text-tertiary)", cursor: score ? "pointer" : "not-allowed", fontWeight: 600 }}>{enviando ? "Enviando..." : "Enviar calificación"}</button>
