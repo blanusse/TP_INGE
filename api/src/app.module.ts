@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 import { AuthModule } from './auth/auth.module';
 import { LoadsModule } from './loads/loads.module';
 import { OffersModule } from './offers/offers.module';
@@ -22,8 +23,9 @@ import { InsuranceModule } from './insurance/insurance.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([
-      { name: 'short', ttl: 60_000, limit: 10 }, // 10 req/min por IP
-      { name: 'auth', ttl: 900_000, limit: 20 }, // 20 intentos de auth cada 15 min
+      { name: 'public', ttl: 60_000, limit: 60 },        // 60 req/min - endpoints públicos (sin auth)
+      { name: 'authenticated', ttl: 60_000, limit: 120 }, // 120 req/min - endpoints autenticados
+      // 'auth' no es global — solo se activa vía @Throttle() en login/register
     ]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -50,6 +52,6 @@ import { InsuranceModule } from './insurance/insurance.module';
     AlertsModule,
     InsuranceModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [{ provide: APP_GUARD, useClass: CustomThrottlerGuard }],
 })
 export class AppModule {}
