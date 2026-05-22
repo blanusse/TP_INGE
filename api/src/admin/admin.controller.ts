@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -51,5 +52,26 @@ export class AdminController {
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 50,
     );
+  }
+
+  @Get('loads/suspicious')
+  getSuspiciousLoads(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getSuspiciousLoads(
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+    );
+  }
+
+  @Patch('loads/:id/approve')
+  approveLoad(@Param('id') id: string) {
+    return this.adminService.approveLoad(id);
+  }
+
+  @Delete('loads/:id')
+  deleteLoad(@Param('id') id: string) {
+    return this.adminService.deleteLoad(id);
   }
 }

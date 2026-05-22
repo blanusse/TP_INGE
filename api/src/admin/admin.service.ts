@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { AuditLog } from '../entities/audit-log.entity';
+import { Load } from '../entities/load.entity';
 
 const VALID_ACTIONS = ['suspend', 'unsuspend', 'ban', 'unban'] as const;
 type AdminAction = typeof VALID_ACTIONS[number];
@@ -19,6 +20,7 @@ export class AdminService {
   constructor(
     @InjectRepository(User)    private usersRepo: Repository<User>,
     @InjectRepository(AuditLog) private auditRepo: Repository<AuditLog>,
+    @InjectRepository(Load)    private loadsRepo: Repository<Load>,
   ) {}
 
   async listUsers(page = 1, limit = 50, search?: string) {
@@ -75,5 +77,29 @@ export class AdminService {
       take: limit,
     });
     return { logs, total, page, limit };
+  }
+
+  async getSuspiciousLoads(page = 1, limit = 20) {
+    const [loads, total] = await this.loadsRepo.findAndCount({
+      where: { is_suspicious: true },
+      order: { created_at: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { loads, total, page, limit };
+  }
+
+  async approveLoad(loadId: string) {
+    const load = await this.loadsRepo.findOne({ where: { id: loadId } });
+    if (!load) throw new NotFoundException('Carga no encontrada.');
+    await this.loadsRepo.update(loadId, { is_suspicious: false, suspicious_reason: null });
+    return { id: loadId, is_suspicious: false };
+  }
+
+  async deleteLoad(loadId: string) {
+    const load = await this.loadsRepo.findOne({ where: { id: loadId } });
+    if (!load) throw new NotFoundException('Carga no encontrada.');
+    await this.loadsRepo.remove(load);
+    return { id: loadId, deleted: true };
   }
 }
