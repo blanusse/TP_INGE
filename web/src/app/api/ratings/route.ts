@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
   const payload = {
     offer_id: body.offerId ?? body.offer_id,
     score: body.score,
+    ...(body.comment ? { comment: body.comment } : {}),
   };
   const res = await apiFetch("/ratings", session.backendToken, {
     method: "POST",
