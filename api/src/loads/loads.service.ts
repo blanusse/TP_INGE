@@ -140,7 +140,40 @@ export class LoadsService {
 
     const saved = await this.loadsRepo.save(load);
     this.alertsService.checkAndNotify(saved); // fire-and-forget
+    void this.checkPriceAnomaly(saved);       // fire-and-forget
     return saved;
+  }
+
+  private async checkPriceAnomaly(load: Load): Promise<void> {
+    if (!load.price_base || !load.cargo_type) return;
+
+    const lowPct = Number(process.env.PRICE_ALERT_LOW_PCT ?? 40) / 100;
+    const highPct = Number(process.env.PRICE_ALERT_HIGH_PCT ?? 250) / 100;
+
+    const row = await this.loadsRepo
+      .createQueryBuilder('l')
+      .select('AVG(l.price_base)', 'avg')
+      .addSelect('COUNT(*)', 'count')
+      .where('l.cargo_type = :type', { type: load.cargo_type })
+      .andWhere('l.id != :id', { id: load.id })
+      .andWhere('l.price_base IS NOT NULL')
+      .getRawOne<{ avg: string; count: string }>();
+
+    if (!row || Number(row.count) < 5) return;
+
+    const market = Number(row.avg);
+    const price = Number(load.price_base);
+    let reason: string | null = null;
+
+    if (price < market * lowPct) {
+      reason = `Precio $${price} es menor al ${lowPct * 100}% del promedio de mercado ($${market.toFixed(0)}) para cargas de tipo "${load.cargo_type}"`;
+    } else if (price > market * highPct) {
+      reason = `Precio $${price} supera el ${highPct * 100}% del promedio de mercado ($${market.toFixed(0)}) para cargas de tipo "${load.cargo_type}"`;
+    }
+
+    if (reason) {
+      await this.loadsRepo.update(load.id, { is_suspicious: true, suspicious_reason: reason });
+    }
   }
 
   async getAvailableLoads(cargoType?: string, origin?: string) {
