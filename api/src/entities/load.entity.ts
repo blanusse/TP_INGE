@@ -77,6 +77,12 @@ export class Load {
   @Column({ type: 'varchar', default: 'available' })
   status: LoadStatus;
 
+  @Column({ default: false })
+  is_suspicious: boolean;
+
+  @Column({ nullable: true, type: 'text' })
+  suspicious_reason: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 }
