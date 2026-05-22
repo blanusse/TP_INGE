@@ -55,7 +55,17 @@ interface ReportData {
   reported: { id: string; name: string; email: string; role: string };
 }
 
-type AdminTab = "usuarios" | "retiros" | "reportes" | "audit" | "seguros";
+type AdminTab = "usuarios" | "retiros" | "reportes" | "audit" | "seguros" | "sospechosas";
+
+interface SuspiciousLoad {
+  id: string;
+  pickup_city: string;
+  dropoff_city: string;
+  cargo_type: string | null;
+  price_base: number;
+  suspicious_reason: string;
+  created_at: string;
+}
 
 interface InsuranceProduct {
   id: string;
@@ -120,11 +130,12 @@ export default function AdminPage() {
         {/* Tabs */}
         <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "2px solid #e5e7eb" }}>
           {([
-            { key: "usuarios", label: "Usuarios" },
-            { key: "retiros",  label: "Retiros" },
-            { key: "reportes", label: "Reportes" },
-            { key: "audit",    label: "Audit log" },
-            { key: "seguros",  label: "Seguros" },
+            { key: "usuarios",    label: "Usuarios" },
+            { key: "retiros",     label: "Retiros" },
+            { key: "reportes",    label: "Reportes" },
+            { key: "audit",       label: "Audit log" },
+            { key: "seguros",     label: "Seguros" },
+            { key: "sospechosas", label: "Cargas sospechosas" },
           ] as const).map((t) => (
             <button
               key={t.key}
@@ -141,11 +152,12 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {tab === "usuarios" && <SeccionUsuarios />}
-        {tab === "retiros"  && <SeccionRetiros />}
-        {tab === "reportes" && <SeccionReportes />}
-        {tab === "audit"    && <SeccionAuditLog />}
-        {tab === "seguros"  && <SeccionSegurosAdmin />}
+        {tab === "usuarios"    && <SeccionUsuarios />}
+        {tab === "retiros"     && <SeccionRetiros />}
+        {tab === "reportes"    && <SeccionReportes />}
+        {tab === "audit"       && <SeccionAuditLog />}
+        {tab === "seguros"     && <SeccionSegurosAdmin />}
+        {tab === "sospechosas" && <SeccionCargasSospechosas />}
       </div>
     </div>
   );
@@ -1005,6 +1017,96 @@ function SeccionSegurosAdmin() {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+// ─── Cargas Sospechosas Section ───────────────────────────────────────────────
+
+function SeccionCargasSospechosas() {
+  const [loads, setLoads] = React.useState<SuspiciousLoad[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [acting, setActing] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    fetch("/api/admin/loads/suspicious")
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.loads)) setLoads(d.loads); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleApprove(id: string) {
+    setActing(id);
+    const res = await fetch(`/api/admin/loads/${id}/approve`, { method: "PATCH" });
+    if (res.ok) setLoads((prev) => prev.filter((l) => l.id !== id));
+    setActing(null);
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("¿Eliminar esta carga? Esta acción no se puede deshacer.")) return;
+    setActing(id);
+    const res = await fetch(`/api/admin/loads/${id}`, { method: "DELETE" });
+    if (res.ok) setLoads((prev) => prev.filter((l) => l.id !== id));
+    setActing(null);
+  }
+
+  if (loading) return <div style={{ textAlign: "center", color: "#6b7280", padding: 40 }}>Cargando...</div>;
+
+  if (loads.length === 0) {
+    return (
+      <div style={{ background: "#fff", borderRadius: 12, padding: 40, textAlign: "center", color: "#6b7280" }}>
+        No hay cargas sospechosas pendientes de revisión
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 12 }}>
+        {loads.length} carga{loads.length !== 1 ? "s" : ""} con precio inusual pendiente{loads.length !== 1 ? "s" : ""} de revisión
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {loads.map((load) => (
+          <div
+            key={load.id}
+            style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 1px 4px #0001", borderLeft: "4px solid #f59e0b" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 15, color: "#111827", marginBottom: 4 }}>
+                  {load.pickup_city} → {load.dropoff_city}
+                </div>
+                <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
+                  {load.cargo_type ?? "Tipo no especificado"} · ${Number(load.price_base).toLocaleString("es-AR")}
+                </div>
+                <div style={{ fontSize: 12, color: "#b45309", background: "#fef3c7", borderRadius: 6, padding: "4px 10px", display: "inline-block" }}>
+                  {load.suspicious_reason}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <button
+                  onClick={() => handleApprove(load.id)}
+                  disabled={acting === load.id}
+                  style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #10b981", background: "#fff", color: "#10b981", fontSize: 13, fontWeight: 600, cursor: acting === load.id ? "not-allowed" : "pointer", opacity: acting === load.id ? 0.6 : 1 }}
+                >
+                  Aprobar
+                </button>
+                <button
+                  onClick={() => handleDelete(load.id)}
+                  disabled={acting === load.id}
+                  style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#ef4444", color: "#fff", fontSize: 13, fontWeight: 600, cursor: acting === load.id ? "not-allowed" : "pointer", opacity: acting === load.id ? 0.6 : 1 }}
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>
+              Publicada: {new Date(load.created_at).toLocaleString("es-AR")}
+            </div>
+          </div>
+        ))}
+      </div>
     </>
   );
 }
