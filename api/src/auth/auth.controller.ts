@@ -9,14 +9,14 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   // Máx. 5 registros cada 15 minutos por IP
-  @Throttle({ auth: { ttl: 900_000, limit: 5 } })
+  @Throttle({ public: { ttl: 900_000, limit: 5 } })
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   // Máx. 10 intentos de login cada 15 minutos por IP (previene brute force)
-  @Throttle({ auth: { ttl: 900_000, limit: 10 } })
+  @Throttle({ public: { ttl: 900_000, limit: 10 } })
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
