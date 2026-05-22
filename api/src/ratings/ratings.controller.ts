@@ -1,19 +1,26 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SkipThrottle } from '@nestjs/throttler';
 
 type AuthReq = { user: { id: string; role: string; email: string } };
 import { RatingsService } from './ratings.service';
 
 @Controller('ratings')
-@UseGuards(JwtAuthGuard)
 export class RatingsController {
   constructor(private ratingsService: RatingsService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   submitRating(
     @Request() req: AuthReq,
-    @Body() body: { offer_id: string; score: number },
+    @Body() body: { offer_id: string; score: number; comment?: string },
   ) {
     return this.ratingsService.submitRating(req.user.id, body);
+  }
+
+  @SkipThrottle()
+  @Get('user/:id')
+  getUserRatings(@Param('id') id: string) {
+    return this.ratingsService.getUserRatings(id);
   }
 }

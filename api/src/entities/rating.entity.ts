@@ -48,6 +48,9 @@ export class Rating {
   @Column({ type: 'int' })
   score: number;
 
+  @Column({ nullable: true, type: 'varchar', length: 300 })
+  comment: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 }

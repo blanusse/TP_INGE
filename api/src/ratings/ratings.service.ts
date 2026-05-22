@@ -20,12 +20,24 @@ export class RatingsService {
     @InjectRepository(Shipper) private shippersRepo: Repository<Shipper>,
   ) {}
 
+  async getUserRatings(userId: string) {
+    return this.ratingsRepo.find({
+      where: { to_user_id: userId },
+      select: ['id', 'score', 'comment', 'created_at'],
+      order: { created_at: 'DESC' },
+      take: 10,
+    });
+  }
+
   async submitRating(
     userId: string,
-    body: { offer_id: string; score: number },
+    body: { offer_id: string; score: number; comment?: string },
   ) {
     if (body.score < 1 || body.score > 5) {
       throw new BadRequestException('El score debe ser entre 1 y 5.');
+    }
+    if (body.comment && body.comment.length > 300) {
+      throw new BadRequestException('El comentario no puede superar los 300 caracteres.');
     }
 
     const offer = await this.offersRepo.findOne({
@@ -71,6 +83,7 @@ export class RatingsService {
       from_user_id: userId,
       to_user_id: toUserId,
       score: body.score,
+      comment: body.comment?.trim() || null,
     });
     return this.ratingsRepo.save(rating);
   }
