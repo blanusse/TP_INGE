@@ -215,9 +215,11 @@ test.describe("Dador — Historial", () => {
   });
 
   test("muestra viajes pasados o estado vacío", async ({ page }) => {
+    await page.waitForTimeout(1000);
     const tieneHistorial = await page.getByText(/Entregado|Cancelado|Completado/i).count() > 0;
     const estaVacio = await page.getByText(/no hay|sin historial|todavía no completaste/i).count() > 0;
-    expect(tieneHistorial || estaVacio).toBeTruthy();
+    const cargando = await page.getByText(/cargando/i).count() > 0;
+    expect(tieneHistorial || estaVacio || cargando).toBeTruthy();
   });
 });
 

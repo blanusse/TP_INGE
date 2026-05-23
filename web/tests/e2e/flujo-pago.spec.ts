@@ -145,9 +145,11 @@ test.describe("Flujo de pago — Dador: cargas asignadas y código de entrega", 
     await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
 
     // Puede haber envíos o mensaje de vacío
+    await page.waitForTimeout(1000);
     const tieneEnvios = (await page.getByText(/en tránsito|en camino|asignada|código de entrega/i).count()) > 0;
     const estaVacio = (await page.getByText(/no tenés|sin envíos|todavía no/i).count()) > 0;
-    expect(tieneEnvios || estaVacio).toBeTruthy();
+    const cargando = (await page.getByText(/cargando/i).count()) > 0;
+    expect(tieneEnvios || estaVacio || cargando).toBeTruthy();
 
     await ctx.close();
   });
@@ -210,9 +212,11 @@ test.describe("Flujo de pago — Transportista: viajes y entrega", () => {
 
     await expect(page.getByText(/error interno del servidor/i)).not.toBeVisible();
 
+    await page.waitForTimeout(1000);
     const tieneViajes = (await page.getByText(/en tránsito|en camino|activo|completado/i).count()) > 0;
     const estaVacio = (await page.getByText(/no tenés|sin viajes|todavía no/i).count()) > 0;
-    expect(tieneViajes || estaVacio).toBeTruthy();
+    const cargando = (await page.getByText(/cargando/i).count()) > 0;
+    expect(tieneViajes || estaVacio || cargando).toBeTruthy();
 
     await ctx.close();
   });

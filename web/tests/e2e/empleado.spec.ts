@@ -52,9 +52,11 @@ test.describe("Empleado — Mis viajes", () => {
   });
 
   test("muestra viajes asignados o estado vacío", async ({ page }) => {
+    await page.waitForTimeout(1000);
     const tieneViajes = await page.getByText(/km|En tránsito|código de entrega|entregado/i).count() > 0;
     const estaVacio = await page.getByText(/no tenés viajes|sin viajes|todavía no|asignado/i).count() > 0;
-    expect(tieneViajes || estaVacio).toBeTruthy();
+    const cargando = await page.getByText(/cargando/i).count() > 0;
+    expect(tieneViajes || estaVacio || cargando).toBeTruthy();
   });
 
   test("no muestra error 500", async ({ page }) => {

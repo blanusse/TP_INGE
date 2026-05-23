@@ -126,8 +126,8 @@ test.describe("Ruta /dashboard — redirección inteligente", () => {
     await page.getByLabel(/Email/i).fill(CREDS.dador.email);
     await page.locator('input[type="password"]').fill(CREDS.dador.password);
     await page.getByRole("button", { name: /Ingresar/i }).click();
-    await page.waitForURL(/\/dador/, { timeout: 30_000 });
+    await page.waitForURL(/\/dador/, { timeout: 4_000 });
     await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/dador/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/dador/, { timeout: 2_000 });
   });
 });
