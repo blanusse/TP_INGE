@@ -126,7 +126,7 @@ export default function TripMap({
 
               const marker = new maplibregl.Marker({ element: markerEl })
                 .setLngLat([elLng, elLat])
-                .setPopup(new maplibregl.Popup().setHTML(`<strong>${name}</strong>`))
+                .setPopup(new maplibregl.Popup().setHTML(`<strong style="color:#000">${name}</strong>`))
                 .addTo(map);
               gasMarkersRef.current.push(marker);
             });
@@ -144,7 +144,7 @@ export default function TripMap({
           el.innerHTML = `<img src="${truckIconSrc}" style="width:33px;height:33px;display:block;object-fit:contain;filter:brightness(0) saturate(100%) invert(43%) sepia(18%) saturate(1000%) hue-rotate(124deg) brightness(82%)" />`;
           truckMarkerRef.current = new maplibregl.Marker({ element: el })
             .setLngLat([lng, lat])
-            .setPopup(new maplibregl.Popup().setHTML("Camión en tránsito"))
+            .setPopup(new maplibregl.Popup().setHTML('<span style="color:#000">Camión en tránsito</span>'))
             .addTo(map);
         } else {
           truckMarkerRef.current.setLngLat([lng, lat]);
@@ -164,7 +164,7 @@ export default function TripMap({
             "width:16px;height:16px;background:#16a34a;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3)";
           new maplibregl.Marker({ element: el })
             .setLngLat([originLng, originLat])
-            .setPopup(new maplibregl.Popup().setHTML("Origen"))
+            .setPopup(new maplibregl.Popup().setHTML('<span style="color:#000">Origen</span>'))
             .addTo(map);
         }
 
@@ -175,7 +175,7 @@ export default function TripMap({
             "width:16px;height:16px;background:#3b82f6;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3)";
           new maplibregl.Marker({ element: el })
             .setLngLat([destLng, destLat])
-            .setPopup(new maplibregl.Popup().setHTML("Destino"))
+            .setPopup(new maplibregl.Popup().setHTML('<span style="color:#000">Destino</span>'))
             .addTo(map);
         }
 
