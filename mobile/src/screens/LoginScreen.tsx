@@ -8,7 +8,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   StatusBar,
 } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -16,7 +15,7 @@ import { RootStackParamList } from "../../App";
 import { colors, typography, radius } from "../theme";
 import { Input, PasswordInput } from "../components/Input";
 import { Button } from "../components/Button";
-import { login } from "../api";
+import { login, setAuth } from "../api";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Login">;
@@ -31,31 +30,26 @@ export function LoginScreen({ navigation }: Props) {
   const handleLogin = async () => {
     setError("");
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setError("Email inválido.");
       return;
     }
-    if (!password) {
+    if (!trimmedPassword) {
       setError("Ingresá tu contraseña.");
       return;
     }
 
     setLoading(true);
     try {
-      const data = await login(email, password);
-      // TODO: guardar token y navegar al home
-      Alert.alert("¡Bienvenido!", `Hola ${data.user?.name ?? ""}`, [
-        { text: "OK" },
-      ]);
+      const data = await login(trimmedEmail, trimmedPassword);
+      setAuth(data.access_token, data.user);
+      navigation.reset({ index: 0, routes: [{ name: "Main" }] });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Error al iniciar sesión.";
-      if (msg.toLowerCase().includes("suspendida")) {
-        setError("Tu cuenta está suspendida. Contactá a soporte.");
-      } else if (msg.toLowerCase().includes("baneada") || msg.toLowerCase().includes("deshabilitada")) {
-        setError("Tu cuenta fue deshabilitada permanentemente.");
-      } else {
-        setError("Email o contraseña incorrectos.");
-      }
+      setError(msg);
     } finally {
       setLoading(false);
     }

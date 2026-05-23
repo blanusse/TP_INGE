@@ -6,12 +6,14 @@ import { WelcomeScreen } from "./src/screens/WelcomeScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { RegisterRoleScreen } from "./src/screens/RegisterRoleScreen";
 import { RegisterFormScreen } from "./src/screens/RegisterFormScreen";
+import { MainNavigator } from "./src/screens/app/MainNavigator";
 
 export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
   RegisterRole: undefined;
   RegisterForm: { role: "transportista" | "empleado" };
+  Main: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -27,6 +29,7 @@ export default function App() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="RegisterRole" component={RegisterRoleScreen} />
         <Stack.Screen name="RegisterForm" component={RegisterFormScreen} />
+        <Stack.Screen name="Main" component={MainNavigator} />
       </Stack.Navigator>
     </NavigationContainer>
   );
