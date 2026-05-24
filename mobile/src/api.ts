@@ -406,3 +406,34 @@ export async function createOffer(payload: {
   const data = await res.json();
   if (!res.ok) throw new Error(data.message ?? data.error ?? "Error al enviar la oferta.");
 }
+
+// ─── Documentos ──────────────────────────────────────────────────────────────
+
+export async function verifyDocument(endpoint: string, imageUri: string) {
+  const { uploadDocumentImage } = await import("./utils/documentUpload");
+  return uploadDocumentImage(imageUri, endpoint);
+}
+
+export async function getUserProfile() {
+  const res = await fetch(`${BASE_URL}/auth/profile`, { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? "Error al obtener perfil.");
+  return data;
+}
+
+export async function getMyTrucks() {
+  const res = await fetch(`${BASE_URL}/fleet/trucks`, { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? "Error al obtener camiones.");
+  return Array.isArray(data) ? data : [];
+}
+
+export async function verifyIdentity(): Promise<{ verified: boolean; message: string }> {
+  const res = await fetch(`${BASE_URL}/documents/verify-identity`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? "Error al verificar identidad.");
+  return data;
+}

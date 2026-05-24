@@ -13,7 +13,7 @@ const TRUCK_ICON: Record<string, string> = {
 };
 const DEFAULT_TRUCK_ICON = "/trucks/Camion.svg";
 
-const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+const OPENFREEMAP_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
 interface TripMapProps {
   loadId: string;
@@ -49,6 +49,7 @@ export default function TripMap({
   const showGasRef = useRef(false);
   const updateGasStationsRef = useRef<((lat: number, lng: number) => void) | null>(null);
   const currentTruckPosRef = useRef<[number, number] | null>(null);
+  const animFrameRef = useRef<number | null>(null);
   const [showGasStations, setShowGasStations] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -72,6 +73,13 @@ export default function TripMap({
         style: OPENFREEMAP_STYLE,
         center: [-58.3816, -34.6037],
         zoom: 5,
+        transformRequest: (url: string) => {
+          if (url.startsWith("https://basemaps.cartocdn.com") ||
+              url.startsWith("https://{s}.basemaps.cartocdn.com")) {
+            return { url, credentials: "omit" as const };
+          }
+          return { url };
+        },
       });
       mapRef.current = map;
 
@@ -126,7 +134,7 @@ export default function TripMap({
 
               const marker = new maplibregl.Marker({ element: markerEl })
                 .setLngLat([elLng, elLat])
-                .setPopup(new maplibregl.Popup().setHTML(`<strong>${name}</strong>`))
+                .setPopup(new maplibregl.Popup().setHTML(`<strong style="color:#000">${name}</strong>`))
                 .addTo(map);
               gasMarkersRef.current.push(marker);
             });
@@ -136,20 +144,40 @@ export default function TripMap({
 
       updateGasStationsRef.current = updateGasStations;
 
-      const moveTruck = (lat: number, lng: number) => {
-        if (!truckMarkerRef.current) {
+      const moveTruck = (lat: number, lng: number, animate = true) => {
+        const isFirst = !truckMarkerRef.current;
+
+        if (isFirst) {
           const el = document.createElement("div");
           el.style.cssText =
             "width:33px;height:33px;overflow:hidden;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))";
           el.innerHTML = `<img src="${truckIconSrc}" style="width:33px;height:33px;display:block;object-fit:contain;filter:brightness(0) saturate(100%) invert(43%) sepia(18%) saturate(1000%) hue-rotate(124deg) brightness(82%)" />`;
           truckMarkerRef.current = new maplibregl.Marker({ element: el })
             .setLngLat([lng, lat])
-            .setPopup(new maplibregl.Popup().setHTML("Camión en tránsito"))
+            .setPopup(new maplibregl.Popup().setHTML('<span style="color:#000">Camión en tránsito</span>'))
             .addTo(map);
+          map.easeTo({ center: [lng, lat], duration: 800 });
+        } else if (animate && currentTruckPosRef.current) {
+          // Interpolar suavemente entre posición anterior y nueva
+          const [fromLat, fromLng] = currentTruckPosRef.current;
+          const DURATION = 1800;
+          const start = performance.now();
+          if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+          const step = (now: number) => {
+            const t = Math.min((now - start) / DURATION, 1);
+            const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            truckMarkerRef.current?.setLngLat([
+              fromLng + (lng - fromLng) * eased,
+              fromLat + (lat - fromLat) * eased,
+            ]);
+            if (t < 1) animFrameRef.current = requestAnimationFrame(step);
+            else animFrameRef.current = null;
+          };
+          animFrameRef.current = requestAnimationFrame(step);
         } else {
           truckMarkerRef.current.setLngLat([lng, lat]);
         }
-        map.easeTo({ center: [lng, lat] });
+
         currentTruckPosRef.current = [lat, lng];
         if (showGasRef.current) updateGasStations(lat, lng);
       };
@@ -164,7 +192,7 @@ export default function TripMap({
             "width:16px;height:16px;background:#16a34a;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3)";
           new maplibregl.Marker({ element: el })
             .setLngLat([originLng, originLat])
-            .setPopup(new maplibregl.Popup().setHTML("Origen"))
+            .setPopup(new maplibregl.Popup().setHTML('<span style="color:#000">Origen</span>'))
             .addTo(map);
         }
 
@@ -175,7 +203,7 @@ export default function TripMap({
             "width:16px;height:16px;background:#3b82f6;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3)";
           new maplibregl.Marker({ element: el })
             .setLngLat([destLng, destLat])
-            .setPopup(new maplibregl.Popup().setHTML("Destino"))
+            .setPopup(new maplibregl.Popup().setHTML('<span style="color:#000">Destino</span>'))
             .addTo(map);
         }
 
@@ -219,6 +247,8 @@ export default function TripMap({
 
     return () => {
       cancelled = true;
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
       esRef.current?.close();
       esRef.current = null;
       gasMarkersRef.current.forEach((m) => m.remove());

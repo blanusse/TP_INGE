@@ -47,7 +47,7 @@ export class LocationController {
     return this.locationService.stream(loadId);
   }
 
-  /** Solo para desarrollo: simula un viaje interpolando posiciones */
+  /** Solo para desarrollo: simula un viaje con ruta real via OSRM o interpolación lineal */
   @Post(':loadId/simulate')
   simulate(
     @Param('loadId') loadId: string,
@@ -59,6 +59,7 @@ export class LocationController {
       destLng: number;
       steps?: number;
       delayMs?: number;
+      useOsrm?: boolean;
     },
   ) {
     const {
@@ -68,13 +69,36 @@ export class LocationController {
       destLng,
       steps = 50,
       delayMs = 2000,
+      useOsrm = false,
     } = body;
 
     (async () => {
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const lat = originLat + (destLat - originLat) * t;
-        const lng = originLng + (destLng - originLng) * t;
+      let waypoints: Array<[number, number]>;
+
+      if (useOsrm) {
+        const url =
+          `http://router.project-osrm.org/route/v1/driving/` +
+          `${originLng},${originLat};${destLng},${destLat}` +
+          `?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        const data = (await res.json()) as {
+          routes: Array<{ geometry: { coordinates: Array<[number, number]> } }>;
+        };
+        // OSRM devuelve [lng, lat]; lo invertimos a [lat, lng]
+        waypoints = data.routes[0].geometry.coordinates.map(
+          ([lng, lat]) => [lat, lng],
+        );
+      } else {
+        waypoints = Array.from({ length: steps + 1 }, (_, i) => {
+          const t = i / steps;
+          return [
+            originLat + (destLat - originLat) * t,
+            originLng + (destLng - originLng) * t,
+          ];
+        });
+      }
+
+      for (const [lat, lng] of waypoints) {
         await this.repo.upsert({ load_id: loadId, lat, lng }, ['load_id']);
         this.locationService.emit(loadId, lat, lng);
         await new Promise((r) => setTimeout(r, delayMs));

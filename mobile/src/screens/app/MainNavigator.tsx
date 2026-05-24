@@ -11,6 +11,7 @@ import { ViajeDetalleScreen } from "./ViajeDetalleScreen";
 import { CargasScreen } from "./CargasScreen";
 import { CargaDetalleScreen } from "./CargaDetalleScreen";
 import { PerfilScreen } from "./PerfilScreen";
+import { DocumentosEmpleadoScreen } from "./DocumentosEmpleadoScreen";
 import { MisCargasScreen } from "./MisCargasScreen";
 import { MisEnviosScreen } from "./MisEnviosScreen";
 import { MiCargaDetalleScreen } from "./MiCargaDetalleScreen";
@@ -18,6 +19,7 @@ import { NuevaCargaScreen } from "./NuevaCargaScreen";
 import { colors, typography, radius } from "../../theme";
 import { RootStackParamList } from "../../../App";
 import { Viaje, Carga, MiCarga, isFleetEmployee, isShipper } from "../../api";
+import { DocumentosTransportistaScreen } from "./DocumentosTransportistaScreen";
 
 // ─── Stack param lists ────────────────────────────────────────────────────────
 
@@ -44,6 +46,7 @@ export type MisEnviosStackParamList = {
 type TabParamList = {
   ViajesTab: undefined;
   CargasTab: undefined;
+  DocumentosTab: undefined;
   MisCargasTab: undefined;
   NuevaCargaTab: undefined;
   MisEnviosTab: undefined;
@@ -112,11 +115,12 @@ export function MainNavigator({ navigation }: Props) {
 
   const tabBarIcon = ({ route, color, size }: { route: { name: string }; color: string; size: number }) => {
     const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
-      ViajesTab:    "navigate-outline",
-      CargasTab:    "cube-outline",
-      MisCargasTab: "albums-outline",
-      MisEnviosTab: "paper-plane-outline",
-      Perfil:       "person-outline",
+      ViajesTab:      "navigate-outline",
+      CargasTab:      "cube-outline",
+      DocumentosTab:  "document-text-outline",
+      MisCargasTab:   "albums-outline",
+      MisEnviosTab:   "paper-plane-outline",
+      Perfil:         "person-outline",
     };
     return <Ionicons name={icons[route.name] ?? "ellipse-outline"} size={size} color={color} />;
   };
@@ -184,6 +188,20 @@ export function MainNavigator({ navigation }: Props) {
               name="CargasTab"
               component={CargasNavigator}
               options={{ tabBarLabel: "Cargas" }}
+            />
+          )}
+          {!fleetEmployee && (
+            <Tab.Screen
+              name="DocumentosTab"
+              component={DocumentosTransportistaScreen}
+              options={{ tabBarLabel: "Documentos" }}
+            />
+          )}
+          {fleetEmployee && (
+            <Tab.Screen
+              name="DocumentosTab"
+              component={DocumentosEmpleadoScreen}
+              options={{ tabBarLabel: "Documentos" }}
             />
           )}
         </>
