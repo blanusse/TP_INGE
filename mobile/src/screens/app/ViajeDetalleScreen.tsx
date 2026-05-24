@@ -211,7 +211,7 @@ export function ViajeDetalleScreen({ route, navigation }: Props) {
       </View>
 
       {/* Map */}
-      <View style={styles.mapContainer}>
+      {tab === "detalles" && <View style={styles.mapContainer}>
         <MapView
           style={styles.map}
           provider={PROVIDER_DEFAULT}
@@ -262,7 +262,7 @@ export function ViajeDetalleScreen({ route, navigation }: Props) {
             {sharing ? "● Compartiendo ubicación" : "Compartir ubicación"}
           </Text>
         </TouchableOpacity>
-      </View>
+      </View>}
 
       {/* Tabs */}
       <View style={styles.tabs}>
