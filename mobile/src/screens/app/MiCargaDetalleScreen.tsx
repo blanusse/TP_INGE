@@ -167,6 +167,7 @@ export function MiCargaDetalleScreen({ route, navigation }: Props) {
   const [messages, setMessages] = useState<Mensaje[]>([]);
   const [msgInput, setMsgInput] = useState("");
   const [msgSending, setMsgSending] = useState(false);
+  const [lightboxUri, setLightboxUri] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
@@ -441,11 +442,13 @@ export function MiCargaDetalleScreen({ route, navigation }: Props) {
               return (
                 <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
                   {isImage ? (
-                    <Image
-                      source={{ uri: item.content }}
-                      style={styles.bubbleImage}
-                      resizeMode="contain"
-                    />
+                    <TouchableOpacity onPress={() => setLightboxUri(item.content)} activeOpacity={0.85}>
+                      <Image
+                        source={{ uri: item.content }}
+                        style={styles.bubbleImage}
+                        resizeMode="contain"
+                      />
+                    </TouchableOpacity>
                   ) : (
                     <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>{item.content}</Text>
                   )}
@@ -664,6 +667,19 @@ export function MiCargaDetalleScreen({ route, navigation }: Props) {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Lightbox */}
+      <Modal visible={!!lightboxUri} transparent animationType="fade" onRequestClose={() => setLightboxUri(null)}>
+        <TouchableOpacity
+          style={styles.lightboxOverlay}
+          activeOpacity={1}
+          onPress={() => setLightboxUri(null)}
+        >
+          {lightboxUri && (
+            <Image source={{ uri: lightboxUri }} style={styles.lightboxImage} resizeMode="contain" />
+          )}
+        </TouchableOpacity>
       </Modal>
 
       {/* Modal de contraoferta */}
@@ -885,6 +901,16 @@ const styles = StyleSheet.create({
     width: 220,
     height: 165,
     borderRadius: radius.sm,
+  },
+  lightboxOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lightboxImage: {
+    width: "95%",
+    height: "80%",
   },
 
   // Modal edición
