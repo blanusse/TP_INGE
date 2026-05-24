@@ -427,3 +427,13 @@ export async function getMyTrucks() {
   if (!res.ok) throw new Error(data.message ?? "Error al obtener camiones.");
   return Array.isArray(data) ? data : [];
 }
+
+export async function verifyIdentity(): Promise<{ verified: boolean; message: string }> {
+  const res = await fetch(`${BASE_URL}/documents/verify-identity`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? "Error al verificar identidad.");
+  return data;
+}

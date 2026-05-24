@@ -6,17 +6,18 @@ import {
   StyleSheet,
   Alert,
   RefreshControl,
+  ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { colors, typography, radius } from "../../theme";
 import { DocumentUploadCard } from "../../components/DocumentUploadCard";
-import { verifyDocument, getUserProfile, getMyTrucks } from "../../api";
+import { verifyDocument, getUserProfile, getMyTrucks, verifyIdentity } from "../../api";
 
 const documentosPersonales = [
   { key: "dni", label: "DNI (foto)", endpoint: "/documents/verify-dni" },
   { key: "license", label: "Registro de conducir", endpoint: "/documents/verify-license" },
   { key: "ructt", label: "Habilitación RUCTT", endpoint: "/documents/verify-ructt" },
-  { key: "identity", label: "Verificación AFIP", endpoint: "/documents/verify-identity" },
 ];
 
 const documentosCamion = (truckId: string) => [
@@ -84,6 +85,19 @@ export function DocumentosTransportistaScreen() {
     }
   };
 
+  const handleVerifyIdentity = async () => {
+    setLoading((l) => ({ ...l, identity: true }));
+    try {
+      const res = await verifyIdentity();
+      Alert.alert(res.verified ? "Éxito" : "Resultado", res.message);
+      await fetchData();
+    } catch (e: unknown) {
+      Alert.alert("Error", e instanceof Error ? e.message : "Error al verificar identidad.");
+    } finally {
+      setLoading((l) => ({ ...l, identity: false }));
+    }
+  };
+
   const isVerified = (key: string) => !!(profile as Record<string, unknown>)[`${key}_verified`];
   const getVencimiento = (truckId: string, key: string) => {
     const truck = trucks.find((t) => t.id === truckId) as Record<string, unknown> | undefined;
@@ -105,23 +119,35 @@ export function DocumentosTransportistaScreen() {
       <Text style={styles.title}>Verificación de Documentos</Text>
 
       <Text style={styles.sectionTitle}>Documentos personales</Text>
-      {documentosPersonales.map((doc) => {
-        const isAfip = doc.key === "identity";
-        const dniOk = isVerified("dni");
-        const disabled = isAfip && !dniOk;
+      {documentosPersonales.map((doc) => (
+        <DocumentUploadCard
+          key={doc.key}
+          label={doc.label}
+          verified={isVerified(doc.key)}
+          loading={!!loading[doc.key]}
+          onUpload={() => pickAndUpload(doc.key, doc.endpoint)}
+        />
+      ))}
 
-        return (
-          <DocumentUploadCard
-            key={doc.key}
-            label={doc.label}
-            verified={isVerified(doc.key)}
-            loading={!!loading[doc.key]}
-            onUpload={() => pickAndUpload(doc.key, doc.endpoint)}
-            disabled={disabled}
-            disabledMessage={disabled ? "Verificá tu DNI primero" : undefined}
-          />
-        );
-      })}
+      {isVerified("dni") && (
+        <View style={[styles.afipCard, { backgroundColor: isVerified("identity") ? "rgba(58,128,107,0.15)" : "rgba(234,179,8,0.1)" }]}>
+          <Text style={styles.afipTitle}>Verificación de identidad (AFIP)</Text>
+          {isVerified("identity") ? (
+            <Text style={[styles.afipStatus, { color: colors.brand }]}>Identidad verificada contra AFIP</Text>
+          ) : (
+            <>
+              <Text style={styles.afipDesc}>Validamos tu nombre contra el padrón de AFIP para confirmar tu identidad.</Text>
+              {loading["identity"] ? (
+                <ActivityIndicator color={colors.brand} style={{ marginTop: 10 }} />
+              ) : (
+                <TouchableOpacity style={styles.afipButton} onPress={handleVerifyIdentity}>
+                  <Text style={styles.afipButtonText}>Verificar identidad</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
+      )}
 
       {trucks.length > 0 && (
         <>
@@ -177,5 +203,38 @@ const styles = StyleSheet.create({
     fontSize: typography.size.md,
     fontWeight: typography.fontWeight.bold,
     marginBottom: 8,
+  },
+  afipCard: {
+    borderRadius: radius.lg,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  afipTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.size.md,
+    fontWeight: typography.fontWeight.semibold,
+    marginBottom: 8,
+  },
+  afipStatus: {
+    fontSize: typography.size.base,
+    fontWeight: typography.fontWeight.medium,
+  },
+  afipDesc: {
+    color: colors.textSecondary,
+    fontSize: typography.size.sm,
+    marginBottom: 10,
+  },
+  afipButton: {
+    backgroundColor: colors.brand,
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    alignItems: "center" as const,
+  },
+  afipButtonText: {
+    color: "#fff",
+    fontWeight: typography.fontWeight.semibold,
+    fontSize: typography.size.base,
   },
 });
