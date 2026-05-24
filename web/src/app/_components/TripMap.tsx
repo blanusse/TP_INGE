@@ -13,7 +13,19 @@ const TRUCK_ICON: Record<string, string> = {
 };
 const DEFAULT_TRUCK_ICON = "/trucks/Camion.svg";
 
-const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+const OPENFREEMAP_STYLE = {
+  version: 8 as const,
+  sources: {
+    osm: {
+      type: "raster" as const,
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+      maxzoom: 19,
+    },
+  },
+  layers: [{ id: "osm", type: "raster" as const, source: "osm" }],
+};
 
 interface TripMapProps {
   loadId: string;
