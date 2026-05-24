@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   StatusBar,
 } from "react-native";
-import { getUser, clearAuth } from "../../api";
+import { getUser, clearAuth, isFleetEmployee } from "../../api";
 import { colors, typography, radius } from "../../theme";
+import { DocumentosTransportistaScreen } from "./DocumentosTransportistaScreen";
+import { DocumentosEmpleadoScreen } from "./DocumentosEmpleadoScreen";
 
 type Props = {
   onLogout: () => void;
@@ -23,6 +25,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 export function PerfilScreen({ onLogout }: Props) {
   const user = getUser();
+  const [tab, setTab] = useState<"Perfil" | "Documentos">("Perfil");
   const initials = user?.name
     ? user.name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase()
     : "?";
@@ -39,26 +42,48 @@ export function PerfilScreen({ onLogout }: Props) {
         <Text style={styles.headerTitle}>Mi Perfil</Text>
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials}</Text>
-        </View>
-
-        <Text style={styles.name}>{user?.name ?? "-"}</Text>
-        <Text style={styles.email}>{user?.email ?? "-"}</Text>
-
-        {user?.role ? (
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{ROLE_LABEL[user.role] ?? user.role}</Text>
-          </View>
-        ) : null}
-
-        <View style={styles.divider} />
-
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
-          <Text style={styles.logoutText}>Cerrar sesión</Text>
+      {/* Segmented control */}
+      <View style={styles.segmented}>
+        <TouchableOpacity
+          style={[styles.segBtn, tab === "Perfil" && styles.segBtnActive]}
+          onPress={() => setTab("Perfil")}
+        >
+          <Text style={[styles.segText, tab === "Perfil" && styles.segTextActive]}>Perfil</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.segBtn, tab === "Documentos" && styles.segBtnActive]}
+          onPress={() => setTab("Documentos")}
+        >
+          <Text style={[styles.segText, tab === "Documentos" && styles.segTextActive]}>Documentos</Text>
         </TouchableOpacity>
       </View>
+
+      {tab === "Perfil" ? (
+        <View style={styles.content}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
+
+          <Text style={styles.name}>{user?.name ?? "-"}</Text>
+          <Text style={styles.email}>{user?.email ?? "-"}</Text>
+
+          {user?.role ? (
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleText}>{ROLE_LABEL[user.role] ?? user.role}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
+            <Text style={styles.logoutText}>Cerrar sesión</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={{ flex: 1 }}>
+          {isFleetEmployee() ? <DocumentosEmpleadoScreen /> : <DocumentosTransportistaScreen />}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -73,6 +98,33 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   headerTitle: { fontSize: typography.size.xl, fontWeight: typography.fontWeight.bold, color: colors.white },
+  segmented: {
+    flexDirection: "row",
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 4,
+    backgroundColor: colors.bgMuted,
+    borderRadius: radius.md,
+    padding: 3,
+  },
+  segBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: radius.sm,
+  },
+  segBtnActive: {
+    backgroundColor: colors.brand,
+  },
+  segText: {
+    color: colors.textSecondary,
+    fontSize: typography.size.base,
+    fontWeight: typography.fontWeight.medium,
+  },
+  segTextActive: {
+    color: "#fff",
+    fontWeight: typography.fontWeight.semibold,
+  },
   content: { flex: 1, alignItems: "center", paddingTop: 48, paddingHorizontal: 24 },
   avatar: {
     width: 80,
