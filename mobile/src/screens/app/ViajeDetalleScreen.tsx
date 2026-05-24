@@ -13,9 +13,12 @@ import {
   Alert,
   ActivityIndicator,
   StatusBar,
+  Image,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from "react-native-maps";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
+import { Feather } from "@expo/vector-icons";
 import { io, Socket } from "socket.io-client";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
@@ -156,6 +159,31 @@ export function ViajeDetalleScreen({ route, navigation }: Props) {
     }
   }, [msgInput, sending, viaje.offerId]);
 
+  const sendImageContent = useCallback(async (dataUri: string) => {
+    try {
+      const msg = await sendMessage(viaje.offerId, dataUri);
+      setMessages((prev) => [...prev, msg]);
+    } catch {
+      Alert.alert("Error", "No se pudo enviar la imagen.");
+    }
+  }, [viaje.offerId]);
+
+  const handlePickImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permiso requerido", "Necesitamos acceso a tu cámara.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.5,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0].base64) {
+      await sendImageContent(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  }, [sendImageContent]);
+
   const statusColor = STATUS_COLOR[viaje.status] ?? colors.textMuted;
   const statusLabel = STATUS_LABEL[viaje.status] ?? viaje.status;
   const hasCoords = !!(viaje.pickupLat && viaje.dropoffLat);
@@ -284,11 +312,20 @@ export function ViajeDetalleScreen({ route, navigation }: Props) {
             }
             renderItem={({ item }) => {
               const mine = item.sender_id === myUserId;
+              const isImage = item.content.startsWith("data:image/");
               return (
                 <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                  <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
-                    {item.content}
-                  </Text>
+                  {isImage ? (
+                    <Image
+                      source={{ uri: item.content }}
+                      style={styles.bubbleImage}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
+                      {item.content}
+                    </Text>
+                  )}
                   <Text style={[styles.bubbleTime, mine && styles.bubbleTimeMine]}>
                     {formatTime(item.created_at)}
                   </Text>
@@ -297,6 +334,9 @@ export function ViajeDetalleScreen({ route, navigation }: Props) {
             }}
           />
           <View style={styles.inputRow}>
+            <TouchableOpacity style={styles.cameraBtn} onPress={handlePickImage} disabled={sending}>
+              <Feather name="camera" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
             <TextInput
               style={styles.input}
               value={msgInput}
@@ -484,4 +524,19 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { backgroundColor: "rgba(255,255,255,0.1)" },
   sendBtnText: { color: colors.white, fontSize: 18, fontWeight: typography.fontWeight.bold },
+  cameraBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  bubbleImage: {
+    width: 220,
+    height: 165,
+    borderRadius: radius.sm,
+  },
 });
