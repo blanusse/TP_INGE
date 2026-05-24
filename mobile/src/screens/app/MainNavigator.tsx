@@ -11,6 +11,7 @@ import { ViajeDetalleScreen } from "./ViajeDetalleScreen";
 import { CargasScreen } from "./CargasScreen";
 import { CargaDetalleScreen } from "./CargaDetalleScreen";
 import { PerfilScreen } from "./PerfilScreen";
+import { DocumentosEmpleadoScreen } from "./DocumentosEmpleadoScreen";
 import { MisCargasScreen } from "./MisCargasScreen";
 import { MisEnviosScreen } from "./MisEnviosScreen";
 import { MiCargaDetalleScreen } from "./MiCargaDetalleScreen";
@@ -193,6 +194,13 @@ export function MainNavigator({ navigation }: Props) {
             <Tab.Screen
               name="DocumentosTab"
               component={DocumentosTransportistaScreen}
+              options={{ tabBarLabel: "Documentos" }}
+            />
+          )}
+          {fleetEmployee && (
+            <Tab.Screen
+              name="DocumentosTab"
+              component={DocumentosEmpleadoScreen}
               options={{ tabBarLabel: "Documentos" }}
             />
           )}
