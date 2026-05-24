@@ -15,8 +15,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   FlatList,
+  Image,
 } from "react-native";
 import { io, Socket } from "socket.io-client";
+import * as ImagePicker from "expo-image-picker";
+import { Feather } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
   getDeliveryCode, getOffersForLoad, updateOffer, updateLoad, deleteLoad,
@@ -215,6 +218,32 @@ export function MiCargaDetalleScreen({ route, navigation }: Props) {
     }
   }, [msgInput, msgSending, offerId]);
 
+  const sendImageContent = useCallback(async (dataUri: string) => {
+    if (!offerId) return;
+    try {
+      const msg = await sendMessage(offerId, dataUri);
+      setMessages((prev) => [...prev, msg]);
+    } catch {
+      Alert.alert("Error", "No se pudo enviar la imagen.");
+    }
+  }, [offerId]);
+
+  const handlePickImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permiso requerido", "Necesitamos acceso a tu cámara.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.5,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0].base64) {
+      await sendImageContent(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  }, [sendImageContent]);
+
   // Edit modal
   const [editModal, setEditModal] = useState(false);
   const [editFields, setEditFields] = useState({
@@ -408,9 +437,18 @@ export function MiCargaDetalleScreen({ route, navigation }: Props) {
             ListEmptyComponent={<Text style={styles.noMessages}>Aún no hay mensajes</Text>}
             renderItem={({ item }) => {
               const mine = item.sender_id === myUserId;
+              const isImage = item.content.startsWith("data:image/");
               return (
                 <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                  <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>{item.content}</Text>
+                  {isImage ? (
+                    <Image
+                      source={{ uri: item.content }}
+                      style={styles.bubbleImage}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>{item.content}</Text>
+                  )}
                   <Text style={[styles.bubbleTime, mine && styles.bubbleTimeMine]}>
                     {new Date(item.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
                   </Text>
@@ -419,6 +457,9 @@ export function MiCargaDetalleScreen({ route, navigation }: Props) {
             }}
           />
           <View style={styles.inputRow}>
+            <TouchableOpacity style={styles.cameraBtn} onPress={handlePickImage} disabled={msgSending}>
+              <Feather name="camera" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
             <TextInput
               style={styles.msgInput}
               value={msgInput}
@@ -830,6 +871,21 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { opacity: 0.4 },
   sendBtnText: { fontSize: typography.size.sm, fontWeight: typography.fontWeight.bold, color: colors.bg },
+  cameraBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  bubbleImage: {
+    width: 220,
+    height: 165,
+    borderRadius: radius.sm,
+  },
 
   // Modal edición
   editModalBox: {

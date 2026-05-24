@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ServerOptions } from 'socket.io';
 import { join } from 'path';
+import { json, urlencoded } from 'express';
 import * as jwt from 'jsonwebtoken';
 import { AppModule } from './app.module';
 
@@ -16,7 +17,12 @@ class WsAdapter extends IoAdapter {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
+
   const httpAdapter = app.getHttpAdapter();
 
   // Serve uploads behind JWT auth — prevents unauthenticated access to user documents
