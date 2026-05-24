@@ -1274,7 +1274,7 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
               return (
                 <div key={m.id} style={{ display: "flex", justifyContent: esYo ? "flex-end" : "flex-start" }}>
                   <div style={{ maxWidth: "75%", padding: "9px 13px", borderRadius: esYo ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: esYo ? "var(--green)" : "var(--bg2)", color: esYo ? "#fff" : "var(--text1)", fontSize: 13, lineHeight: 1.5 }}>
-                    {m.texto}
+                    {m.texto.startsWith("data:image/") ? (<img src={m.texto} alt="imagen" style={{ maxWidth: "100%", maxHeight: 260, borderRadius: 6, display: "block" }} />) : m.texto}
                     <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{m.hora}</div>
                   </div>
                 </div>
