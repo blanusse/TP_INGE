@@ -82,19 +82,35 @@ export function ViajeDetalleScreen({ route, navigation }: Props) {
 
   // ─── Socket.IO chat ───────────────────────────────────────────────────────
   useEffect(() => {
+    let disposed = false;
+
+    getMessages(viaje.offerId)
+      .then((msgs) => { if (!disposed) setMessages(msgs); })
+      .catch(() => {});
+
     const token = getToken();
+    if (!token) return;
+
     const socket = io(`${BASE_URL}/messages`, { auth: { token } });
     socketRef.current = socket;
+    const selfId = myUserId;
 
-    socket.on("connect", () => socket.emit("join", viaje.offerId));
-    socket.on("new_message", (msg: Mensaje) =>
-      setMessages((prev) => [...prev, msg])
-    );
+    socket.on("connect", () => { socket.emit("join", viaje.offerId); });
+    socket.on("new_message", (msg: Mensaje) => {
+      if (disposed) return;
+      if (msg.sender_id === selfId) return;
+      setMessages((prev) => {
+        if (prev.some((p) => p.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+    });
 
-    getMessages(viaje.offerId).then(setMessages).catch(() => {});
-
-    return () => { socket.disconnect(); };
-  }, [viaje.offerId]);
+    return () => {
+      disposed = true;
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [viaje.offerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Location sharing ─────────────────────────────────────────────────────
   const startSharing = useCallback(async () => {
@@ -130,7 +146,8 @@ export function ViajeDetalleScreen({ route, navigation }: Props) {
     setSending(true);
     setMsgInput("");
     try {
-      await sendMessage(viaje.offerId, text);
+      const msg = await sendMessage(viaje.offerId, text);
+      setMessages((prev) => [...prev, msg]);
     } catch {
       Alert.alert("Error", "No se pudo enviar el mensaje.");
       setMsgInput(text);

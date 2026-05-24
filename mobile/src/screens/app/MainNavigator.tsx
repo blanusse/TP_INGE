@@ -1,4 +1,5 @@
 import React from "react";
+import { TouchableOpacity, View, Text, StyleSheet } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,9 +11,13 @@ import { ViajeDetalleScreen } from "./ViajeDetalleScreen";
 import { CargasScreen } from "./CargasScreen";
 import { CargaDetalleScreen } from "./CargaDetalleScreen";
 import { PerfilScreen } from "./PerfilScreen";
-import { colors, typography } from "../../theme";
+import { MisCargasScreen } from "./MisCargasScreen";
+import { MisEnviosScreen } from "./MisEnviosScreen";
+import { MiCargaDetalleScreen } from "./MiCargaDetalleScreen";
+import { NuevaCargaScreen } from "./NuevaCargaScreen";
+import { colors, typography, radius } from "../../theme";
 import { RootStackParamList } from "../../../App";
-import { Viaje, Carga } from "../../api";
+import { Viaje, Carga, MiCarga, isFleetEmployee, isShipper } from "../../api";
 
 // ─── Stack param lists ────────────────────────────────────────────────────────
 
@@ -26,13 +31,46 @@ export type CargasStackParamList = {
   CargaDetalle: { carga: Carga };
 };
 
+export type MisCargasStackParamList = {
+  MisCargasList: undefined;
+  MiCargaDetalle: { carga: MiCarga };
+};
+
+export type MisEnviosStackParamList = {
+  MisEnviosList: undefined;
+  MiCargaDetalle: { carga: MiCarga };
+};
+
 type TabParamList = {
   ViajesTab: undefined;
   CargasTab: undefined;
+  MisCargasTab: undefined;
+  NuevaCargaTab: undefined;
+  MisEnviosTab: undefined;
   Perfil: undefined;
 };
 
 // ─── Nested stacks ────────────────────────────────────────────────────────────
+
+const MisCargasStack = createNativeStackNavigator<MisCargasStackParamList>();
+function MisCargasNavigator() {
+  return (
+    <MisCargasStack.Navigator screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
+      <MisCargasStack.Screen name="MisCargasList" component={MisCargasScreen} />
+      <MisCargasStack.Screen name="MiCargaDetalle" component={MiCargaDetalleScreen} />
+    </MisCargasStack.Navigator>
+  );
+}
+
+const MisEnviosStack = createNativeStackNavigator<MisEnviosStackParamList>();
+function MisEnviosNavigator() {
+  return (
+    <MisEnviosStack.Navigator screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
+      <MisEnviosStack.Screen name="MisEnviosList" component={MisEnviosScreen} />
+      <MisEnviosStack.Screen name="MiCargaDetalle" component={MiCargaDetalleScreen} />
+    </MisEnviosStack.Navigator>
+  );
+}
 
 const ViajesStack = createNativeStackNavigator<ViajesStackParamList>();
 function ViajesNavigator() {
@@ -63,10 +101,24 @@ type Props = {
 };
 
 export function MainNavigator({ navigation }: Props) {
+  const fleetEmployee = isFleetEmployee();
+  const shipper = isShipper();
+
   const handleLogout = () => {
     navigation.dispatch(
       CommonActions.reset({ index: 0, routes: [{ name: "Welcome" }] })
     );
+  };
+
+  const tabBarIcon = ({ route, color, size }: { route: { name: string }; color: string; size: number }) => {
+    const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
+      ViajesTab:    "navigate-outline",
+      CargasTab:    "cube-outline",
+      MisCargasTab: "albums-outline",
+      MisEnviosTab: "paper-plane-outline",
+      Perfil:       "person-outline",
+    };
+    return <Ionicons name={icons[route.name] ?? "ellipse-outline"} size={size} color={color} />;
   };
 
   return (
@@ -86,32 +138,56 @@ export function MainNavigator({ navigation }: Props) {
           fontSize: 11,
           fontWeight: typography.fontWeight.medium,
         },
-        tabBarIcon: ({ color, size }) => {
-          const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
-            ViajesTab: "navigate-outline",
-            CargasTab: "cube-outline",
-            Perfil: "person-outline",
-          };
-          return (
-            <Ionicons
-              name={icons[route.name] ?? "ellipse-outline"}
-              size={size}
-              color={color}
-            />
-          );
-        },
+        tabBarIcon: ({ color, size }) => tabBarIcon({ route, color, size }),
       })}
     >
-      <Tab.Screen
-        name="ViajesTab"
-        component={ViajesNavigator}
-        options={{ tabBarLabel: "Viajes" }}
-      />
-      <Tab.Screen
-        name="CargasTab"
-        component={CargasNavigator}
-        options={{ tabBarLabel: "Cargas" }}
-      />
+      {shipper ? (
+        <>
+          <Tab.Screen
+            name="MisCargasTab"
+            component={MisCargasNavigator}
+            options={{ tabBarLabel: "Cargas" }}
+          />
+          <Tab.Screen
+            name="NuevaCargaTab"
+            component={NuevaCargaScreen}
+            options={{
+              tabBarLabel: "",
+              tabBarButton: (props) => (
+                <TouchableOpacity
+                  style={tabStyles.fabWrapper}
+                  onPress={props.onPress as () => void}
+                  activeOpacity={0.85}
+                >
+                  <View style={tabStyles.fab}>
+                    <Text style={tabStyles.fabPlus}>+</Text>
+                  </View>
+                </TouchableOpacity>
+              ),
+            }}
+          />
+          <Tab.Screen
+            name="MisEnviosTab"
+            component={MisEnviosNavigator}
+            options={{ tabBarLabel: "Envíos" }}
+          />
+        </>
+      ) : (
+        <>
+          <Tab.Screen
+            name="ViajesTab"
+            component={ViajesNavigator}
+            options={{ tabBarLabel: "Viajes" }}
+          />
+          {!fleetEmployee && (
+            <Tab.Screen
+              name="CargasTab"
+              component={CargasNavigator}
+              options={{ tabBarLabel: "Cargas" }}
+            />
+          )}
+        </>
+      )}
       <Tab.Screen
         name="Perfil"
         children={() => <PerfilScreen onLogout={handleLogout} />}
@@ -119,3 +195,31 @@ export function MainNavigator({ navigation }: Props) {
     </Tab.Navigator>
   );
 }
+
+const tabStyles = StyleSheet.create({
+  fabWrapper: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fab: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.brand,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    shadowColor: colors.brand,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabPlus: {
+    fontSize: 30,
+    color: "#000",
+    fontWeight: "bold",
+    lineHeight: 34,
+  },
+});

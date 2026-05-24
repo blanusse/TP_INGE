@@ -897,10 +897,14 @@ function ChatInline({ sel, userId }: { sel: OfertaSeleccionada; userId: string }
         if (disposed) return;
         socket = io(`${backendUrl}/messages`, { auth: { token } });
         socket.on("connect", () => { socket?.emit("join", sel.offerId); });
+        socket.on("joined", (_offerId: string) => { /* room confirmed */ });
         socket.on("new_message", (msg: { id: string; sender_id: string; content: string; created_at: string }) => {
           if (msg.sender_id === userId) return;
           const m = mapMsg(msg);
-          setMensajes((prev) => [...prev, m]);
+          setMensajes((prev) => {
+            if (prev.some((p) => p.id === m.id)) return prev; // de-duplicate
+            return [...prev, m];
+          });
           setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
         });
       })
@@ -1515,7 +1519,21 @@ function SeccionMensajesDador({ userId }: { userId: string }) {
   useEffect(() => {
     fetch("/api/conversations")
       .then((r) => r.json())
-      .then((d) => { if (d.conversations) setConvs(d.conversations); })
+      .then((d) => {
+        if (d.conversations) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setConvs(d.conversations.map((c: any) => ({
+            offerId:       c.offer_id,
+            cargaTitulo:   c.load_title ?? `${c.pickup_city} → ${c.dropoff_city}`,
+            otherUserName: c.other_party ?? "Transportista",
+            precio:        Number(c.price),
+            lastMessage:   c.last_message ?? null,
+            lastMessageTime: c.last_message_at
+              ? new Date(c.last_message_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
+              : null,
+          })));
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
