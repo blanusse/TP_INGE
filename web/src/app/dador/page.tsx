@@ -1580,7 +1580,7 @@ function SeccionMensajesDador({ userId }: { userId: string }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{c.otherUserName}</div>
             <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.cargaTitulo}</div>
-            {c.lastMessage && <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.lastMessage}</div>}
+            {c.lastMessage && <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.lastMessage.startsWith("data:image/") ? "📷 Imagen" : c.lastMessage}</div>}
           </div>
           {c.lastMessageTime && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", flexShrink: 0 }}>{c.lastMessageTime}</div>}
         </div>

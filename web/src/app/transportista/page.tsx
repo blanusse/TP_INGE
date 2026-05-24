@@ -1329,7 +1329,9 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
                       )}
                     </div>
                     <div style={{ fontSize: 12, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
-                      {c.lastMessage ?? "Sin mensajes todavía"}
+                      {c.lastMessage
+                        ? c.lastMessage.startsWith("data:image/") ? "📷 Imagen" : c.lastMessage
+                        : "Sin mensajes todavía"}
                     </div>
                   </div>
                   {c.unreadCount > 0 && (
