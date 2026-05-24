@@ -11,6 +11,7 @@ import { ViajeDetalleScreen } from "./ViajeDetalleScreen";
 import { CargasScreen } from "./CargasScreen";
 import { CargaDetalleScreen } from "./CargaDetalleScreen";
 import { PerfilScreen } from "./PerfilScreen";
+import { DocumentosEmpleadoScreen } from "./DocumentosEmpleadoScreen";
 import { MisCargasScreen } from "./MisCargasScreen";
 import { MisEnviosScreen } from "./MisEnviosScreen";
 import { MiCargaDetalleScreen } from "./MiCargaDetalleScreen";
@@ -47,6 +48,7 @@ type TabParamList = {
   MisCargasTab: undefined;
   NuevaCargaTab: undefined;
   MisEnviosTab: undefined;
+  DocumentosTab: undefined;
   Perfil: undefined;
 };
 
@@ -116,6 +118,7 @@ export function MainNavigator({ navigation }: Props) {
       CargasTab:    "cube-outline",
       MisCargasTab: "albums-outline",
       MisEnviosTab: "paper-plane-outline",
+      DocumentosTab: "document-text-outline",
       Perfil:       "person-outline",
     };
     return <Ionicons name={icons[route.name] ?? "ellipse-outline"} size={size} color={color} />;
@@ -184,6 +187,13 @@ export function MainNavigator({ navigation }: Props) {
               name="CargasTab"
               component={CargasNavigator}
               options={{ tabBarLabel: "Cargas" }}
+            />
+          )}
+          {fleetEmployee && (
+            <Tab.Screen
+              name="DocumentosTab"
+              component={DocumentosEmpleadoScreen}
+              options={{ tabBarLabel: "Documentos" }}
             />
           )}
         </>

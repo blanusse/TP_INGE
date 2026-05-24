@@ -406,3 +406,18 @@ export async function createOffer(payload: {
   const data = await res.json();
   if (!res.ok) throw new Error(data.message ?? data.error ?? "Error al enviar la oferta.");
 }
+
+// ─── Documentos ──────────────────────────────────────────────────────────────
+
+export async function verifyDocument(endpoint: string, imageUri: string) {
+  const { uploadDocumentImage } = await import("./utils/documentUpload");
+  return uploadDocumentImage(imageUri, endpoint);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getUserProfile(): Promise<any> {
+  const res = await fetch(`${BASE_URL}/auth/profile`, { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? "Error al obtener el perfil.");
+  return data;
+}
