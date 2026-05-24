@@ -9,17 +9,37 @@ const netToGross = (net: number) =>
 // ─── Auth state ─────────────────────────────────────────────────────────────
 
 let _token: string | null = null;
-let _user: { id: string; name: string; email: string; role: string } | null = null;
+let _user: {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  fleet_id: string | null;
+  is_fleet_owner: boolean;
+} | null = null;
 
 export function setAuth(
   token: string,
-  user: { id: string; name: string; email: string; role: string }
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    fleet_id: string | null;
+    is_fleet_owner: boolean;
+  }
 ) {
   _token = token;
   _user = user;
 }
 
 export function getUser() { return _user; }
+export function isFleetEmployee() {
+  return _user?.role === "transportista" && !!_user.fleet_id && !_user.is_fleet_owner;
+}
+export function isShipper() {
+  return _user?.role === "shipper";
+}
 export function getToken() { return _token; }
 
 export function clearAuth() {
@@ -45,7 +65,14 @@ export async function login(email: string, password: string) {
   if (!res.ok) throw new Error(data.message ?? data.error ?? "Error al iniciar sesión.");
   return data as {
     access_token: string;
-    user: { id: string; name: string; email: string; role: string };
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      fleet_id: string | null;
+      is_fleet_owner: boolean;
+    };
   };
 }
 
@@ -215,15 +242,139 @@ export async function getMessages(offerId: string): Promise<Mensaje[]> {
     { headers: authHeaders() }
   );
   const data = await res.json();
-  return data.messages ?? [];
+  return Array.isArray(data) ? data : (data.messages ?? []);
 }
 
-export async function sendMessage(offerId: string, content: string): Promise<void> {
-  await fetch(`${BASE_URL}/messages`, {
+export async function sendMessage(offerId: string, content: string): Promise<Mensaje> {
+  const res = await fetch(`${BASE_URL}/messages`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ offer_id: offerId, content }),
   });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? "Error al enviar el mensaje.");
+  return data as Mensaje;
+}
+
+// ─── Mis Cargas (dador) ───────────────────────────────────────────────────────
+
+export type MiCarga = {
+  id: string;
+  pickup_city: string;
+  dropoff_city: string;
+  pickup_exact?: string;
+  dropoff_exact?: string;
+  cargo_type?: string;
+  truck_type_required?: string;
+  weight_kg?: number;
+  price_base?: number;
+  distance_km?: number;
+  ready_at?: string;
+  description?: string;
+  status: "available" | "matched" | "in_transit" | "delivered" | "cancelled";
+  offer_count: number;
+  accepted_offer?: { offerId: string; precio: number; driverName: string } | null;
+};
+
+export async function getMyLoads(): Promise<MiCarga[]> {
+  const res = await fetch(`${BASE_URL}/loads`, { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error("Error al cargar tus cargas.");
+  return Array.isArray(data) ? data : [];
+}
+
+export type Oferta = {
+  id: string;
+  load_id: string;
+  driver_id: string;
+  price: number;
+  counter_price?: number | null;
+  note?: string | null;
+  status: "pending" | "accepted" | "rejected" | "countered" | "withdrawn";
+  driver: { id: string; name: string };
+  avg_rating: number | null;
+  rating_count: number;
+};
+
+export async function createLoad(fields: {
+  pickup_city: string;
+  dropoff_city: string;
+  cargo_type?: string;
+  truck_type_required?: string;
+  weight_kg?: number;
+  price_base?: number;
+  ready_at?: string;
+  description?: string;
+}): Promise<void> {
+  const res = await fetch(`${BASE_URL}/loads`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(fields),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? "Error al publicar la carga.");
+}
+
+export async function updateLoad(
+  loadId: string,
+  fields: {
+    cargo_type?: string;
+    truck_type_required?: string;
+    weight_kg?: number;
+    price_base?: number;
+    description?: string;
+  }
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/loads/${loadId}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(fields),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? "Error al actualizar la carga.");
+}
+
+export async function deleteLoad(loadId: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/loads/${loadId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message ?? "Error al eliminar la carga.");
+  }
+}
+
+export async function getOffersForLoad(loadId: string): Promise<Oferta[]> {
+  const res = await fetch(`${BASE_URL}/offers?loadId=${loadId}`, { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error("Error al cargar ofertas.");
+  return Array.isArray(data) ? data : [];
+}
+
+export async function updateOffer(
+  offerId: string,
+  action: "accept" | "reject" | "counter",
+  counter_price?: number
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/offers/${offerId}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ action, counter_price: counter_price ?? null }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? "Error al actualizar la oferta.");
+}
+
+export async function getDeliveryCode(
+  loadId: string
+): Promise<{ delivery_code: string; delivery_code_used: boolean } | null> {
+  const res = await fetch(
+    `${BASE_URL}/payments/delivery-code?loadId=${loadId}`,
+    { headers: authHeaders() }
+  );
+  if (!res.ok) return null;
+  return res.json();
 }
 
 // ─── Ubicación ───────────────────────────────────────────────────────────────

@@ -75,6 +75,7 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     if (!isDriver && !isShipper) return;
 
     client.join(offerId);
+    client.emit('joined', offerId);
   }
 
   emitNewMessage(offerId: string, message: Message & { sender_name?: string }) {
