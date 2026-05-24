@@ -813,6 +813,7 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
   const listRef = useRef<HTMLDivElement>(null);
   const [showPerfil, setShowPerfil] = useState(false);
   const [showReportar, setShowReportar] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   // ── Confirmación de entrega ───────────────────────────────────────────────
   const [codigoInput, setCodigoInput] = useState("");
@@ -1118,13 +1119,18 @@ function VistaTripDetalle({ t, userId, onVolver }: { t: TripData; userId: string
         </div>
         <div ref={listRef} style={{ height: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 12, paddingRight: 4 }}>
           {mensajes.length === 0 && <div style={{ textAlign: "center", color: "var(--color-text-tertiary)", fontSize: 13, marginTop: 80 }}>Sin mensajes todavía.</div>}
-          {mensajes.map((m) => { const esYo = m.senderId === userId; return (<div key={m.id} style={{ display: "flex", justifyContent: esYo ? "flex-end" : "flex-start" }}><div style={{ maxWidth: "75%", padding: "9px 13px", borderRadius: esYo ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: esYo ? "var(--color-brand)" : "var(--color-background-secondary)", color: esYo ? "#fff" : "var(--color-text-primary)", fontSize: 13, lineHeight: 1.5 }}>{m.texto.startsWith("data:image/") ? (<img src={m.texto} alt="imagen" style={{ maxWidth: "100%", maxHeight: 260, borderRadius: 6, display: "block" }} />) : m.texto}<div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{m.hora}</div></div></div>); })}
+          {mensajes.map((m) => { const esYo = m.senderId === userId; return (<div key={m.id} style={{ display: "flex", justifyContent: esYo ? "flex-end" : "flex-start" }}><div style={{ maxWidth: "75%", padding: "9px 13px", borderRadius: esYo ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: esYo ? "var(--color-brand)" : "var(--color-background-secondary)", color: esYo ? "#fff" : "var(--color-text-primary)", fontSize: 13, lineHeight: 1.5 }}>{m.texto.startsWith("data:image/") ? (<img src={m.texto} alt="imagen" onClick={() => setLightbox(m.texto)} style={{ maxWidth: "100%", maxHeight: 260, borderRadius: 6, display: "block", cursor: "zoom-in" }} />) : m.texto}<div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{m.hora}</div></div></div>); })}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <input value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }} placeholder="Escribí un mensaje..." style={{ flex: 1, fontSize: 13, padding: "9px 12px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" }} />
           <button onClick={enviar} disabled={enviando} style={{ padding: "9px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: enviando ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 14, opacity: enviando ? 0.7 : 1 }}>→</button>
         </div>
       </div>
+      {lightbox && (
+        <div onClick={() => setLightbox(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out" }}>
+          <img src={lightbox} alt="imagen ampliada" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain", borderRadius: 8, boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }} />
+        </div>
+      )}
     </main>
   );
 }
@@ -1155,6 +1161,7 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Conversacion | null>(null);
   const [mensajes, setMensajes] = useState<MsgChat[]>([]);
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -1274,7 +1281,7 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
               return (
                 <div key={m.id} style={{ display: "flex", justifyContent: esYo ? "flex-end" : "flex-start" }}>
                   <div style={{ maxWidth: "75%", padding: "9px 13px", borderRadius: esYo ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: esYo ? "var(--green)" : "var(--bg2)", color: esYo ? "#fff" : "var(--text1)", fontSize: 13, lineHeight: 1.5 }}>
-                    {m.texto.startsWith("data:image/") ? (<img src={m.texto} alt="imagen" style={{ maxWidth: "100%", maxHeight: 260, borderRadius: 6, display: "block" }} />) : m.texto}
+                    {m.texto.startsWith("data:image/") ? (<img src={m.texto} alt="imagen" onClick={() => setLightbox(m.texto)} style={{ maxWidth: "100%", maxHeight: 260, borderRadius: 6, display: "block", cursor: "zoom-in" }} />) : m.texto}
                     <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{m.hora}</div>
                   </div>
                 </div>
@@ -1335,6 +1342,11 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
             </div>
           )}
         </>
+      )}
+      {lightbox && (
+        <div onClick={() => setLightbox(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out" }}>
+          <img src={lightbox} alt="imagen ampliada" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain", borderRadius: 8, boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }} />
+        </div>
       )}
     </div>
   );

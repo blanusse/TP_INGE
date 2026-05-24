@@ -868,6 +868,7 @@ function ChatInline({ sel, userId }: { sel: OfertaSeleccionada; userId: string }
   const [texto, setTexto]       = useState("");
   const [enviando, setEnviando] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   useEffect(() => {
     const mapMsg = (m: { id: string; sender_id: string; content: string; created_at: string }) => ({
@@ -954,7 +955,7 @@ function ChatInline({ sel, userId }: { sel: OfertaSeleccionada; userId: string }
                 fontSize: 13, lineHeight: 1.5,
               }}>
                 {m.texto.startsWith("data:image/") ? (
-                  <img src={m.texto} alt="imagen" style={{ maxWidth: "100%", maxHeight: 260, borderRadius: 6, display: "block" }} />
+                  <img src={m.texto} alt="imagen" onClick={() => setLightbox(m.texto)} style={{ maxWidth: "100%", maxHeight: 260, borderRadius: 6, display: "block", cursor: "zoom-in" }} />
                 ) : (
                   m.texto
                 )}
@@ -974,6 +975,11 @@ function ChatInline({ sel, userId }: { sel: OfertaSeleccionada; userId: string }
         />
         <button onClick={enviar} disabled={enviando} style={{ padding: "9px 16px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: enviando ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 14, opacity: enviando ? 0.7 : 1 }}>→</button>
       </div>
+      {lightbox && (
+        <div onClick={() => setLightbox(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out" }}>
+          <img src={lightbox} alt="imagen ampliada" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain", borderRadius: 8, boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }} />
+        </div>
+      )}
     </div>
   );
 }

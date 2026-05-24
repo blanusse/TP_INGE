@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   StatusBar,
   Image,
+  Modal,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from "react-native-maps";
 import * as Location from "expo-location";
@@ -78,6 +79,7 @@ export function ViajeDetalleScreen({ route, navigation }: Props) {
   const [messages, setMessages] = useState<Mensaje[]>([]);
   const [msgInput, setMsgInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [lightboxUri, setLightboxUri] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -316,11 +318,13 @@ export function ViajeDetalleScreen({ route, navigation }: Props) {
               return (
                 <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
                   {isImage ? (
-                    <Image
-                      source={{ uri: item.content }}
-                      style={styles.bubbleImage}
-                      resizeMode="contain"
-                    />
+                    <TouchableOpacity onPress={() => setLightboxUri(item.content)} activeOpacity={0.85}>
+                      <Image
+                        source={{ uri: item.content }}
+                        style={styles.bubbleImage}
+                        resizeMode="contain"
+                      />
+                    </TouchableOpacity>
                   ) : (
                     <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
                       {item.content}
@@ -360,6 +364,18 @@ export function ViajeDetalleScreen({ route, navigation }: Props) {
           </View>
         </KeyboardAvoidingView>
       )}
+
+      <Modal visible={!!lightboxUri} transparent animationType="fade" onRequestClose={() => setLightboxUri(null)}>
+        <TouchableOpacity
+          style={styles.lightboxOverlay}
+          activeOpacity={1}
+          onPress={() => setLightboxUri(null)}
+        >
+          {lightboxUri && (
+            <Image source={{ uri: lightboxUri }} style={styles.lightboxImage} resizeMode="contain" />
+          )}
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -538,5 +554,15 @@ const styles = StyleSheet.create({
     width: 220,
     height: 165,
     borderRadius: radius.sm,
+  },
+  lightboxOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lightboxImage: {
+    width: "95%",
+    height: "80%",
   },
 });
