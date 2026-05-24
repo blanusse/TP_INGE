@@ -2414,9 +2414,9 @@ function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userN
 
   const kpis = [
     { label: "Gasto este mes", value: stats?.gastoEsteMes != null ? `$${stats.gastoEsteMes.toLocaleString("es-AR")}` : "$0", icon: "fa-solid fa-dollar-sign", color: "#16a34a", hideOnMobile: false },
-    { label: "Cargas activas", value: cargas.filter((c) => c.status === "available" || c.status === "in_transit").length, icon: "fa-solid fa-box", color: "#3b82f6", hideOnMobile: false },
-    { label: "Tiempo prom. asignación", value: stats?.tiempoPromedioAsignacion != null ? `${stats.tiempoPromedioAsignacion}h` : "—", icon: "fa-solid fa-clock", color: "#f59e0b", hideOnMobile: true },
-    { label: "Ofertas pendientes", value: pendientes, icon: "fa-solid fa-handshake", color: "#8b5cf6", hideOnMobile: false },
+    { label: "Cargas activas", value: cargas.filter((c) => c.status === "available" || c.status === "in_transit").length, icon: "fa-solid fa-box", color: "#16a34a", hideOnMobile: false },
+    { label: "Tiempo prom. asignación", value: stats?.tiempoPromedioAsignacion != null ? `${stats.tiempoPromedioAsignacion}h` : "—", icon: "fa-solid fa-clock", color: "#16a34a", hideOnMobile: true },
+    { label: "Ofertas pendientes", value: pendientes, icon: "fa-solid fa-handshake", color: "#16a34a", hideOnMobile: false },
   ];
 
   const statusLabel: Record<string, { text: string; bg: string; color: string }> = {
