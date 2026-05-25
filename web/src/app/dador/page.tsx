@@ -24,7 +24,38 @@ type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tr�
 
 interface Oferta { id: number; offerId: string; driverId?: string | null; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
 interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
-interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; precio: number | null; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; origenExacto?: string | null; destinoExacto?: string | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null}
+interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; precio: number | null; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; origenExacto?: string | null; destinoExacto?: string | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null; distanceKm?: number | null }
+
+interface InsuranceProduct {
+  id: string;
+  name: string;
+  insurer: string;
+  coverage_type: string;
+  price: number;
+  conditions: string;
+  is_active: boolean;
+}
+
+interface InsuranceQuote {
+  quote_id: string;
+  premium: number;
+  coverage_amount: number;
+  provider_name: string;
+  coverage_days: number;
+  details: string[];
+}
+
+interface InsurancePolicy {
+  id: string;
+  product_id?: string | null;
+  insurance_name?: string | null;
+  insurer_name?: string | null;
+  coverage_type?: string | null;
+  coverage_starts_at?: string | null;
+  coverage_ends_at: string;
+  premium: number | string;
+  load_id?: string | null;
+}
 
 interface LoadDB {
   id: string;
@@ -46,6 +77,7 @@ interface LoadDB {
   pickup_lon?: number | null;
   dropoff_lat?: number | null;
   dropoff_lon?: number | null;
+  distance_km?: number | null;
 }
 
 const TRUCK_LABEL: Record<string, string> = {
@@ -89,7 +121,28 @@ function loadToCard(load: LoadDB): Carga {
     destLat:   load.dropoff_lat ? Number(load.dropoff_lat) : null,
     destLng:   load.dropoff_lon ? Number(load.dropoff_lon) : null,
     truckType: load.truck_type_required ?? null,
+    distanceKm: load.distance_km != null ? Number(load.distance_km) : null,
   };
+}
+
+function normalizeCargoType(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function formatDateTime(value: string | Date | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 // ── Componentes menores ───────────────────────────────────────────────────────
@@ -1013,7 +1066,7 @@ function SeccionMisCargas({
   cargas,
   loading,
   onVerOfertas,
-  onDestacado,
+  onToast,
   onIniciarPago,
   onRefresh,
   onPublicar,
@@ -1021,7 +1074,7 @@ function SeccionMisCargas({
   cargas: Carga[];
   loading: boolean;
   onVerOfertas: (c: Carga) => void;
-  onDestacado: (titulo: string) => void;
+  onToast: (msg: string) => void;
   onIniciarPago: (sel: OfertaSeleccionada) => void;
   onRefresh: () => void;
   onPublicar: () => void;
@@ -1032,9 +1085,20 @@ function SeccionMisCargas({
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [editando, setEditando] = useState<Carga | null>(null);
   const [deliveryCode, setDeliveryCode] = useState<{ code: string; used: boolean } | null>(null);
+  const [insurancePolicy, setInsurancePolicy] = useState<InsurancePolicy | null>(null);
+  const [insuranceProducts, setInsuranceProducts] = useState<InsuranceProduct[]>([]);
+  const [selectedInsuranceProductId, setSelectedInsuranceProductId] = useState("");
+  const [insuranceQuote, setInsuranceQuote] = useState<InsuranceQuote | null>(null);
+  const [declaredValue, setDeclaredValue] = useState("");
+  const [loadingInsurance, setLoadingInsurance] = useState(false);
+  const [quotingInsurance, setQuotingInsurance] = useState(false);
+  const [purchasingInsurance, setPurchasingInsurance] = useState(false);
+  const [insuranceError, setInsuranceError] = useState<string | null>(null);
 
   const publicadas = cargas.filter((c) => c.status === "available");
   const asignadas = cargas.filter((c) => c.status === "matched" || c.status === "in_transit" || c.status === "accepted");
+  const detalleCargaId = detalleCarga?.id;
+  const detalleCargaStatus = detalleCarga?.status;
 
   const listado = tab === "Publicadas" ? publicadas : asignadas;
 
@@ -1059,6 +1123,154 @@ function SeccionMisCargas({
       .catch(() => {});
   }, [detalleCarga?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!detalleCargaId || !detalleCargaStatus) {
+      setInsurancePolicy(null);
+      setInsuranceProducts([]);
+      setSelectedInsuranceProductId("");
+      setInsuranceQuote(null);
+      setDeclaredValue("");
+      setInsuranceError(null);
+      return;
+    }
+
+    const esViaje = detalleCargaStatus === "matched" || detalleCargaStatus === "in_transit" || detalleCargaStatus === "delivered" || detalleCargaStatus === "accepted";
+    if (!esViaje) {
+      setInsurancePolicy(null);
+      setInsuranceProducts([]);
+      setSelectedInsuranceProductId("");
+      setInsuranceQuote(null);
+      setDeclaredValue("");
+      setInsuranceError(null);
+      return;
+    }
+
+    let ignore = false;
+    const cargarSeguro = async () => {
+      setLoadingInsurance(true);
+      setInsuranceError(null);
+      try {
+        const [policyRes, productsRes] = await Promise.all([
+          fetch(`/api/insurance/policies?loadId=${detalleCargaId}`),
+          fetch("/api/insurance/products"),
+        ]);
+
+        const policyJson = await policyRes.json();
+        const productsJson = await productsRes.json();
+
+        if (ignore) return;
+
+        const products: InsuranceProduct[] = Array.isArray(productsJson)
+          ? productsJson
+          : [];
+        const policies: InsurancePolicy[] = Array.isArray(policyJson)
+          ? policyJson
+          : [];
+        const policy = policies.length > 0 ? policies[0] : null;
+
+        setInsuranceProducts(products);
+        setInsurancePolicy(policy);
+        setInsuranceQuote(null);
+        setDeclaredValue("");
+        setSelectedInsuranceProductId((prev) => {
+          if (policy?.product_id) return policy.product_id;
+          if (prev) return prev;
+          return products[0]?.id ?? "";
+        });
+      } catch {
+        if (!ignore) setInsuranceError("No se pudo cargar la informacion de seguro.");
+      } finally {
+        if (!ignore) setLoadingInsurance(false);
+      }
+    };
+
+    cargarSeguro();
+    return () => { ignore = true; };
+  }, [detalleCargaId, detalleCargaStatus]);
+
+  const cotizarSeguro = async (carga: Carga, origen: string, destino: string) => {
+    if (!declaredValue || isNaN(Number(declaredValue)) || Number(declaredValue) <= 0) {
+      setInsuranceError("Ingresá un valor declarado valido para cotizar.");
+      return;
+    }
+
+    setQuotingInsurance(true);
+    setInsuranceError(null);
+    try {
+      const res = await fetch("/api/insurance/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          declared_value: Number(declaredValue),
+          cargo_type: normalizeCargoType(carga.titulo.split(" — ")[0] ?? "otro"),
+          distance_km: carga.distanceKm ?? undefined,
+          pickup_city: origen,
+          dropoff_city: destino,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setInsuranceError(data.message ?? data.error ?? "No se pudo cotizar el seguro.");
+        return;
+      }
+
+      setInsuranceQuote(data as InsuranceQuote);
+    } catch {
+      setInsuranceError("No se pudo cotizar el seguro.");
+    } finally {
+      setQuotingInsurance(false);
+    }
+  };
+
+  const contratarSeguro = async (carga: Carga, origen: string, destino: string) => {
+    if (!insuranceQuote) {
+      setInsuranceError("Primero tenés que cotizar el seguro.");
+      return;
+    }
+    if (!selectedInsuranceProductId) {
+      setInsuranceError("Seleccioná un seguro para contratar.");
+      return;
+    }
+    if (!declaredValue || isNaN(Number(declaredValue)) || Number(declaredValue) <= 0) {
+      setInsuranceError("Ingresá un valor declarado valido.");
+      return;
+    }
+
+    setPurchasingInsurance(true);
+    setInsuranceError(null);
+    try {
+      const res = await fetch("/api/insurance/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: selectedInsuranceProductId,
+          load_id: carga.id,
+          quote_id: insuranceQuote.quote_id,
+          declared_value: Number(declaredValue),
+          cargo_type: normalizeCargoType(carga.titulo.split(" — ")[0] ?? "otro"),
+          distance_km: carga.distanceKm ?? undefined,
+          pickup_city: origen,
+          dropoff_city: destino,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setInsuranceError(data.message ?? data.error ?? "No se pudo contratar el seguro.");
+        return;
+      }
+
+      setInsurancePolicy(data as InsurancePolicy);
+      setInsuranceQuote(null);
+      onToast("Seguro contratado correctamente. Te enviamos la confirmacion por email.");
+    } catch {
+      setInsuranceError("No se pudo contratar el seguro.");
+    } finally {
+      setPurchasingInsurance(false);
+    }
+  };
+
   // Detail panel modal
   if (detalleCarga) {
     const dc = detalleCarga;
@@ -1067,6 +1279,8 @@ function SeccionMisCargas({
     const ruta = partes[1] ?? dc.titulo;
     const [origen, destino] = ruta.split(" → ");
     const ao = dc.acceptedOffer;
+    const esViajeConSeguro = dc.status === "matched" || dc.status === "in_transit" || dc.status === "delivered" || dc.status === "accepted";
+    const primaSeguro = insurancePolicy ? Number(insurancePolicy.premium) : null;
     return (
       <main style={{ maxWidth: 700, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
         <button onClick={() => setDetalleCarga(null)} style={{ fontSize: 13, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", marginBottom: 20, padding: 0, display: "flex", alignItems: "center", gap: 6 }}>
@@ -1098,6 +1312,119 @@ function SeccionMisCargas({
             <div>Estado: <strong style={{ color: "var(--color-text-primary)" }}>{dc.status}</strong></div>
             {ao && <div>Transportista: <strong style={{ color: "var(--color-text-primary)" }}>{ao.driverName}</strong></div>}
           </div>
+
+          {esViajeConSeguro && (
+            <div style={{ marginBottom: 18, background: "var(--color-background-secondary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 10 }}>
+                Seguro del viaje
+              </div>
+
+              {loadingInsurance && (
+                <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
+                  Cargando informacion de cobertura...
+                </div>
+              )}
+
+              {!loadingInsurance && insurancePolicy && (
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.7 }}>
+                  <div>Estado: <strong style={{ color: "#16a34a" }}>Contratado</strong></div>
+                  <div>Seguro: <strong style={{ color: "var(--color-text-primary)" }}>{insurancePolicy.insurance_name ?? "Seguro de carga"}</strong></div>
+                  <div>Aseguradora: <strong style={{ color: "var(--color-text-primary)" }}>{insurancePolicy.insurer_name ?? "CargaBack Seguros"}</strong></div>
+                  <div>Cobertura: <strong style={{ color: "var(--color-text-primary)" }}>{insurancePolicy.coverage_type ?? "Cobertura de carga"}</strong></div>
+                  <div>Viaje asociado: <strong style={{ color: "var(--color-text-primary)" }}>{origen} → {destino}</strong></div>
+                  <div>Vigencia: <strong style={{ color: "var(--color-text-primary)" }}>{formatDateTime(insurancePolicy.coverage_starts_at)} al {formatDateTime(insurancePolicy.coverage_ends_at)}</strong></div>
+                  {primaSeguro != null && !isNaN(primaSeguro) && (
+                    <div>Prima: <strong style={{ color: "var(--color-text-primary)" }}>${primaSeguro.toLocaleString("es-AR")}</strong></div>
+                  )}
+                </div>
+              )}
+
+              {!loadingInsurance && !insurancePolicy && (
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 10 }}>
+                    Todavia no contrataste un seguro para este viaje.
+                  </div>
+
+                  {insuranceProducts.length > 0 ? (
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                        <div>
+                          <label style={{ ...labelStyle, marginBottom: 4 }}>Seguro</label>
+                          <select
+                            value={selectedInsuranceProductId}
+                            onChange={(e) => setSelectedInsuranceProductId(e.target.value)}
+                            style={{ ...selectStyle, fontSize: 12, padding: "7px 9px" }}
+                          >
+                            {insuranceProducts.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} · {p.insurer}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ ...labelStyle, marginBottom: 4 }}>Valor declarado (ARS)</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={declaredValue}
+                            onChange={(e) => setDeclaredValue(e.target.value)}
+                            style={{ ...inputStyle, fontSize: 12, padding: "7px 9px" }}
+                            placeholder="Ej: 1500000"
+                          />
+                        </div>
+                      </div>
+
+                      {selectedInsuranceProductId && (
+                        <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 8, lineHeight: 1.5 }}>
+                          {insuranceProducts.find((p) => p.id === selectedInsuranceProductId)?.conditions}
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", gap: 8, marginBottom: insuranceQuote ? 10 : 0 }}>
+                        <button
+                          onClick={() => cotizarSeguro(dc, origen, destino)}
+                          disabled={quotingInsurance || purchasingInsurance}
+                          style={{ fontSize: 12, padding: "7px 12px", borderRadius: 7, border: "1px solid #3a806b", background: "transparent", color: "#3a806b", cursor: "pointer", fontWeight: 600 }}
+                        >
+                          {quotingInsurance ? "Cotizando..." : "Cotizar seguro"}
+                        </button>
+
+                        {insuranceQuote && (
+                          <button
+                            onClick={() => contratarSeguro(dc, origen, destino)}
+                            disabled={purchasingInsurance || quotingInsurance}
+                            style={{ fontSize: 12, padding: "7px 12px", borderRadius: 7, border: "none", background: "#3a806b", color: "#fff", cursor: "pointer", fontWeight: 600 }}
+                          >
+                            {purchasingInsurance ? "Contratando..." : "Contratar seguro"}
+                          </button>
+                        )}
+                      </div>
+
+                      {insuranceQuote && (
+                        <div style={{ marginTop: 10, fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.6, background: "rgba(58,128,107,0.08)", border: "1px solid rgba(58,128,107,0.2)", borderRadius: 8, padding: 10 }}>
+                          <div>Prima estimada: <strong style={{ color: "var(--color-text-primary)" }}>${Number(insuranceQuote.premium).toLocaleString("es-AR")}</strong></div>
+                          <div>Cobertura: <strong style={{ color: "var(--color-text-primary)" }}>${Number(insuranceQuote.coverage_amount).toLocaleString("es-AR")}</strong></div>
+                          <div>Vigencia: <strong style={{ color: "var(--color-text-primary)" }}>{insuranceQuote.coverage_days} dias</strong></div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
+                      No hay productos de seguro activos para contratar.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {insuranceError && (
+                <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 7, padding: "8px 10px" }}>
+                  {insuranceError}
+                </div>
+              )}
+            </div>
+          )}
+
           {dc.ofertas > 0 && !ao && (
             <button onClick={() => { setDetalleCarga(null); onVerOfertas(dc); }} style={{ fontSize: 13, padding: "10px 20px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
               Ver ofertas ({dc.ofertas})
@@ -2398,7 +2725,7 @@ export default function DadorDashboard() {
             cargas={cargas}
             loading={loadingCargas}
             onVerOfertas={(c) => setModalOfertas(c)}
-            onDestacado={(titulo) => mostrarToast(`Carga "${titulo.split("—")[0].trim()}" destacada. Mas camioneros la veran primero.`)}
+            onToast={mostrarToast}
             onIniciarPago={(sel) => setModalPago(sel)}
             onRefresh={fetchCargas}
             onPublicar={() => {

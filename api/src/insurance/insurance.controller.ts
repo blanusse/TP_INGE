@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { InsuranceService } from './insurance.service';
 
@@ -57,13 +57,22 @@ export class InsuranceController {
   @Post('insurance/purchase')
   purchasePolicy(
     @Request() req: AuthReq,
-    @Body() body: { declared_value: number; cargo_type: string; distance_km?: number; pickup_city: string; dropoff_city: string; quote_id: string; load_id?: string },
+    @Body() body: {
+      declared_value: number;
+      cargo_type: string;
+      distance_km?: number;
+      pickup_city: string;
+      dropoff_city: string;
+      quote_id: string;
+      load_id?: string;
+      product_id?: string;
+    },
   ) {
     return this.insuranceService.purchasePolicy(req.user.id, body);
   }
 
   @Get('insurance/policies')
-  getMyPolicies(@Request() req: AuthReq) {
-    return this.insuranceService.getMyPolicies(req.user.id);
+  getMyPolicies(@Request() req: AuthReq, @Query('load_id') loadId?: string) {
+    return this.insuranceService.getMyPolicies(req.user.id, loadId);
   }
 }
