@@ -1258,7 +1258,7 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
   const wrapper: React.CSSProperties = { padding: "24px 20px", maxWidth: 760, margin: "0 auto", width: "100%" };
   const card: React.CSSProperties = { background: "var(--bg0)", border: "0.5px solid var(--border)", borderRadius: 12 };
 
-  if (loading) return <div style={{ ...wrapper, color: "var(--text2)", textAlign: "center", paddingTop: 60 }}>Cargando conversaciones...</div>;
+  if (loading) return <div style={{ ...wrapper, color: "var(--text2)", textAlign: "center", paddingTop: 60, paddingBottom: 24, paddingLeft: 20, paddingRight: 20 }}>Cargando conversaciones...</div>;
 
   return (
     <div style={wrapper}>
@@ -2220,7 +2220,8 @@ function SeccionMiFlota({ ownerId, mode = "individual" }: { ownerId: string; mod
 
 // ── Perfil ────────────────────────────────────────────────────────────────────
 
-type TabPerfil = "Perfil" | "Documentos" | "Estadísticas";
+type TabPerfil = "Perfil" | "Documentos" | "Estadísticas" | "Reseñas";
+interface RatingEntry { id: string; score: number; comment: string | null; created_at: string; from_user?: { id: string; name: string } | null; }
 interface EarningsMes { mes: string; monto: number; }
 interface TipoCargaStat { tipo: string; pct: number; count: number; color: string; cantidad?: number; }
 interface RutaStat { ruta: string; viajes: number; }
@@ -2253,6 +2254,8 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
   const [trucks, setTrucks] = useState<TruckData2[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Record<string, { ok: boolean; text: string }>>({});
+  const { data: session } = useSession();
+  const [ratings, setRatings] = useState<RatingEntry[]>([]);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
 
   const atLeastOneDriverVerified = dniVerified && licenseVerified;
@@ -2281,6 +2284,11 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
     fetch("/api/fleet/settings").then((r) => r.json()).then((d) => { if (d.show_as_fleet_driver !== undefined) setShowAsDriver(d.show_as_fleet_driver); }).catch(() => {});
     fetchStatus();
   }, []);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetch(`/api/ratings/user/${session.user.id}`).then((r) => r.json()).then((d) => { if (Array.isArray(d)) setRatings(d); }).catch(() => {});
+  }, [session?.user?.id]);
 
   const handleVerifyDoc = async (endpoint: string, key: string, file: File) => {
     setUploading(key);
@@ -2355,7 +2363,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
 
       <div style={{ padding: isMobile ? "16px 12px 0" : "22px 40px 0", maxWidth: 840, margin: "0 auto" }}>
         <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 3, gap: 2 }}>
-          {(["Perfil", ...(mode !== "flota" ? ["Documentos"] : []), "Estadísticas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
+          {(["Perfil", ...(mode !== "flota" ? ["Documentos"] : []), "Estadísticas", "Reseñas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
         </div>
       </div>
 
@@ -2549,6 +2557,43 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
                 {stats.rutasFrecuentes.length === 0 ? (<div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-text-tertiary)", fontSize: 13 }}>Sin rutas completadas todavía.</div>) : (<div style={{ display: "flex", flexDirection: "column", gap: 0 }}>{stats.rutasFrecuentes.map((r, i) => (<div key={r.ruta} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: i < stats.rutasFrecuentes.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}><div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--color-brand-light)", color: "var(--color-brand-dark)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div><div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{r.ruta}</div></div><div style={{ textAlign: "right" }}><div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-brand-dark)" }}>{r.viajes}</div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>viaje{r.viajes !== 1 ? "s" : ""}</div></div><div style={{ width: 80, height: 6, background: "var(--color-background-secondary)", borderRadius: 3, overflow: "hidden" }}><div style={{ height: "100%", width: `${(r.viajes / stats.rutasFrecuentes[0].viajes) * 100}%`, background: "var(--color-brand)", borderRadius: 3 }} /></div></div>))}</div>)}
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {tabPerfil === "Reseñas" && (
+        <div style={{ padding: isMobile ? "16px 12px 24px" : "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
+          {ratings.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 48, color: "var(--color-text-tertiary)", fontSize: 14 }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>⭐</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Aún no tenés reseñas</div>
+              <div>Cuando completes viajes, otros usuarios podrán calificarte aquí.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {ratings.map((r) => (
+                <div key={r.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--color-brand-light)", color: "var(--color-brand-dark)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                        {r.from_user?.name?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2) ?? "?"}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>{r.from_user?.name ?? "Usuario"}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
+                      {new Date(r.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 2, marginBottom: r.comment ? 8 : 4 }}>
+                    {[1,2,3,4,5].map((s) => <span key={s} style={{ fontSize: 16, color: s <= r.score ? "#f59e0b" : "#d1d5db" }}>★</span>)}
+                  </div>
+                  {r.comment
+                    ? <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{r.comment}</div>
+                    : <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", fontStyle: "italic" }}>Sin comentario</div>
+                  }
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

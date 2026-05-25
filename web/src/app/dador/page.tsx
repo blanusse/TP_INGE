@@ -1691,6 +1691,7 @@ function SeccionFacturacion() {
 // ── Sección Perfil ────────────────────────────────────────────────────────────
 
 interface DadorStats { totalCargas: number; enTransito: number; memberSince: string; calificacionPromedio: number | null; tipo: string | null; phone: string | null; dni: string | null; razonSocial: string | null; cuit: string | null; address: string | null; }
+interface RatingEntry { id: string; score: number; comment: string | null; created_at: string; from_user?: { id: string; name: string } | null; }
 
 function formatMemberSince(raw: string | null | undefined): string {
   if (!raw) return "—";
@@ -1719,6 +1720,8 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const [verifyingIdentity, setVerifyingIdentity] = useState(false);
   const [identityMessage, setIdentityMessage] = useState("");
   const [isMobile, setIsMobile] = useState(false);
+  const { data: session } = useSession();
+  const [ratings, setRatings] = useState<RatingEntry[]>([]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -1742,6 +1745,11 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
       .then((d) => { if (d.identity_verified) setIdentityVerified(true); })
       .catch(() => {});
   }, []);
+
+  React.useEffect(() => {
+    if (!session?.user?.id) return;
+    fetch(`/api/ratings/user/${session.user.id}`).then((r) => r.json()).then((d) => { if (Array.isArray(d)) setRatings(d); }).catch(() => {});
+  }, [session?.user?.id]);
 
   const handleVerifyIdentity = async () => {
     setVerifyingIdentity(true);
@@ -1946,6 +1954,43 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
           )}
         </div>
       )}
+
+      {/* Reseñas */}
+      <div style={{ ...card, marginBottom: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading-color)", marginBottom: 16 }}>Reseñas recibidas</div>
+        {ratings.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "24px 0", color: "var(--muted-color)", fontSize: 13 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>⭐</div>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Aún no tenés reseñas</div>
+            <div>Cuando completes envíos, los transportistas podrán calificarte aquí.</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {ratings.map((r) => (
+              <div key={r.id} style={{ background: "var(--page-bg)", border: "1px solid var(--card-border)", borderRadius: 8, padding: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#3a806b", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                      {r.from_user?.name?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2) ?? "?"}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading-color)" }}>{r.from_user?.name ?? "Usuario"}</div>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--muted-color)" }}>
+                    {new Date(r.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 2, marginBottom: r.comment ? 8 : 4 }}>
+                  {[1,2,3,4,5].map((s) => <span key={s} style={{ fontSize: 15, color: s <= r.score ? "#f59e0b" : "#d1d5db" }}>★</span>)}
+                </div>
+                {r.comment
+                  ? <div style={{ fontSize: 13, color: "var(--body-color)", lineHeight: 1.5 }}>{r.comment}</div>
+                  : <div style={{ fontSize: 12, color: "var(--muted-color)", fontStyle: "italic" }}>Sin comentario</div>
+                }
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Acciones */}
       <div style={{ display: "flex", gap: 10 }}>
