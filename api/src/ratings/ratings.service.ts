@@ -21,12 +21,20 @@ export class RatingsService {
   ) {}
 
   async getUserRatings(userId: string) {
-    return this.ratingsRepo.find({
-      where: { to_user_id: userId },
-      select: ['id', 'score', 'comment', 'created_at'],
-      order: { created_at: 'DESC' },
-      take: 10,
-    });
+    return this.ratingsRepo
+      .createQueryBuilder('rating')
+      .leftJoin('rating.from_user', 'from_user')
+      .select([
+        'rating.id',
+        'rating.score',
+        'rating.comment',
+        'rating.created_at',
+        'from_user.id',
+        'from_user.name',
+      ])
+      .where('rating.to_user_id = :userId', { userId })
+      .orderBy('rating.created_at', 'DESC')
+      .getMany();
   }
 
   async submitRating(
