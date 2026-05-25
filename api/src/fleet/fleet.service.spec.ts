@@ -341,6 +341,74 @@ describe('FleetService', () => {
     expect(result.show_as_fleet_driver).toBe(false);
   });
 
+  // ── getMyProfile / updateMyProfile ────────────────────────────────────
+
+  test('GIVEN transportista WHEN getMyProfile THEN devuelve perfil básico', async () => {
+    usersRepo.findOne.mockResolvedValue({
+      id: 'u1',
+      role: 'transportista',
+      name: 'Juan Perez',
+      email: 'juan@test.com',
+      phone: '1166660000',
+      dni: '30123456',
+    });
+    const result = await service.getMyProfile('u1');
+    expect(result).toEqual({
+      id: 'u1',
+      name: 'Juan Perez',
+      email: 'juan@test.com',
+      phone: '1166660000',
+      dni: '30123456',
+    });
+  });
+
+  test('GIVEN usuario no transportista WHEN getMyProfile THEN lanza ForbiddenException', async () => {
+    usersRepo.findOne.mockResolvedValue({ id: 'u1', role: 'shipper' });
+    await expect(service.getMyProfile('u1')).rejects.toThrow(ForbiddenException);
+  });
+
+  test('GIVEN update válido WHEN updateMyProfile THEN actualiza nombre y teléfono', async () => {
+    usersRepo.findOne.mockResolvedValue({
+      id: 'u1',
+      role: 'transportista',
+      name: 'Viejo',
+      email: 'driver@test.com',
+      phone: null,
+      dni: '30123456',
+    });
+    const result = await service.updateMyProfile('u1', {
+      name: 'Nombre Nuevo',
+      phone: '1166660000',
+    });
+    expect(usersRepo.save).toHaveBeenCalled();
+    expect(result.name).toBe('Nombre Nuevo');
+    expect(result.phone).toBe('1166660000');
+  });
+
+  test('GIVEN name vacío WHEN updateMyProfile THEN lanza BadRequestException', async () => {
+    usersRepo.findOne.mockResolvedValue({
+      id: 'u1',
+      role: 'transportista',
+      name: 'Viejo',
+      email: 'driver@test.com',
+    });
+    await expect(
+      service.updateMyProfile('u1', { name: '   ' }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  test('GIVEN phone inválido WHEN updateMyProfile THEN lanza BadRequestException', async () => {
+    usersRepo.findOne.mockResolvedValue({
+      id: 'u1',
+      role: 'transportista',
+      name: 'Viejo',
+      email: 'driver@test.com',
+    });
+    await expect(
+      service.updateMyProfile('u1', { phone: '12' }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
   // ── getFleetDrivers ─────────────────────────────────────────────────────
 
   test('GIVEN owner con show_as_fleet_driver WHEN getFleetDrivers THEN incluye al owner', async () => {

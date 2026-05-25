@@ -100,6 +100,21 @@ export class FleetController {
     return this.fleetService.getOwnerSettings(req.user.id);
   }
 
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  getMyProfile(@Request() req: AuthReq) {
+    return this.fleetService.getMyProfile(req.user.id);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  updateMyProfile(
+    @Request() req: AuthReq,
+    @Body() body: { name?: string; phone?: string | null },
+  ) {
+    return this.fleetService.updateMyProfile(req.user.id, body);
+  }
+
   @Patch('settings')
   @UseGuards(JwtAuthGuard)
   updateSettings(

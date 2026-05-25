@@ -1448,7 +1448,7 @@ function SeccionNotificaciones({ onClearBadge }: { onClearBadge: () => void }) {
             <div style={{ textAlign: "center", color: "var(--text2)", padding: 40 }}>Cargando...</div>
           ) : alerts.length === 0 ? (
             <div style={{ ...card, padding: 40, textAlign: "center", color: "var(--text2)", fontSize: 14 }}>
-              No tenés alertas guardadas. Usá el botón <strong>"Guardar alerta con estos filtros"</strong> en la sección Buscar cargas.
+              No tenés alertas guardadas. Usá el botón <strong>&quot;Guardar alerta con estos filtros&quot;</strong> en la sección Buscar cargas.
             </div>
           ) : (
             <div style={card}>
@@ -2015,7 +2015,7 @@ function SeccionMiFlota({ ownerId, mode = "individual" }: { ownerId: string; mod
           {ructtMsg && <div style={{ fontSize: 12, fontWeight: 500, color: ructtMsg.ok ? "#065f46" : "#b91c1c", marginBottom: 8 }}>{ructtMsg.ok ? "✓ " : "✗ "}{ructtMsg.text}</div>}
           {!ructtVerifiedFlota && (
             <label style={{ display: "block", cursor: uploadingRuctt ? "not-allowed" : "pointer", maxWidth: 240 }}>
-              <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingRuctt}
+              <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} disabled={uploadingRuctt}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyRuctt(f); e.target.value = ""; }} />
               <div style={{ fontSize: 13, padding: "8px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: uploadingRuctt ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-secondary)" }}>
                 {uploadingRuctt ? "Verificando..." : "+ Subir certificado RUCTT"}
@@ -2115,7 +2115,7 @@ function SeccionMiFlota({ ownerId, mode = "individual" }: { ownerId: string; mod
                               </div>
                               {msg && <div style={{ fontSize: 10, color: msg.ok ? "#065f46" : "#b91c1c", marginBottom: 4 }}>{msg.ok ? "✓ " : "✗ "}{msg.text}</div>}
                               <label style={{ display: "block", cursor: isUp ? "not-allowed" : "pointer" }}>
-                                <input type="file" accept="image/*" style={{ display: "none" }} disabled={!!isUp}
+                                <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} disabled={!!isUp}
                                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyTruckDoc(t.id, key, endpoint, field, f); e.target.value = ""; }} />
                                 <div style={{ fontSize: 11, padding: "5px 8px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUp ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-primary)" }}>
                                   {isUp ? "Verificando..." : verified ? "Reemplazar" : "+ Subir foto"}
@@ -2226,6 +2226,7 @@ interface EarningsMes { mes: string; monto: number; }
 interface TipoCargaStat { tipo: string; pct: number; count: number; color: string; cantidad?: number; }
 interface RutaStat { ruta: string; viajes: number; }
 interface TransportistaStats { viajesCompletados: number; calificacionPromedio: number | null; memberSince: string; ingresosUltimos6Meses: EarningsMes[]; tiposCarga: TipoCargaStat[]; rutasFrecuentes: RutaStat[]; totalIngresos6m: number; viajes6m: number; phone?: string | null; dni?: string | null; }
+interface TransportistaProfile { id: string; name: string; email: string; phone: string | null; dni: string | null; }
 
 interface TruckData2 { id: string; patente: string; marca: string | null; modelo: string | null; vtv_vence: string | null; seguro_vence: string | null; vtv_verified: boolean; seguro_verified: boolean; cedula_verde_verified: boolean; }
 
@@ -2233,6 +2234,8 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
   const [editando, setEditando] = useState(false);
   const [nombre, setNombre] = useState(userName);
   const [telefono, setTelefono] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
   const [isMobile, setIsMobile] = useState(false);
 
@@ -2280,6 +2283,14 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
   };
 
   useEffect(() => {
+    fetch("/api/fleet/profile")
+      .then((r) => r.json())
+      .then((d: Partial<TransportistaProfile>) => {
+        if (typeof d.name === "string" && d.name.trim()) setNombre(d.name);
+        if (typeof d.phone === "string") setTelefono(d.phone);
+      })
+      .catch(() => {});
+
     fetch("/api/stats/camionero").then((r) => r.json()).then((d) => setStats(d)).catch(() => {});
     fetch("/api/fleet/settings").then((r) => r.json()).then((d) => { if (d.show_as_fleet_driver !== undefined) setShowAsDriver(d.show_as_fleet_driver); }).catch(() => {});
     fetchStatus();
@@ -2331,6 +2342,52 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
     }
   };
 
+  const handleProfileAction = async () => {
+    if (!editando) {
+      setProfileError(null);
+      setEditando(true);
+      return;
+    }
+
+    const normalizedName = nombre.trim();
+    const normalizedPhone = telefono.trim();
+    if (!normalizedName) {
+      setProfileError("Ingresá tu nombre para guardar el perfil.");
+      return;
+    }
+    if (normalizedPhone && !/^\+?\d{8,15}$/.test(normalizedPhone.replace(/[\s-]/g, ""))) {
+      setProfileError("El teléfono debe tener entre 8 y 15 dígitos.");
+      return;
+    }
+
+    setSavingProfile(true);
+    setProfileError(null);
+    try {
+      const res = await fetch("/api/fleet/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: normalizedName,
+          phone: normalizedPhone || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setProfileError(data.message ?? "No se pudo actualizar el perfil.");
+        return;
+      }
+
+      setNombre(data.name ?? normalizedName);
+      setTelefono(data.phone ?? "");
+      setEditando(false);
+      onToast("Perfil actualizado.");
+    } catch {
+      setProfileError("Error al actualizar el perfil.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   return (
     <main style={{ flex: 1, background: "var(--bg1)" }}>
       <div style={{ background: "var(--bg0)", padding: isMobile ? "20px 16px 36px" : "32px 40px 48px", borderBottom: "1px solid var(--border)" }}>
@@ -2347,7 +2404,15 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
             </div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{userEmail}</div>
           </div>
-          {tabPerfil === "Perfil" && <button onClick={() => { if (editando) onToast("Perfil actualizado."); setEditando(!editando); }} style={{ fontSize: 13, padding: "9px 18px", borderRadius: "var(--border-radius-md)", background: editando ? "var(--color-brand)" : "rgba(255,255,255,0.12)", border: editando ? "none" : "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", fontWeight: 500, flexShrink: 0 }}>{editando ? "Guardar cambios" : "Editar perfil"}</button>}
+          {tabPerfil === "Perfil" && (
+            <button
+              onClick={handleProfileAction}
+              disabled={savingProfile}
+              style={{ fontSize: 13, padding: "9px 18px", borderRadius: "var(--border-radius-md)", background: editando ? "var(--color-brand)" : "rgba(255,255,255,0.12)", border: editando ? "none" : "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: savingProfile ? "not-allowed" : "pointer", fontWeight: 500, flexShrink: 0, opacity: savingProfile ? 0.75 : 1 }}
+            >
+              {savingProfile ? "Guardando..." : editando ? "Guardar cambios" : "Editar perfil"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -2362,8 +2427,8 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
       </div>
 
       <div style={{ padding: isMobile ? "16px 12px 0" : "22px 40px 0", maxWidth: 840, margin: "0 auto" }}>
-        <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 3, gap: 2 }}>
-          {(["Perfil", ...(mode !== "flota" ? ["Documentos"] : []), "Estadísticas", "Reseñas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
+        <div style={{ display: "flex", flexWrap: "wrap", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 3, gap: 2 }}>
+          {(["Perfil", ...(mode !== "flota" ? ["Documentos"] : []), "Estadísticas", "Reseñas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: isMobile ? 13 : 14, padding: isMobile ? "8px 14px" : "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
         </div>
       </div>
 
@@ -2371,10 +2436,23 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
         <div style={{ padding: isMobile ? "16px 12px" : "20px 40px", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, maxWidth: 840, margin: "0 auto" }}>
           <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 24 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><i className="fa-solid fa-clipboard-list" style={{ color: "var(--green)" }} /> Contacto</div>
+            {profileError && (
+              <div style={{ marginBottom: 10, fontSize: 12, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 10px" }}>
+                {profileError}
+              </div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Teléfono</div>{editando ? <input value={telefono} onChange={(e) => setTelefono(e.target.value)} style={{ fontSize: 14, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "7px 10px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", width: "100%", boxSizing: "border-box" as const }} /> : <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{telefono || "—"}</div>}</div>
               <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Email</div><div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{userEmail || "—"}</div></div>
             </div>
+            {mode !== "flota" && isMobile && (
+              <button
+                onClick={() => setTabPerfil("Documentos")}
+                style={{ marginTop: 16, width: "100%", fontSize: 13, padding: "10px 12px", borderRadius: "var(--border-radius-md)", border: "1px solid #3a806b", background: "transparent", color: "#3a806b", fontWeight: 600, cursor: "pointer" }}
+              >
+                Verificar documentos con la cámara
+              </button>
+            )}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 24, flex: 1 }}>
@@ -2402,7 +2480,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
 
           {/* Documentos del conductor */}
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mis documentos</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 28 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 28 }}>
             {[
               { key: "dni", label: "DNI", verified: dniVerified, endpoint: "/api/documents/verify-dni", hint: "Fotografiá el frente del DNI." },
               { key: "license", label: "Registro de conducir", verified: licenseVerified, endpoint: "/api/documents/verify-license", hint: "Fotografiá el frente del carnet (categoría D o E)." },
@@ -2426,6 +2504,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
                     <input
                       type="file"
                       accept="image/*"
+                      capture="environment"
                       style={{ display: "none" }}
                       disabled={isUp}
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyDoc(endpoint, key, f); e.target.value = ""; }}
@@ -2487,7 +2566,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
                     : <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>Pendiente</span>
                   }
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
                   {[
                     { key: `cedula-verde-${truck.id}`, label: "Cédula verde", verified: truck.cedula_verde_verified, expiry: undefined, endpoint: `/api/documents/verify-truck/${truck.id}/cedula-verde` },
                     { key: `vtv-${truck.id}`, label: "VTV", verified: truck.vtv_verified, expiry: truck.vtv_vence, endpoint: `/api/documents/verify-truck/${truck.id}/vtv` },
@@ -2507,7 +2586,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
                         {expiry && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 8 }}>Vence: {new Date(expiry + "T12:00:00").toLocaleDateString("es-AR")}</div>}
                         {msg && <div style={{ fontSize: 11, fontWeight: 500, color: msg.ok ? "#065f46" : "#b91c1c", marginBottom: 6 }}>{msg.ok ? "✓ " : "✗ "}{msg.text}</div>}
                         <label style={{ display: "block", cursor: isUp ? "not-allowed" : "pointer" }}>
-                          <input type="file" accept="image/*" style={{ display: "none" }} disabled={isUp}
+                          <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} disabled={isUp}
                             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyDoc(endpoint, key, f); e.target.value = ""; }} />
                           <div style={{ fontSize: 12, padding: "7px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUp ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-primary)" }}>
                             {isUp ? "Verificando..." : verified ? "Reemplazar" : "+ Subir foto"}
@@ -3254,4 +3333,3 @@ function FormCampo({ label, value, onChange, placeholder, type = "text", require
     </div>
   );
 }
-

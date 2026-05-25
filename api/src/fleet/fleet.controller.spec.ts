@@ -22,6 +22,8 @@ describe('FleetController', () => {
       getInvitation: jest.fn().mockResolvedValue({}),
       acceptInvitation: jest.fn().mockResolvedValue({ ok: true }),
       getOwnerSettings: jest.fn().mockResolvedValue({ show_as_fleet_driver: true }),
+      getMyProfile: jest.fn().mockResolvedValue({ id: 'u1', name: 'Juan' }),
+      updateMyProfile: jest.fn().mockResolvedValue({ id: 'u1', name: 'Juan' }),
       updateOwnerSettings: jest.fn().mockResolvedValue({ show_as_fleet_driver: false }),
     };
 
@@ -94,6 +96,17 @@ describe('FleetController', () => {
   test('GIVEN usuario WHEN getSettings THEN delega', async () => {
     await controller.getSettings(REQ);
     expect(service.getOwnerSettings).toHaveBeenCalledWith('u1');
+  });
+
+  test('GIVEN usuario WHEN getMyProfile THEN delega', async () => {
+    await controller.getMyProfile(REQ);
+    expect(service.getMyProfile).toHaveBeenCalledWith('u1');
+  });
+
+  test('GIVEN body WHEN updateMyProfile THEN delega', async () => {
+    const body = { name: 'Juan', phone: '1166660000' };
+    await controller.updateMyProfile(REQ, body);
+    expect(service.updateMyProfile).toHaveBeenCalledWith('u1', body);
   });
 
   test('GIVEN body WHEN updateSettings THEN delega', async () => {
