@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -3163,7 +3163,15 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode }) {
+export default function TransportistaPage({ mode = "individual" }: { mode?: DashboardMode }) {
+  return (
+    <Suspense fallback={null}>
+      <TransportistaDashboard mode={mode} />
+    </Suspense>
+  );
+}
+
+function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode }) {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const [navActivo, setNavActivo] = useState<NavItem>(DEFAULT_NAV[mode]);
