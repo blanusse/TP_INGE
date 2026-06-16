@@ -6,7 +6,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { DataSource, Repository, In } from 'typeorm';
 import { Offer } from '../entities/offer.entity';
 import { Load } from '../entities/load.entity';
 import { Truck } from '../entities/truck.entity';
@@ -28,6 +28,7 @@ export class OffersService {
     @InjectRepository(TruckerDocument)
     private documentsRepo: Repository<TruckerDocument>,
     private mailService: MailService,
+    private dataSource: DataSource,
   ) {}
 
   async submitOffer(userId: string, body: { load_id: string; price: number; truck_id?: string; note?: string; assigned_driver_id?: string }) {
@@ -177,11 +178,9 @@ export class OffersService {
       }),
       this.ratingsRepo
         .createQueryBuilder('r')
-        .select([
-          'r.to_user_id',
-          'AVG(r.score) as avg_score',
-          'COUNT(*) as count',
-        ])
+        .select('r.to_user_id', 'to_user_id')
+        .addSelect('AVG(r.score)', 'avg_score')
+        .addSelect('COUNT(*)', 'count')
         .where('r.to_user_id IN (:...ids)', {
           ids: driverIds.length ? driverIds : ['none'],
         })
@@ -192,8 +191,8 @@ export class OffersService {
     const driverMap = Object.fromEntries(drivers.map((d) => [d.id, d]));
     const ratingMap = Object.fromEntries(
       (
-        ratings as { r_to_user_id: string; avg_score: string; count: string }[]
-      ).map((r) => [r.r_to_user_id, r]),
+        ratings as { to_user_id: string; avg_score: string; count: string }[]
+      ).map((r) => [r.to_user_id, r]),
     );
 
     return offers.map((offer) => ({
@@ -267,36 +266,64 @@ export class OffersService {
 
     if (isShipper) {
       if (action === 'accept') {
-        if (offer.status !== 'pending' && offer.status !== 'countered') {
-          throw new BadRequestException(
-            'La oferta no se puede aceptar en su estado actual.',
-          );
-        }
-        offer.status = 'accepted';
-        load.status = 'matched';
-        await this.loadsRepo.save(load);
-        // Collect drivers that will be bulk-rejected for later notification
-        const toReject = await this.offersRepo.find({
-          where: { load_id: load.id, status: In(['pending', 'countered']) },
-          select: ['id', 'driver_id'],
-        });
-        bulkRejectedDriverIds = toReject
-          .filter((o) => o.id !== offerId)
-          .map((o) => o.driver_id);
-        // Reject all other pending offers
-        await this.offersRepo
-          .createQueryBuilder()
-          .update(Offer)
-          .set({ status: 'rejected' })
-          .where(
-            'load_id = :loadId AND id != :offerId AND status IN (:...statuses)',
-            {
-              loadId: load.id,
-              offerId,
-              statuses: ['pending', 'countered'],
-            },
-          )
-          .execute();
+        // Lock load + offer + sibling-rejections en una sola transacción para evitar
+        // double-accept en clicks simultáneos del dador.
+        bulkRejectedDriverIds = await this.dataSource.transaction(
+          async (tx) => {
+            const lockedLoad = await tx.getRepository(Load).findOne({
+              where: { id: load.id },
+              lock: { mode: 'pessimistic_write' },
+            });
+            if (!lockedLoad) throw new NotFoundException();
+            if (lockedLoad.status !== 'available') {
+              throw new ConflictException(
+                'La carga ya fue asignada a otra oferta.',
+              );
+            }
+            const lockedOffer = await tx.getRepository(Offer).findOne({
+              where: { id: offerId },
+              lock: { mode: 'pessimistic_write' },
+            });
+            if (!lockedOffer) throw new NotFoundException();
+            if (
+              lockedOffer.status !== 'pending' &&
+              lockedOffer.status !== 'countered'
+            ) {
+              throw new BadRequestException(
+                'La oferta no se puede aceptar en su estado actual.',
+              );
+            }
+            lockedOffer.status = 'accepted';
+            lockedLoad.status = 'matched';
+            await tx.getRepository(Offer).save(lockedOffer);
+            await tx.getRepository(Load).save(lockedLoad);
+            const toReject = await tx.getRepository(Offer).find({
+              where: { load_id: load.id, status: In(['pending', 'countered']) },
+              select: ['id', 'driver_id'],
+            });
+            const rejectedIds = toReject
+              .filter((o) => o.id !== offerId)
+              .map((o) => o.driver_id);
+            await tx
+              .getRepository(Offer)
+              .createQueryBuilder()
+              .update(Offer)
+              .set({ status: 'rejected' })
+              .where(
+                'load_id = :loadId AND id != :offerId AND status IN (:...statuses)',
+                {
+                  loadId: load.id,
+                  offerId,
+                  statuses: ['pending', 'countered'],
+                },
+              )
+              .execute();
+            // Reflejar cambios en las refs locales para los emails posteriores
+            offer.status = 'accepted';
+            load.status = 'matched';
+            return rejectedIds;
+          },
+        );
       } else if (action === 'reject') {
         offer.status = 'rejected';
       } else if (action === 'counter') {

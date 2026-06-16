@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import {
   VeriffClient,
   CreateSessionInput,
@@ -54,7 +54,15 @@ export class RealVeriffClient implements VeriffClient {
     const secret = process.env.VERIFF_API_SECRET;
     if (!secret || !signature) return false;
     const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
-    return expected === signature;
+    const a = Buffer.from(expected, 'hex');
+    let b: Buffer;
+    try {
+      b = Buffer.from(signature, 'hex');
+    } catch {
+      return false;
+    }
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
   }
 
   parseWebhook(body: Record<string, unknown>): WebhookPayload {

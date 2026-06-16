@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { join } from 'path';
+import { randomInt } from 'crypto';
 import PDFDocument from 'pdfkit';
 import { Payment } from '../entities/payment.entity';
 import { Offer } from '../entities/offer.entity';
@@ -25,9 +26,36 @@ export class PaymentsService {
     @InjectRepository(Load) private loadsRepo: Repository<Load>,
   ) {}
 
-  async createPayment(offerId: string, amount: number, mpPreferenceId: string) {
+  async createPayment(
+    userId: string,
+    offerId: string,
+    amount: number,
+    mpPreferenceId: string,
+  ) {
     const offer = await this.offersRepo.findOne({ where: { id: offerId } });
     if (!offer) throw new NotFoundException('Oferta no encontrada.');
+
+    // El pago lo origina el dador de la carga ofertada. Validamos ownership.
+    const shipper = await this.shippersRepo.findOne({
+      where: { user_id: userId },
+    });
+    if (!shipper) throw new ForbiddenException();
+    const load = await this.loadsRepo.findOne({
+      where: { id: offer.load_id },
+    });
+    if (!load || load.shipper_id !== shipper.id) {
+      throw new ForbiddenException('Esta oferta no pertenece a tu carga.');
+    }
+
+    if (!amount || Number(amount) <= 0) {
+      throw new BadRequestException('El monto debe ser mayor a 0.');
+    }
+
+    // Idempotencia: si ya existe un pago para esta oferta, devolverlo
+    const existing = await this.paymentsRepo.findOne({
+      where: { offer_id: offerId },
+    });
+    if (existing) return existing;
 
     const payment = this.paymentsRepo.create({
       offer_id: offerId,
@@ -48,7 +76,7 @@ export class PaymentsService {
     for (let i = 0; i < PaymentsService.CODE_LENGTH; i++) {
       code +=
         PaymentsService.CODE_CHARS[
-          Math.floor(Math.random() * PaymentsService.CODE_CHARS.length)
+          randomInt(PaymentsService.CODE_CHARS.length)
         ];
     }
     return code;
@@ -64,11 +92,36 @@ export class PaymentsService {
    * dashboard de MercadoPago o via API con credenciales de marketplace habilitadas.
    */
 
-  async confirmPayment(offerId: string, mpPaymentId?: string) {
+  /**
+   * Confirma el pago. Si `userId` se provee, validamos que el caller sea el
+   * dador dueño de la carga (uso desde el frontend tras el redirect de MP).
+   * Si `userId` es undefined, asumimos llamada interna ya autenticada por
+   * `INTERNAL_SECRET` (webhook de MP).
+   */
+  async confirmPayment(
+    offerId: string,
+    mpPaymentId?: string,
+    userId?: string,
+  ) {
     const payment = await this.paymentsRepo.findOne({
       where: { offer_id: offerId },
     });
     if (!payment) throw new NotFoundException('Pago no encontrado.');
+
+    if (userId) {
+      const shipper = await this.shippersRepo.findOne({
+        where: { user_id: userId },
+      });
+      const load = await this.loadsRepo.findOne({
+        where: { id: payment.load_id },
+      });
+      if (!shipper || !load || load.shipper_id !== shipper.id) {
+        throw new ForbiddenException('Este pago no pertenece a tu carga.');
+      }
+    }
+
+    // Idempotencia: no regenerar código si ya está confirmado
+    if (payment.status === 'confirmed') return payment;
 
     payment.status = 'confirmed';
     if (mpPaymentId) payment.mp_payment_id = mpPaymentId;
@@ -170,8 +223,6 @@ export class PaymentsService {
       load.status = 'delivered';
       await this.loadsRepo.save(load);
     }
-
-    await this.paymentsRepo.save(payment);
 
     const COMMISSION_RATE = 0.1;
     const netAmount =

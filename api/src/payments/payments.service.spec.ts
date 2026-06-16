@@ -101,6 +101,9 @@ describe('PaymentsService', () => {
       // GIVEN
       const MOCK_OFFER = { id: OFFER_ID, load_id: LOAD_ID, driver_id: DRIVER_ID };
       offersRepo.findOne.mockResolvedValue(MOCK_OFFER);
+      shippersRepo.findOne.mockResolvedValue({ id: SHIPPER_ID, user_id: SHIPPER_USER_ID });
+      loadsRepo.findOne.mockResolvedValue({ id: LOAD_ID, shipper_id: SHIPPER_ID });
+      paymentsRepo.findOne.mockResolvedValue(null); // no pre-existente
       const savedPayment = {
         id: 'payment-1',
         offer_id: OFFER_ID,
@@ -113,7 +116,7 @@ describe('PaymentsService', () => {
       paymentsRepo.save.mockResolvedValue(savedPayment);
 
       // WHEN
-      const result = await service.createPayment(OFFER_ID, 80_000, 'mp-pref-123');
+      const result = await service.createPayment(SHIPPER_USER_ID, OFFER_ID, 80_000, 'mp-pref-123');
 
       // THEN
       expect(result.status).toBe('pending');
@@ -135,7 +138,7 @@ describe('PaymentsService', () => {
       offersRepo.findOne.mockResolvedValue(null);
 
       // WHEN / THEN
-      await expect(service.createPayment(OFFER_ID, 80_000, 'mp-pref-123'))
+      await expect(service.createPayment(SHIPPER_USER_ID, OFFER_ID, 80_000, 'mp-pref-123'))
         .rejects.toThrow(NotFoundException);
       expect(paymentsRepo.save).not.toHaveBeenCalled();
     });

@@ -35,7 +35,8 @@ import { VerificationModule } from './verification/verification.module';
         type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
-        synchronize: true,
+        // `synchronize` solo en desarrollo: en prod debería usarse migrations.
+        synchronize: config.get<string>('NODE_ENV') !== 'production',
       }),
       inject: [ConfigService],
     }),

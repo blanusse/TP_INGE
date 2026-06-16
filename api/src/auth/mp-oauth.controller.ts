@@ -3,6 +3,8 @@ import type { Response, Request } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { MpOauthService } from './mp-oauth.service';
 
+type AuthReq = Request & { user: { id: string; role: string } };
+
 @Controller('auth/mp')
 export class MpOauthController {
   constructor(private readonly mpOauthService: MpOauthService) {}
@@ -10,11 +12,8 @@ export class MpOauthController {
   /** El transportista visita este endpoint para vincular su cuenta MP */
   @UseGuards(JwtAuthGuard)
   @Get('connect')
-  connect(
-    @Req() req: Request & { user: { userId: string } },
-    @Res() res: Response,
-  ) {
-    const url = this.mpOauthService.getAuthUrl(req.user.userId);
+  connect(@Req() req: AuthReq, @Res() res: Response) {
+    const url = this.mpOauthService.getAuthUrl(req.user.id);
     return res.redirect(url);
   }
 
@@ -37,7 +36,7 @@ export class MpOauthController {
   /** El frontend consulta si el transportista ya vinculó su cuenta MP */
   @UseGuards(JwtAuthGuard)
   @Get('status')
-  status(@Req() req: Request & { user: { userId: string } }) {
-    return this.mpOauthService.getStatus(req.user.userId);
+  status(@Req() req: AuthReq) {
+    return this.mpOauthService.getStatus(req.user.id);
   }
 }

@@ -35,16 +35,29 @@ describe('PaymentsController', () => {
 
   it('createPayment delegates to service', () => {
     mockService.createPayment.mockReturnValue({ id: 'pay-1' });
-    controller.createPayment({ offerId: 'o-1', amount: 5000, mpPreferenceId: 'mp-1' });
-    expect(mockService.createPayment).toHaveBeenCalledWith('o-1', 5000, 'mp-1');
+    controller.createPayment(mockReq() as any, {
+      offerId: 'o-1',
+      amount: 5000,
+      mpPreferenceId: 'mp-1',
+    });
+    expect(mockService.createPayment).toHaveBeenCalledWith(
+      'user-1',
+      'o-1',
+      5000,
+      'mp-1',
+    );
   });
 
   // ── confirmPayment ────────────────────────────────────────────────────────
 
   it('confirmPayment delegates to service with optional mpPaymentId', () => {
     mockService.confirmPayment.mockReturnValue({ status: 'confirmed' });
-    controller.confirmPayment('o-1', { mpPaymentId: 'mp-pay-1' });
-    expect(mockService.confirmPayment).toHaveBeenCalledWith('o-1', 'mp-pay-1');
+    controller.confirmPayment(mockReq() as any, 'o-1', { mpPaymentId: 'mp-pay-1' });
+    expect(mockService.confirmPayment).toHaveBeenCalledWith(
+      'o-1',
+      'mp-pay-1',
+      'user-1',
+    );
   });
 
   // ── confirmPaymentInternal ─────────────────────────────────────────────────

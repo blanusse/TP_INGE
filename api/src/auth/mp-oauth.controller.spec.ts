@@ -32,7 +32,7 @@ describe('MpOauthController', () => {
   describe('connect', () => {
     test('GIVEN usuario autenticado WHEN connect THEN redirige a URL de MP', () => {
       // GIVEN
-      const req = { user: { userId: 'user-1' } } as any;
+      const req = { user: { id: 'user-1', role: 'transportista' } } as any;
       const res = { redirect: jest.fn() } as any;
       service.getAuthUrl.mockReturnValue('https://auth.mercadopago.com/authorization?...');
 
@@ -76,7 +76,7 @@ describe('MpOauthController', () => {
 
   describe('status', () => {
     test('GIVEN usuario autenticado WHEN status THEN delega al service', async () => {
-      const req = { user: { userId: 'user-1' } } as any;
+      const req = { user: { id: 'user-1', role: 'transportista' } } as any;
       service.getStatus.mockResolvedValue({ connected: true });
 
       const result = await controller.status(req);
