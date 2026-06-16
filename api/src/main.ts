@@ -20,7 +20,15 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
   });
-  app.use(json({ limit: '10mb' }));
+  app.use(
+    json({
+      limit: '10mb',
+      verify: (req, _res, buf) => {
+        // Guardamos el raw body para validar firmas HMAC en webhooks (ej. Veriff)
+        (req as unknown as { rawBody?: string }).rawBody = buf.toString('utf8');
+      },
+    }),
+  );
   app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   const httpAdapter = app.getHttpAdapter();
