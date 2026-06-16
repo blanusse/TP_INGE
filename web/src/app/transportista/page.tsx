@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { io } from "socket.io-client";
 
 const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
@@ -1255,7 +1256,7 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
     }
   };
 
-  const wrapper: React.CSSProperties = { padding: "24px 20px", maxWidth: 760, margin: "0 auto", width: "100%" };
+  const wrapper: React.CSSProperties = { paddingTop: 24, paddingBottom: 24, paddingLeft: 20, paddingRight: 20, maxWidth: 760, margin: "0 auto", width: "100%" };
   const card: React.CSSProperties = { background: "var(--bg0)", border: "0.5px solid var(--border)", borderRadius: 12 };
 
   if (loading) return <div style={{ ...wrapper, color: "var(--text2)", textAlign: "center", paddingTop: 60, paddingBottom: 24, paddingLeft: 20, paddingRight: 20 }}>Cargando conversaciones...</div>;
@@ -1392,7 +1393,7 @@ function SeccionNotificaciones({ onClearBadge }: { onClearBadge: () => void }) {
   };
 
   const unread = notifs.filter((n) => !n.is_read).length;
-  const wrapper: React.CSSProperties = { padding: "24px 20px", maxWidth: 760, margin: "0 auto", width: "100%" };
+  const wrapper: React.CSSProperties = { paddingTop: 24, paddingBottom: 24, paddingLeft: 20, paddingRight: 20, maxWidth: 760, margin: "0 auto", width: "100%" };
   const card: React.CSSProperties = { background: "var(--bg0)", border: "0.5px solid var(--border)", borderRadius: 12, overflow: "hidden" };
 
   return (
@@ -2230,13 +2231,17 @@ interface TransportistaProfile { id: string; name: string; email: string; phone:
 
 interface TruckData2 { id: string; patente: string; marca: string | null; modelo: string | null; vtv_vence: string | null; seguro_vence: string | null; vtv_verified: boolean; seguro_verified: boolean; cedula_verde_verified: boolean; }
 
-function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { onToast: (m: string) => void; userName: string; userEmail: string; mode?: DashboardMode }) {
+function SeccionPerfil({ onToast, userName, userEmail, mode = "individual", initialTab }: { onToast: (m: string) => void; userName: string; userEmail: string; mode?: DashboardMode; initialTab?: string | null }) {
   const [editando, setEditando] = useState(false);
   const [nombre, setNombre] = useState(userName);
   const [telefono, setTelefono] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
+  const [tabPerfil, setTabPerfil] = useState<TabPerfil>(
+    (initialTab as TabPerfil) && ["Perfil", "Documentos", "Estadísticas", "Reseñas"].includes(initialTab as string)
+      ? (initialTab as TabPerfil)
+      : "Perfil",
+  );
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -3160,7 +3165,9 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
 
 export default function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode }) {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [navActivo, setNavActivo] = useState<NavItem>(DEFAULT_NAV[mode]);
+  const [perfilInitialTab, setPerfilInitialTab] = useState<string | null>(null);
   const [modalOferta, setModalOferta] = useState<ModalOfertaState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
@@ -3174,6 +3181,38 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
     // const visto = localStorage.getItem("transportista-onboarding-done");
     // if (!visto) setShowOnboarding(true);
   }, []);
+
+  // Deep-link desde el onboarding: /transportista?nav=perfil&tab=documentos
+  useEffect(() => {
+    const nav = searchParams.get("nav");
+    const tab = searchParams.get("tab");
+    if (nav) {
+      const navMapping: Record<string, NavItem> = {
+        perfil: "Mi perfil",
+        flota: "Mi flota",
+        viajes: "Mis viajes",
+        ofertas: "Mis ofertas",
+        buscar: "Buscar cargas",
+        inicio: "Inicio",
+        mensajes: "Mensajes",
+        notificaciones: "Notificaciones",
+      };
+      const mapped = navMapping[nav.toLowerCase()];
+      if (mapped && NAV_ITEMS_BY_MODE[mode].includes(mapped)) {
+        setNavActivo(mapped);
+      }
+    }
+    if (tab) {
+      const tabMapping: Record<string, string> = {
+        documentos: "Documentos",
+        perfil: "Perfil",
+        estadisticas: "Estadísticas",
+        resenas: "Reseñas",
+      };
+      const mapped = tabMapping[tab.toLowerCase()];
+      if (mapped) setPerfilInitialTab(mapped);
+    }
+  }, [searchParams, mode]);
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -3302,7 +3341,7 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
         {navActivo === "Mensajes" && <SeccionMensajes userId={userId} onClearBadge={() => setUnreadMsgCount(0)} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones onClearBadge={() => setNotifBadge(0)} />}
         {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} mode={mode} />}
-        {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} mode={mode} />}
+        {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} mode={mode} initialTab={perfilInitialTab} />}
       </div>
 
       {modalOferta && <ModalOfertar info={modalOferta} trucks={trucks} drivers={rootDrivers} mode={mode} userId={userId} userName={userName} isFleetOwner={isFleetOwner} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}

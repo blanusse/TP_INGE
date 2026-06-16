@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { io } from "socket.io-client";
 
 const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
@@ -2550,8 +2551,25 @@ const NAV_ITEMS: { item: NavItem; icon: IconDefinition }[] = [
 
 export default function DadorDashboard() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [navActivo, setNavActivo] = useState<NavItem>("Inicio");
   const [darkMode, setDarkMode] = useState<boolean | null>(null);
+
+  // Deep-link desde el onboarding: /dador?nav=perfil
+  useEffect(() => {
+    const nav = searchParams.get("nav");
+    if (!nav) return;
+    const mapping: Record<string, NavItem> = {
+      perfil: "Mi perfil",
+      cargas: "Mis cargas",
+      envios: "Mis envios",
+      historial: "Historial",
+      facturacion: "Facturación",
+      inicio: "Inicio",
+    };
+    const mapped = mapping[nav.toLowerCase()];
+    if (mapped) setNavActivo(mapped);
+  }, [searchParams]);
   const [modalPublicar, setModalPublicar] = useState(false);
   const [dniVerificado, setDniVerificado] = useState<boolean | null>(null);
   const [identityVerificado, setIdentityVerificado] = useState(false);
