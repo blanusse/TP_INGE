@@ -9,9 +9,10 @@ import { AppModule } from './app.module';
 
 class WsAdapter extends IoAdapter {
   createIOServer(port: number, options?: ServerOptions) {
+    const origin = process.env.FRONTEND_URL ?? 'http://localhost:3000';
     return super.createIOServer(port, {
       ...options,
-      cors: { origin: '*' },
+      cors: { origin, credentials: true },
     });
   }
 }

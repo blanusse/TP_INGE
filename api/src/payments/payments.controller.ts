@@ -26,9 +26,11 @@ export class PaymentsController {
   @Post()
   @UseGuards(JwtAuthGuard)
   createPayment(
+    @Request() req: AuthReq,
     @Body() body: { offerId: string; amount: number; mpPreferenceId: string },
   ) {
     return this.paymentsService.createPayment(
+      req.user.id,
       body.offerId,
       body.amount,
       body.mpPreferenceId,
@@ -39,10 +41,15 @@ export class PaymentsController {
   @Patch(':offerId/confirm')
   @UseGuards(JwtAuthGuard)
   confirmPayment(
+    @Request() req: AuthReq,
     @Param('offerId') offerId: string,
     @Body() body: { mpPaymentId?: string },
   ) {
-    return this.paymentsService.confirmPayment(offerId, body.mpPaymentId);
+    return this.paymentsService.confirmPayment(
+      offerId,
+      body.mpPaymentId,
+      req.user.id,
+    );
   }
 
   // Llamado por el webhook de MP (sin JWT, protegido por secreto interno)
