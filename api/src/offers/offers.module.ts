@@ -10,6 +10,7 @@ import { TruckerDocument } from '../entities/trucker-document.entity';
 import { OffersController } from './offers.controller';
 import { OffersService } from './offers.service';
 import { MailModule } from '../mail/mail.module';
+import { OnboardingModule } from '../onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { MailModule } from '../mail/mail.module';
       TruckerDocument,
     ]),
     MailModule,
+    OnboardingModule,
   ],
   controllers: [OffersController],
   providers: [OffersService],

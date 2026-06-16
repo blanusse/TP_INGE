@@ -10,6 +10,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RequireOnboardingCompleteGuard } from '../onboarding/require-onboarding-complete.guard';
 
 type AuthReq = {
   user: {
@@ -28,6 +29,7 @@ export class OffersController {
   constructor(private offersService: OffersService) {}
 
   @Post()
+  @UseGuards(RequireOnboardingCompleteGuard)
   submitOffer(@Request() req: AuthReq, @Body() body) {
     return this.offersService.submitOffer(req.user.id, body);
   }
