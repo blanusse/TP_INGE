@@ -1,7 +1,8 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import React, { useState, useEffect, useRef } from "react";
+
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -2549,7 +2550,15 @@ const NAV_ITEMS: { item: NavItem; icon: IconDefinition }[] = [
   { item: "Facturación",  icon: faFileInvoiceDollar },
 ];
 
-export default function DadorDashboard() {
+export default function DadorPage() {
+  return (
+    <Suspense fallback={null}>
+      <DadorDashboard />
+    </Suspense>
+  );
+}
+
+function DadorDashboard() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const [navActivo, setNavActivo] = useState<NavItem>("Inicio");
