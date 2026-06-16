@@ -26,6 +26,8 @@ export default auth((req) => {
     pathname.startsWith("/camionero") ||
     pathname.startsWith("/dador") ||
     pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/verificar-identidad") ||
     pathname.startsWith("/admin");
   if (requiresAuth && !loggedIn) {
     const loginUrl = new URL("/login", req.url);
@@ -83,6 +85,8 @@ export const config = {
     "/transportista/:path*", "/flota/:path*", "/empleado/:path*",
     "/camionero/:path*", "/dador/:path*",
     "/dashboard/:path*", "/dashboard",
+    "/onboarding/:path*", "/onboarding",
+    "/verificar-identidad/:path*", "/verificar-identidad",
     "/admin/:path*", "/admin",
     "/login",
   ],
