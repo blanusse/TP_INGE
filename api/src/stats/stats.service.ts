@@ -60,7 +60,7 @@ export class StatsService {
         (sum, l) => sum + Number(monthOfferMap[l.id]?.price ?? 0),
         0,
       );
-      ingresosUltimos6Meses.push({ mes: monthKey, monto: ingresos });
+      ingresosUltimos6Meses.push({ mes: monthKey, ingresos });
       totalIngresos6m += ingresos;
       viajes6m += monthLoads.length;
     }
