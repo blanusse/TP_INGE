@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 
 const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
 
-const LOAD_ID = "prueba-mapas";
+const LOAD_ID = "dd89af02-cbe8-4cc9-ba98-5b3e614553e1";
 
 export default function DevMapaPage() {
   return (
