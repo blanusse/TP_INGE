@@ -151,15 +151,6 @@ export class OnboardingService {
         cta_path: this.basePath(user) + '?nav=perfil&tab=documentos',
       });
       stepsBase.push({
-        key: 'mp_conectado',
-        label: 'Conectá tu cuenta de MercadoPago',
-        description: 'Donde vas a cobrar cuando completes un viaje.',
-        completed: Boolean(user.mp_user_id),
-        optional: false,
-        cta_label: 'Conectar MercadoPago',
-        cta_path: this.basePath(user) + '?nav=perfil',
-      });
-      stepsBase.push({
         key: 'primer_camion',
         label: esFlota
           ? 'Agregá el primer camión de tu flota'
