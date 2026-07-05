@@ -35,6 +35,8 @@ export default function MapaClient() {
         setMensaje(
           res.status === 401
             ? "Tenés que estar logueada para iniciar la simulación."
+            : res.status === 409
+            ? "No se pudo iniciar el proceso ya que hay uno en curso"
             : `No se pudo iniciar (${res.status}). ${data?.error ?? data?.message ?? ""}`,
         );
         return;
