@@ -2703,8 +2703,8 @@ function DadorDashboard() {
             onIniciarPago={(sel) => setModalPago(sel)}
             onRefresh={fetchCargas}
             onPublicar={() => {
-              if (dniVerificado === false || !identityVerificado) {
-                mostrarToast("Verificá tu identidad en Mi perfil antes de publicar cargas.");
+              if (dniVerificado === false) {
+                mostrarToast("Verificá tu DNI en Mi perfil antes de publicar cargas.");
                 setNavActivo("Mi perfil");
               } else {
                 setModalPublicar(true);
