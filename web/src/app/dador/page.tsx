@@ -1835,29 +1835,34 @@ function SeccionMisEnvios({ cargas, userId }: { cargas: Carga[]; onRefresh: () =
 
       {/* Acceso a la simulación de viaje */}
       <div style={{ marginTop: 28, paddingTop: 20, borderTop: "1px solid var(--color-border-tertiary)", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-        <Link
-          href="/dev/mapa"
-          onClick={() => {
-            // Dispara la simulación Buenos Aires → Rosario sobre la carga demo
-            // (fire-and-forget: el backend responde al toque y corre el viaje async).
-            fetch("/api/location/dd89af02-cbe8-4cc9-ba98-5b3e614553e1/simulate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                originLat: -34.6037,
-                originLng: -58.3816,
-                destLat: -32.9468,
-                destLng: -60.6393,
-                delayMs: 800,
-                useOsrm: true,
-              }),
-            }).catch(() => {});
+        <button
+          onClick={async () => {
+            // Dispara la simulación Buenos Aires → Rosario sobre la carga demo y
+            // ESPERA a que el backend la acepte antes de navegar. Si navegáramos
+            // sin await, la navegación cancelaría el fetch y no se dispararía.
+            try {
+              await fetch("/api/location/dd89af02-cbe8-4cc9-ba98-5b3e614553e1/simulate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  originLat: -34.6037,
+                  originLng: -58.3816,
+                  destLat: -32.9468,
+                  destLng: -60.6393,
+                  delayMs: 800,
+                  useOsrm: true,
+                }),
+              });
+            } catch {
+              // ignoramos el error: igual llevamos al mapa
+            }
+            window.location.href = "/dev/mapa";
           }}
-          style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, padding: "10px 20px", borderRadius: 8, background: "#3a806b", color: "#fff", textDecoration: "none" }}
+          style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, padding: "10px 20px", borderRadius: 8, background: "#3a806b", color: "#fff", border: "none", cursor: "pointer" }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
           Simular viaje Buenos Aires → Rosario
-        </Link>
+        </button>
         <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
           Inicia la simulación y te lleva al mapa para ver el camión moverse.
         </span>
