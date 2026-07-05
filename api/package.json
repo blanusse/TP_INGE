@@ -35,7 +35,7 @@
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.21",
-    "axios": "^1.16.0",
+    "axios": "^1.18.1",
     "bcryptjs": "^3.0.3",
     "nodemailer": "^8.0.7",
     "passport": "^0.7.0",

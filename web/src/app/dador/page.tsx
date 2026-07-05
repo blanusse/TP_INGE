@@ -2046,9 +2046,6 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
   const [dniVerified, setDniVerified] = useState<boolean | null>(null);
   const [dniUploading, setDniUploading] = useState(false);
   const [dniMsg, setDniMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [identityVerified, setIdentityVerified] = useState(false);
-  const [verifyingIdentity, setVerifyingIdentity] = useState(false);
-  const [identityMessage, setIdentityMessage] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const { data: session } = useSession();
   const [ratings, setRatings] = useState<RatingEntry[]>([]);
@@ -2070,10 +2067,6 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
       .then((r) => r.json())
       .then((d) => setDniVerified(d.dni_verified ?? false))
       .catch(() => {});
-    fetch("/api/documents/identity-status")
-      .then((r) => r.json())
-      .then((d) => { if (d.identity_verified) setIdentityVerified(true); })
-      .catch(() => {});
   }, []);
 
   React.useEffect(() => {
@@ -2081,20 +2074,6 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
     fetch(`/api/ratings/user/${session.user.id}`).then((r) => r.json()).then((d) => { if (Array.isArray(d)) setRatings(d); }).catch(() => {});
   }, [session?.user?.id]);
 
-  const handleVerifyIdentity = async () => {
-    setVerifyingIdentity(true);
-    setIdentityMessage("");
-    try {
-      const res = await fetch("/api/documents/verify-identity", { method: "POST" });
-      const data = await res.json();
-      setIdentityMessage(data.message);
-      if (data.verified) setIdentityVerified(true);
-    } catch {
-      setIdentityMessage("Error de conexión. Intentá más tarde.");
-    } finally {
-      setVerifyingIdentity(false);
-    }
-  };
 
   async function handleDniUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -2145,7 +2124,7 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
             : <div style={{ fontSize: 15, fontWeight: 700, color: "var(--heading-color)", textAlign: "center" }}>{nombre}</div>
           }
           <div style={{ fontSize: 12, color: "var(--body-color)", textAlign: "center" }}>{userEmail}</div>
-          {dniVerified && identityVerified
+          {dniVerified
             ? <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--color-brand-light)", color: "var(--color-brand-dark)", fontWeight: 600 }}>Verificado <i className="fa-solid fa-circle-check" /></span>
             : <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>Sin verificar <i className="fa-solid fa-circle-exclamation" /></span>
           }
@@ -2256,34 +2235,6 @@ function SeccionPerfil({ onToast, userName, userEmail }: { onToast: (m: string) 
         </div>
       </div>
 
-      {/* Verificación AFIP */}
-      {dniVerified && (
-        <div style={{ ...card, marginBottom: 20, background: identityVerified ? "#d1fae5" : "#fef3c7", border: identityVerified ? "1px solid #6ee7b7" : "1px solid #fcd34d" }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>
-            <i className={`fa-solid ${identityVerified ? "fa-circle-check" : "fa-id-card"}`} /> Verificación de identidad (AFIP)
-          </div>
-          {identityVerified ? (
-            <span style={{ color: "#166534" }}>Identidad verificada contra AFIP ✓</span>
-          ) : (
-            <>
-              <p style={{ fontSize: 14, marginBottom: 10, color: "#92400e" }}>
-                Validamos tu nombre contra el padrón de AFIP para confirmar tu identidad.
-              </p>
-              <button
-                onClick={handleVerifyIdentity}
-                disabled={verifyingIdentity}
-                style={{ padding: "8px 20px", borderRadius: 8, border: "none",
-                  background: "#2563eb", color: "#fff", fontWeight: 600, cursor: "pointer" }}
-              >
-                {verifyingIdentity ? "Verificando..." : "Verificar identidad"}
-              </button>
-              {identityMessage && (
-                <p style={{ marginTop: 8, fontSize: 13, color: "#92400e" }}>{identityMessage}</p>
-              )}
-            </>
-          )}
-        </div>
-      )}
 
       {/* Reseñas */}
       <div style={{ ...card, marginBottom: 20 }}>
