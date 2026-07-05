@@ -22,6 +22,13 @@ import { TripLocation } from './trip-location.entity';
 
 type AuthReq = { user: { id: string; role: string } | null };
 
+/**
+ * Carga demo para la simulación de mapas (/dev/mapa). Su ubicación es de prueba
+ * y se puede leer públicamente sin ser participante, para que la demo funcione
+ * en producción con cualquier usuario logueado.
+ */
+const DEMO_LOAD_ID = 'dd89af02-cbe8-4cc9-ba98-5b3e614553e1';
+
 @Controller('location')
 export class LocationController {
   constructor(
@@ -66,7 +73,8 @@ export class LocationController {
   @Get(':loadId/last')
   @UseGuards(DevPublicJwtGuard)
   async getLast(@Request() req: AuthReq, @Param('loadId') loadId: string) {
-    if (req.user) await this.assertParticipantForLoad(req.user.id, loadId);
+    if (req.user && loadId !== DEMO_LOAD_ID)
+      await this.assertParticipantForLoad(req.user.id, loadId);
     return (await this.repo.findOne({ where: { load_id: loadId } })) ?? null;
   }
 
@@ -74,7 +82,8 @@ export class LocationController {
   @Sse(':loadId/stream')
   @UseGuards(DevPublicJwtGuard)
   async stream(@Request() req: AuthReq, @Param('loadId') loadId: string) {
-    if (req.user) await this.assertParticipantForLoad(req.user.id, loadId);
+    if (req.user && loadId !== DEMO_LOAD_ID)
+      await this.assertParticipantForLoad(req.user.id, loadId);
     return this.locationService.stream(loadId);
   }
 
