@@ -78,11 +78,10 @@ export class LocationController {
     return this.locationService.stream(loadId);
   }
 
-  /** Solo dev/admin: simula un viaje. Bloqueado en producción. */
+  /** Simula un viaje. Requiere estar autenticado (habilitado también en prod para demo). */
   @Post(':loadId/simulate')
   @UseGuards(JwtAuthGuard)
   simulate(
-    @Request() req: AuthReq,
     @Param('loadId') loadId: string,
     @Body()
     body: {
@@ -95,9 +94,6 @@ export class LocationController {
       useOsrm?: boolean;
     },
   ) {
-    if (process.env.NODE_ENV === 'production' && req.user!.role !== 'admin') {
-      throw new ForbiddenException('Endpoint deshabilitado en producción.');
-    }
     const {
       originLat,
       originLng,
