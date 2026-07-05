@@ -4,7 +4,10 @@ import { INSURANCE_PROVIDER } from './insurance.provider';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { InsurancePolicy } from '../entities/insurance-policy.entity';
 import { InsuranceProduct } from '../entities/insurance-product.entity';
+import { Load } from '../entities/load.entity';
+import { User } from '../entities/user.entity';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { InsuranceConfirmationMailService } from './insurance-confirmation-mail.service';
 
 const mockProvider = {
   providerKey: 'mock',
@@ -25,6 +28,18 @@ const mockProductsRepo = {
   save: jest.fn(),
 };
 
+const mockUsersRepo = {
+  findOne: jest.fn(),
+};
+
+const mockLoadsRepo = {
+  findOne: jest.fn(),
+};
+
+const mockConfirmationMailService = {
+  sendPolicyConfirmation: jest.fn(),
+};
+
 const baseQuoteParams = {
   declared_value: 100000,
   cargo_type: 'granos',
@@ -36,13 +51,19 @@ describe('InsuranceService', () => {
   let service: InsuranceService;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InsuranceService,
         { provide: INSURANCE_PROVIDER, useValue: mockProvider },
         { provide: getRepositoryToken(InsurancePolicy), useValue: mockPoliciesRepo },
         { provide: getRepositoryToken(InsuranceProduct), useValue: mockProductsRepo },
+        { provide: getRepositoryToken(User), useValue: mockUsersRepo },
+        { provide: getRepositoryToken(Load), useValue: mockLoadsRepo },
+        {
+          provide: InsuranceConfirmationMailService,
+          useValue: mockConfirmationMailService,
+        },
       ],
     }).compile();
 
@@ -151,7 +172,27 @@ describe('InsuranceService', () => {
     it('purchases policy with load_id and distance_km', async () => {
       mockProvider.purchasePolicy.mockResolvedValue(purchaseResult);
       mockProvider.getQuote.mockResolvedValue(quoteResult);
-      const savedPolicy = { id: 'pol-1' };
+      mockUsersRepo.findOne.mockResolvedValue({
+        id: 'user-1',
+        email: 'shipper@test.com',
+        name: 'Dador',
+      });
+      mockLoadsRepo.findOne.mockResolvedValue({
+        id: 'load-1',
+        pickup_city: 'Buenos Aires',
+        dropoff_city: 'Cordoba',
+      });
+      const savedPolicy = {
+        id: 'pol-1',
+        load_id: 'load-1',
+        pickup_city: 'Buenos Aires',
+        dropoff_city: 'Cordoba',
+        coverage_ends_at: purchaseResult.coverage_ends_at,
+        premium: quoteResult.premium,
+        insurance_name: 'Seguro de carga CargaBack',
+        insurer_name: 'CargaBack Seguros',
+        coverage_type: 'Cobertura de carga',
+      };
       mockPoliciesRepo.create.mockReturnValue(savedPolicy);
       mockPoliciesRepo.save.mockResolvedValue(savedPolicy);
 
@@ -168,6 +209,16 @@ describe('InsuranceService', () => {
         distance_km: 700,
         provider: 'mock',
       }));
+      expect(mockConfirmationMailService.sendPolicyConfirmation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'shipper@test.com',
+          insuranceName: expect.any(String),
+          insurerName: expect.any(String),
+          tripSummary: 'Buenos Aires -> Cordoba',
+          coverageStartsAt: expect.any(Date),
+          coverageEndsAt: purchaseResult.coverage_ends_at,
+        }),
+      );
       expect(result).toEqual(savedPolicy);
     });
 
@@ -185,6 +236,54 @@ describe('InsuranceService', () => {
         distance_km: null,
       }));
     });
+
+    it('attaches selected product data when product_id is provided', async () => {
+      mockProvider.purchasePolicy.mockResolvedValue(purchaseResult);
+      mockProvider.getQuote.mockResolvedValue(quoteResult);
+      mockProductsRepo.findOne.mockResolvedValue({
+        id: 'prod-1',
+        name: 'Plan Premium',
+        insurer: 'Aseguradora SA',
+        coverage_type: 'todo-riesgo',
+        is_active: true,
+      });
+      mockUsersRepo.findOne.mockResolvedValue({
+        id: 'user-1',
+        email: 'shipper@test.com',
+        name: 'Dador',
+      });
+
+      const savedPolicy = { id: 'pol-3' };
+      mockPoliciesRepo.create.mockReturnValue(savedPolicy);
+      mockPoliciesRepo.save.mockResolvedValue(savedPolicy);
+
+      await service.purchasePolicy('user-1', {
+        ...baseQuoteParams,
+        quote_id: 'q-1',
+        product_id: 'prod-1',
+      });
+
+      expect(mockPoliciesRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          product_id: 'prod-1',
+          insurance_name: 'Plan Premium',
+          insurer_name: 'Aseguradora SA',
+          coverage_type: 'todo-riesgo',
+        }),
+      );
+    });
+
+    it('throws NotFoundException when product_id does not exist', async () => {
+      mockProductsRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.purchasePolicy('user-1', {
+          ...baseQuoteParams,
+          quote_id: 'q-1',
+          product_id: 'missing',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
   });
 
   it('getMyPolicies returns policies for userId', () => {
@@ -192,6 +291,15 @@ describe('InsuranceService', () => {
     service.getMyPolicies('user-1');
     expect(mockPoliciesRepo.find).toHaveBeenCalledWith({
       where: { user_id: 'user-1' },
+      order: { created_at: 'DESC' },
+    });
+  });
+
+  it('getMyPolicies filters by load_id when provided', () => {
+    mockPoliciesRepo.find.mockReturnValue([]);
+    service.getMyPolicies('user-1', 'load-99');
+    expect(mockPoliciesRepo.find).toHaveBeenCalledWith({
+      where: { user_id: 'user-1', load_id: 'load-99' },
       order: { created_at: 'DESC' },
     });
   });

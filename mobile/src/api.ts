@@ -437,3 +437,32 @@ export async function verifyIdentity(): Promise<{ verified: boolean; message: st
   if (!res.ok) throw new Error(data.message ?? "Error al verificar identidad.");
   return data;
 }
+
+export async function createTruck(fields: {
+  patente: string;
+  truck_type: string;
+  marca?: string;
+  modelo?: string;
+  año?: number;
+  capacity_kg?: number;
+}) {
+  const res = await fetch(`${BASE_URL}/fleet/trucks`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(fields),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? "Error al agregar camión.");
+  return data;
+}
+
+export async function deleteTruck(truckId: string) {
+  const res = await fetch(`${BASE_URL}/fleet/trucks/${truckId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message ?? "Error al eliminar camión.");
+  }
+}

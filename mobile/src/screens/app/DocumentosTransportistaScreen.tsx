@@ -65,6 +65,13 @@ export function DocumentosTransportistaScreen() {
   };
 
   const launchPicker = async (docKey: string, endpoint: string, source: "camera" | "gallery") => {
+    if (source === "camera") {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Permiso denegado", "Se necesita acceso a la cámara.");
+        return;
+      }
+    }
     const result =
       source === "camera"
         ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 })

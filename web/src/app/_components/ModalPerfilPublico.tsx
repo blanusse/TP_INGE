@@ -17,6 +17,7 @@ interface RatingEntry {
   score: number;
   comment: string | null;
   created_at: string;
+  from_user?: { id: string; name: string } | null;
 }
 
 interface ModalPerfilPublicoProps {
@@ -104,24 +105,38 @@ export default function ModalPerfilPublico({ userId, onClose, onReportar }: Moda
             {/* Member since */}
             <p className="text-xs text-gray-400 mb-4">Miembro desde {memberSince}</p>
 
-            {/* Ratings with comments */}
-            {ratings.filter((r) => r.comment).length > 0 && (
-              <div className="w-full mb-4 text-left">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Reseñas recientes</p>
-                <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
-                  {ratings.filter((r) => r.comment).map((r) => (
+            {/* Ratings */}
+            <div className="w-full mb-4 text-left">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Reseñas</p>
+              {ratings.length === 0 ? (
+                <div className="text-center py-6 text-gray-400">
+                  <div className="text-2xl mb-1">⭐</div>
+                  <p className="text-xs">Aún no hay reseñas</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 max-h-52 overflow-y-auto">
+                  {ratings.map((r) => (
                     <div key={r.id} className="bg-gray-50 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-1 mb-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-700">{r.from_user?.name ?? "Usuario"}</span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(r.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-0.5 mb-1">
                         {[1, 2, 3, 4, 5].map((s) => (
                           <span key={s} style={{ fontSize: 12, color: s <= r.score ? "#f59e0b" : "#d1d5db" }}>★</span>
                         ))}
                       </div>
-                      <p className="text-xs text-gray-700">{r.comment}</p>
+                      {r.comment
+                        ? <p className="text-xs text-gray-700">{r.comment}</p>
+                        : <p className="text-xs text-gray-400 italic">Sin comentario</p>
+                      }
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Report button */}
             <button

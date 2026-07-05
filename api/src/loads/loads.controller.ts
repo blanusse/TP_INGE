@@ -23,6 +23,7 @@ type AuthReq = {
   };
 };
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RequireOnboardingCompleteGuard } from '../onboarding/require-onboarding-complete.guard';
 import { LoadsService } from './loads.service';
 
 @Controller('loads')
@@ -36,7 +37,7 @@ export class LoadsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RequireOnboardingCompleteGuard)
   createLoad(@Request() req: AuthReq, @Body() body) {
     return this.loadsService.createLoad(req.user.id, body);
   }

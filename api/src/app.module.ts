@@ -18,6 +18,8 @@ import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { InsuranceModule } from './insurance/insurance.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
+import { VerificationModule } from './verification/verification.module';
 
 @Module({
   imports: [
@@ -33,7 +35,8 @@ import { InsuranceModule } from './insurance/insurance.module';
         type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
-        synchronize: true,
+        // `synchronize` solo en desarrollo: en prod debería usarse migrations.
+        synchronize: config.get<string>('NODE_ENV') !== 'production',
       }),
       inject: [ConfigService],
     }),
@@ -51,6 +54,8 @@ import { InsuranceModule } from './insurance/insurance.module';
     AdminModule,
     AlertsModule,
     InsuranceModule,
+    OnboardingModule,
+    VerificationModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: CustomThrottlerGuard }],
 })

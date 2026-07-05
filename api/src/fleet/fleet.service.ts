@@ -273,6 +273,57 @@ export class FleetService {
     return { show_as_fleet_driver: user?.show_as_fleet_driver ?? true };
   }
 
+  async getMyProfile(userId: string) {
+    const user = await this.usersRepo.findOne({
+      where: { id: userId },
+      select: ['id', 'name', 'email', 'phone', 'dni', 'role'],
+    });
+    if (!user || user.role !== 'transportista') throw new ForbiddenException();
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone ?? null,
+      dni: user.dni ?? null,
+    };
+  }
+
+  async updateMyProfile(
+    userId: string,
+    body: { name?: string; phone?: string | null },
+  ) {
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user || user.role !== 'transportista') throw new ForbiddenException();
+
+    if (body.name !== undefined) {
+      const name = body.name.trim();
+      if (!name) {
+        throw new BadRequestException('El nombre no puede quedar vacío.');
+      }
+      user.name = name;
+    }
+
+    if (body.phone !== undefined) {
+      const phone = body.phone?.trim() ?? '';
+      if (phone && !/^\+?\d{8,15}$/.test(phone.replace(/[\s-]/g, ''))) {
+        throw new BadRequestException(
+          'El teléfono debe tener entre 8 y 15 dígitos.',
+        );
+      }
+      user.phone = phone || null;
+    }
+
+    const saved = await this.usersRepo.save(user);
+    return {
+      id: saved.id,
+      name: saved.name,
+      email: saved.email,
+      phone: saved.phone ?? null,
+      dni: saved.dni ?? null,
+    };
+  }
+
   async updateOwnerSettings(
     userId: string,
     body: { show_as_fleet_driver?: boolean },

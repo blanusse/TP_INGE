@@ -71,10 +71,19 @@ export class StatsService {
       const key = l.cargo_type ?? 'Otro';
       cargoCount[key] = (cargoCount[key] ?? 0) + 1;
     }
-    const tiposCarga = Object.entries(cargoCount).map(([tipo, cantidad]) => ({
-      tipo,
-      cantidad,
-    }));
+    const totalDelivered = delivered.length || 1;
+    const CARGO_COLORS = [
+      '#3a806b', '#2563eb', '#d97706', '#7c3aed', '#dc2626', '#0891b2',
+    ];
+    const tiposCarga = Object.entries(cargoCount)
+      .sort((a, b) => b[1] - a[1])
+      .map(([tipo, cantidad], i) => ({
+        tipo,
+        cantidad,
+        count: cantidad,
+        pct: Math.round((cantidad / totalDelivered) * 100),
+        color: CARGO_COLORS[i % CARGO_COLORS.length],
+      }));
 
     // Top 5 routes
     const routeCount: Record<string, number> = {};
@@ -254,12 +263,62 @@ export class StatsService {
     });
     if (!shipper) throw new ForbiddenException();
 
+    const loads = await this.loadsRepo.find({
+      where: { shipper_id: shipper.id },
+    });
+    const loadIds = loads.map((l) => l.id);
+
     const [totalCargas, enTransito] = await Promise.all([
-      this.loadsRepo.count({ where: { shipper_id: shipper.id } }),
-      this.loadsRepo.count({
-        where: { shipper_id: shipper.id, status: 'in_transit' },
-      }),
+      Promise.resolve(loads.length),
+      Promise.resolve(loads.filter((l) => l.status === 'in_transit').length),
     ]);
+
+    const acceptedOffers = loadIds.length
+      ? await this.offersRepo.find({
+          where: { load_id: In(loadIds), status: 'accepted' },
+        })
+      : [];
+
+    // Spending per month (last 6 months)
+    const now = new Date();
+    const gastosUltimos6Meses: { mes: string; monto: number }[] = [];
+    let gastoEsteMes = 0;
+
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = date.toLocaleString('es-AR', {
+        month: 'short',
+        year: '2-digit',
+      });
+      const monthOffers = acceptedOffers.filter((o) => {
+        const d = new Date(o.created_at);
+        return (
+          d.getFullYear() === date.getFullYear() &&
+          d.getMonth() === date.getMonth()
+        );
+      });
+      const monto = monthOffers.reduce(
+        (sum, o) => sum + Number(o.price),
+        0,
+      );
+      gastosUltimos6Meses.push({ mes: monthKey, monto });
+      if (i === 0) gastoEsteMes = monto;
+    }
+
+    // Average hours from load creation to offer acceptance
+    const loadMap = Object.fromEntries(loads.map((l) => [l.id, l]));
+    const tiempos = acceptedOffers
+      .filter((o) => loadMap[o.load_id])
+      .map((o) => {
+        const diff =
+          new Date(o.created_at).getTime() -
+          new Date(loadMap[o.load_id].created_at).getTime();
+        return diff / 3_600_000;
+      });
+    const tiempoPromedioAsignacion =
+      tiempos.length > 0
+        ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length)
+        : null;
 
     const ratingAgg: { avg: string | null } | undefined = await this.ratingsRepo
       .createQueryBuilder('r')
@@ -272,6 +331,9 @@ export class StatsService {
     return {
       totalCargas,
       enTransito,
+      gastoEsteMes,
+      tiempoPromedioAsignacion,
+      gastosUltimos6Meses,
       memberSince: user?.created_at,
       calificacionPromedio: ratingAgg?.avg
         ? Number(ratingAgg.avg).toFixed(1)

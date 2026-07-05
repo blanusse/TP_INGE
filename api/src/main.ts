@@ -9,9 +9,10 @@ import { AppModule } from './app.module';
 
 class WsAdapter extends IoAdapter {
   createIOServer(port: number, options?: ServerOptions) {
+    const origin = process.env.FRONTEND_URL ?? 'http://localhost:3000';
     return super.createIOServer(port, {
       ...options,
-      cors: { origin: '*' },
+      cors: { origin, credentials: true },
     });
   }
 }
@@ -20,7 +21,15 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
   });
-  app.use(json({ limit: '10mb' }));
+  app.use(
+    json({
+      limit: '10mb',
+      verify: (req, _res, buf) => {
+        // Guardamos el raw body para validar firmas HMAC en webhooks (ej. Veriff)
+        (req as unknown as { rawBody?: string }).rawBody = buf.toString('utf8');
+      },
+    }),
+  );
   app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   const httpAdapter = app.getHttpAdapter();

@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import {
   BadRequestException,
   ConflictException,
@@ -111,6 +112,23 @@ describe('OffersService', () => {
         { provide: getRepositoryToken(Shipper), useValue: shippersRepo },
         { provide: getRepositoryToken(TruckerDocument), useValue: documentsRepo },
         { provide: MailService, useValue: mailService },
+        {
+          provide: DataSource,
+          useValue: {
+            transaction: jest.fn(async (cb: any) => {
+              // Simple in-test stub: la transacción ejecuta el callback con un
+              // EntityManager que reusa los repos mockeados arriba.
+              const tx = {
+                getRepository: (entity: any) => {
+                  if (entity === Offer) return offersRepo;
+                  if (entity === Load) return loadsRepo;
+                  return {};
+                },
+              };
+              return cb(tx);
+            }),
+          },
+        },
       ],
     }).compile();
 
@@ -256,15 +274,18 @@ describe('OffersService', () => {
       const qb = makeQueryBuilder();
 
       // GIVEN
-      offersRepo.findOne.mockResolvedValueOnce(MOCK_OFFER);
-      loadsRepo.findOne.mockResolvedValueOnce(MOCK_LOAD);
+      offersRepo.findOne.mockResolvedValueOnce(MOCK_OFFER); // pre-tx lookup
+      loadsRepo.findOne.mockResolvedValueOnce(MOCK_LOAD); // pre-tx lookup
       shippersRepo.findOne.mockResolvedValueOnce(MOCK_SHIPPER);
+      // dentro de la transacción: lock load + lock offer
+      loadsRepo.findOne.mockResolvedValueOnce(MOCK_LOAD);
+      offersRepo.findOne.mockResolvedValueOnce(MOCK_OFFER);
       loadsRepo.save.mockResolvedValueOnce({ ...MOCK_LOAD, status: 'matched' });
-      // bulk reject query builder
-      offersRepo.find.mockResolvedValueOnce([]); // sin otras ofertas pendientes
+      // bulk reject: query builder + listado de ofertas afectadas
+      offersRepo.find.mockResolvedValueOnce([]);
       offersRepo.createQueryBuilder.mockReturnValue(qb);
       const savedOffer = { ...MOCK_OFFER, status: 'accepted' };
-      offersRepo.save.mockResolvedValueOnce(savedOffer);
+      offersRepo.save.mockResolvedValue(savedOffer);
       // post-save: mail
       usersRepo.findOne.mockResolvedValueOnce(MOCK_DRIVER_USER);
 
@@ -288,6 +309,9 @@ describe('OffersService', () => {
       offersRepo.findOne.mockResolvedValueOnce(MOCK_OFFER_REJECTED);
       loadsRepo.findOne.mockResolvedValueOnce(MOCK_LOAD);
       shippersRepo.findOne.mockResolvedValueOnce(MOCK_SHIPPER);
+      // tx: re-lock load + re-lock offer
+      loadsRepo.findOne.mockResolvedValueOnce(MOCK_LOAD);
+      offersRepo.findOne.mockResolvedValueOnce(MOCK_OFFER_REJECTED);
 
       // WHEN / THEN
       await expect(service.updateOffer(SHIPPER_USER_ID, OFFER_ID, 'accept'))
@@ -386,7 +410,7 @@ describe('OffersService', () => {
       offersRepo.find.mockResolvedValueOnce([{ id: 'o-1', driver_id: DRIVER_ID, load_id: LOAD_ID }]);
       usersRepo.find.mockResolvedValueOnce([{ id: DRIVER_ID, name: 'Pedro' }]);
       const qb = makeQueryBuilder();
-      qb.getRawMany.mockResolvedValueOnce([{ r_to_user_id: DRIVER_ID, avg_score: '4.5', count: '2' }]);
+      qb.getRawMany.mockResolvedValueOnce([{ to_user_id: DRIVER_ID, avg_score: '4.5', count: '2' }]);
       ratingsRepo.createQueryBuilder.mockReturnValue(qb);
 
       const result = await service.getOffersForLoad(SHIPPER_USER_ID, LOAD_ID);
@@ -448,6 +472,10 @@ describe('OffersService', () => {
       offersRepo.findOne.mockResolvedValueOnce(offer);
       loadsRepo.findOne.mockResolvedValueOnce(MOCK_LOAD_AVAILABLE);
       shippersRepo.findOne.mockResolvedValueOnce(MOCK_SHIPPER_RECORD);
+      // tx re-lookups (sólo se consumen si la acción es 'accept')
+      loadsRepo.findOne.mockResolvedValueOnce(MOCK_LOAD_AVAILABLE);
+      offersRepo.findOne.mockResolvedValueOnce(offer);
+      loadsRepo.save.mockResolvedValue({ ...MOCK_LOAD_AVAILABLE, status: 'matched' });
       offersRepo.save.mockImplementation((o) => Promise.resolve(o));
       return offer;
     };

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Bebas_Neue, IBM_Plex_Sans } from "next/font/google";
 import { Providers } from "./providers";
 import { ServiceWorkerInit } from "./_components/ServiceWorkerInit";
+import { OnboardingGate } from "./_components/OnboardingGate";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -53,7 +54,10 @@ export default function RootLayout({
       </head>
       <body className="min-h-full">
         <ServiceWorkerInit />
-        <Providers>{children}</Providers>
+        <Providers>
+          <OnboardingGate />
+          {children}
+        </Providers>
       </body>
     </html>
   );

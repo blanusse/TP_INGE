@@ -16,6 +16,21 @@ export class InsurancePolicy {
   @Column({ type: 'uuid', nullable: true })
   load_id: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  product_id: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  insurance_name: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  insurer_name: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  coverage_type: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  coverage_starts_at: Date | null;
+
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   declared_value: number;
 

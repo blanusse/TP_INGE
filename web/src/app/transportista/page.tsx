@@ -1,9 +1,10 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { io } from "socket.io-client";
 
 const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
@@ -1255,10 +1256,10 @@ function SeccionMensajes({ userId, onClearBadge }: { userId: string; onClearBadg
     }
   };
 
-  const wrapper: React.CSSProperties = { padding: "24px 20px", maxWidth: 760, margin: "0 auto", width: "100%" };
+  const wrapper: React.CSSProperties = { paddingTop: 24, paddingBottom: 24, paddingLeft: 20, paddingRight: 20, maxWidth: 760, margin: "0 auto", width: "100%" };
   const card: React.CSSProperties = { background: "var(--bg0)", border: "0.5px solid var(--border)", borderRadius: 12 };
 
-  if (loading) return <div style={{ ...wrapper, color: "var(--text2)", textAlign: "center", paddingTop: 60 }}>Cargando conversaciones...</div>;
+  if (loading) return <div style={{ ...wrapper, color: "var(--text2)", textAlign: "center", paddingTop: 60, paddingBottom: 24, paddingLeft: 20, paddingRight: 20 }}>Cargando conversaciones...</div>;
 
   return (
     <div style={wrapper}>
@@ -1392,7 +1393,7 @@ function SeccionNotificaciones({ onClearBadge }: { onClearBadge: () => void }) {
   };
 
   const unread = notifs.filter((n) => !n.is_read).length;
-  const wrapper: React.CSSProperties = { padding: "24px 20px", maxWidth: 760, margin: "0 auto", width: "100%" };
+  const wrapper: React.CSSProperties = { paddingTop: 24, paddingBottom: 24, paddingLeft: 20, paddingRight: 20, maxWidth: 760, margin: "0 auto", width: "100%" };
   const card: React.CSSProperties = { background: "var(--bg0)", border: "0.5px solid var(--border)", borderRadius: 12, overflow: "hidden" };
 
   return (
@@ -1448,7 +1449,7 @@ function SeccionNotificaciones({ onClearBadge }: { onClearBadge: () => void }) {
             <div style={{ textAlign: "center", color: "var(--text2)", padding: 40 }}>Cargando...</div>
           ) : alerts.length === 0 ? (
             <div style={{ ...card, padding: 40, textAlign: "center", color: "var(--text2)", fontSize: 14 }}>
-              No tenés alertas guardadas. Usá el botón <strong>"Guardar alerta con estos filtros"</strong> en la sección Buscar cargas.
+              No tenés alertas guardadas. Usá el botón <strong>&quot;Guardar alerta con estos filtros&quot;</strong> en la sección Buscar cargas.
             </div>
           ) : (
             <div style={card}>
@@ -2015,7 +2016,7 @@ function SeccionMiFlota({ ownerId, mode = "individual" }: { ownerId: string; mod
           {ructtMsg && <div style={{ fontSize: 12, fontWeight: 500, color: ructtMsg.ok ? "#065f46" : "#b91c1c", marginBottom: 8 }}>{ructtMsg.ok ? "✓ " : "✗ "}{ructtMsg.text}</div>}
           {!ructtVerifiedFlota && (
             <label style={{ display: "block", cursor: uploadingRuctt ? "not-allowed" : "pointer", maxWidth: 240 }}>
-              <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingRuctt}
+              <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} disabled={uploadingRuctt}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyRuctt(f); e.target.value = ""; }} />
               <div style={{ fontSize: 13, padding: "8px 14px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: uploadingRuctt ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-secondary)" }}>
                 {uploadingRuctt ? "Verificando..." : "+ Subir certificado RUCTT"}
@@ -2115,7 +2116,7 @@ function SeccionMiFlota({ ownerId, mode = "individual" }: { ownerId: string; mod
                               </div>
                               {msg && <div style={{ fontSize: 10, color: msg.ok ? "#065f46" : "#b91c1c", marginBottom: 4 }}>{msg.ok ? "✓ " : "✗ "}{msg.text}</div>}
                               <label style={{ display: "block", cursor: isUp ? "not-allowed" : "pointer" }}>
-                                <input type="file" accept="image/*" style={{ display: "none" }} disabled={!!isUp}
+                                <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} disabled={!!isUp}
                                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyTruckDoc(t.id, key, endpoint, field, f); e.target.value = ""; }} />
                                 <div style={{ fontSize: 11, padding: "5px 8px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUp ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-primary)" }}>
                                   {isUp ? "Verificando..." : verified ? "Reemplazar" : "+ Subir foto"}
@@ -2220,19 +2221,27 @@ function SeccionMiFlota({ ownerId, mode = "individual" }: { ownerId: string; mod
 
 // ── Perfil ────────────────────────────────────────────────────────────────────
 
-type TabPerfil = "Perfil" | "Documentos" | "Estadísticas";
+type TabPerfil = "Perfil" | "Documentos" | "Estadísticas" | "Reseñas";
+interface RatingEntry { id: string; score: number; comment: string | null; created_at: string; from_user?: { id: string; name: string } | null; }
 interface EarningsMes { mes: string; monto: number; }
 interface TipoCargaStat { tipo: string; pct: number; count: number; color: string; cantidad?: number; }
 interface RutaStat { ruta: string; viajes: number; }
 interface TransportistaStats { viajesCompletados: number; calificacionPromedio: number | null; memberSince: string; ingresosUltimos6Meses: EarningsMes[]; tiposCarga: TipoCargaStat[]; rutasFrecuentes: RutaStat[]; totalIngresos6m: number; viajes6m: number; phone?: string | null; dni?: string | null; }
+interface TransportistaProfile { id: string; name: string; email: string; phone: string | null; dni: string | null; }
 
 interface TruckData2 { id: string; patente: string; marca: string | null; modelo: string | null; vtv_vence: string | null; seguro_vence: string | null; vtv_verified: boolean; seguro_verified: boolean; cedula_verde_verified: boolean; }
 
-function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { onToast: (m: string) => void; userName: string; userEmail: string; mode?: DashboardMode }) {
+function SeccionPerfil({ onToast, userName, userEmail, mode = "individual", initialTab }: { onToast: (m: string) => void; userName: string; userEmail: string; mode?: DashboardMode; initialTab?: string | null }) {
   const [editando, setEditando] = useState(false);
   const [nombre, setNombre] = useState(userName);
   const [telefono, setTelefono] = useState("");
-  const [tabPerfil, setTabPerfil] = useState<TabPerfil>("Perfil");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [tabPerfil, setTabPerfil] = useState<TabPerfil>(
+    (initialTab as TabPerfil) && ["Perfil", "Documentos", "Estadísticas", "Reseñas"].includes(initialTab as string)
+      ? (initialTab as TabPerfil)
+      : "Perfil",
+  );
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -2253,6 +2262,8 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
   const [trucks, setTrucks] = useState<TruckData2[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Record<string, { ok: boolean; text: string }>>({});
+  const { data: session } = useSession();
+  const [ratings, setRatings] = useState<RatingEntry[]>([]);
   const initials = nombre.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "??";
 
   const atLeastOneDriverVerified = dniVerified && licenseVerified;
@@ -2277,10 +2288,23 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
   };
 
   useEffect(() => {
+    fetch("/api/fleet/profile")
+      .then((r) => r.json())
+      .then((d: Partial<TransportistaProfile>) => {
+        if (typeof d.name === "string" && d.name.trim()) setNombre(d.name);
+        if (typeof d.phone === "string") setTelefono(d.phone);
+      })
+      .catch(() => {});
+
     fetch("/api/stats/camionero").then((r) => r.json()).then((d) => setStats(d)).catch(() => {});
     fetch("/api/fleet/settings").then((r) => r.json()).then((d) => { if (d.show_as_fleet_driver !== undefined) setShowAsDriver(d.show_as_fleet_driver); }).catch(() => {});
     fetchStatus();
   }, []);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetch(`/api/ratings/user/${session.user.id}`).then((r) => r.json()).then((d) => { if (Array.isArray(d)) setRatings(d); }).catch(() => {});
+  }, [session?.user?.id]);
 
   const handleVerifyDoc = async (endpoint: string, key: string, file: File) => {
     setUploading(key);
@@ -2323,6 +2347,52 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
     }
   };
 
+  const handleProfileAction = async () => {
+    if (!editando) {
+      setProfileError(null);
+      setEditando(true);
+      return;
+    }
+
+    const normalizedName = nombre.trim();
+    const normalizedPhone = telefono.trim();
+    if (!normalizedName) {
+      setProfileError("Ingresá tu nombre para guardar el perfil.");
+      return;
+    }
+    if (normalizedPhone && !/^\+?\d{8,15}$/.test(normalizedPhone.replace(/[\s-]/g, ""))) {
+      setProfileError("El teléfono debe tener entre 8 y 15 dígitos.");
+      return;
+    }
+
+    setSavingProfile(true);
+    setProfileError(null);
+    try {
+      const res = await fetch("/api/fleet/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: normalizedName,
+          phone: normalizedPhone || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setProfileError(data.message ?? "No se pudo actualizar el perfil.");
+        return;
+      }
+
+      setNombre(data.name ?? normalizedName);
+      setTelefono(data.phone ?? "");
+      setEditando(false);
+      onToast("Perfil actualizado.");
+    } catch {
+      setProfileError("Error al actualizar el perfil.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   return (
     <main style={{ flex: 1, background: "var(--bg1)" }}>
       <div style={{ background: "var(--bg0)", padding: isMobile ? "20px 16px 36px" : "32px 40px 48px", borderBottom: "1px solid var(--border)" }}>
@@ -2339,7 +2409,15 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
             </div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{userEmail}</div>
           </div>
-          {tabPerfil === "Perfil" && <button onClick={() => { if (editando) onToast("Perfil actualizado."); setEditando(!editando); }} style={{ fontSize: 13, padding: "9px 18px", borderRadius: "var(--border-radius-md)", background: editando ? "var(--color-brand)" : "rgba(255,255,255,0.12)", border: editando ? "none" : "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", fontWeight: 500, flexShrink: 0 }}>{editando ? "Guardar cambios" : "Editar perfil"}</button>}
+          {tabPerfil === "Perfil" && (
+            <button
+              onClick={handleProfileAction}
+              disabled={savingProfile}
+              style={{ fontSize: 13, padding: "9px 18px", borderRadius: "var(--border-radius-md)", background: editando ? "var(--color-brand)" : "rgba(255,255,255,0.12)", border: editando ? "none" : "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: savingProfile ? "not-allowed" : "pointer", fontWeight: 500, flexShrink: 0, opacity: savingProfile ? 0.75 : 1 }}
+            >
+              {savingProfile ? "Guardando..." : editando ? "Guardar cambios" : "Editar perfil"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -2354,8 +2432,8 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
       </div>
 
       <div style={{ padding: isMobile ? "16px 12px 0" : "22px 40px 0", maxWidth: 840, margin: "0 auto" }}>
-        <div style={{ display: "inline-flex", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 3, gap: 2 }}>
-          {(["Perfil", ...(mode !== "flota" ? ["Documentos"] : []), "Estadísticas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: 14, padding: "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
+        <div style={{ display: "flex", flexWrap: "wrap", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: 3, gap: 2 }}>
+          {(["Perfil", ...(mode !== "flota" ? ["Documentos"] : []), "Estadísticas", "Reseñas"] as TabPerfil[]).map((t) => (<button key={t} onClick={() => setTabPerfil(t)} style={{ fontSize: isMobile ? 13 : 14, padding: isMobile ? "8px 14px" : "8px 22px", borderRadius: "var(--border-radius-md)", border: "none", cursor: "pointer", background: tabPerfil === t ? "var(--color-background-primary)" : "transparent", color: tabPerfil === t ? "var(--color-text-primary)" : "var(--color-text-secondary)", fontWeight: tabPerfil === t ? 600 : 400, boxShadow: tabPerfil === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>{t}</button>))}
         </div>
       </div>
 
@@ -2363,10 +2441,23 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
         <div style={{ padding: isMobile ? "16px 12px" : "20px 40px", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, maxWidth: 840, margin: "0 auto" }}>
           <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 24 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><i className="fa-solid fa-clipboard-list" style={{ color: "var(--green)" }} /> Contacto</div>
+            {profileError && (
+              <div style={{ marginBottom: 10, fontSize: 12, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 10px" }}>
+                {profileError}
+              </div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Teléfono</div>{editando ? <input value={telefono} onChange={(e) => setTelefono(e.target.value)} style={{ fontSize: 14, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "7px 10px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", width: "100%", boxSizing: "border-box" as const }} /> : <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{telefono || "—"}</div>}</div>
               <div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Email</div><div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>{userEmail || "—"}</div></div>
             </div>
+            {mode !== "flota" && isMobile && (
+              <button
+                onClick={() => setTabPerfil("Documentos")}
+                style={{ marginTop: 16, width: "100%", fontSize: 13, padding: "10px 12px", borderRadius: "var(--border-radius-md)", border: "1px solid #3a806b", background: "transparent", color: "#3a806b", fontWeight: 600, cursor: "pointer" }}
+              >
+                Verificar documentos con la cámara
+              </button>
+            )}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 24, flex: 1 }}>
@@ -2394,7 +2485,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
 
           {/* Documentos del conductor */}
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 12 }}>Mis documentos</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 28 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 28 }}>
             {[
               { key: "dni", label: "DNI", verified: dniVerified, endpoint: "/api/documents/verify-dni", hint: "Fotografiá el frente del DNI." },
               { key: "license", label: "Registro de conducir", verified: licenseVerified, endpoint: "/api/documents/verify-license", hint: "Fotografiá el frente del carnet (categoría D o E)." },
@@ -2418,6 +2509,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
                     <input
                       type="file"
                       accept="image/*"
+                      capture="environment"
                       style={{ display: "none" }}
                       disabled={isUp}
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyDoc(endpoint, key, f); e.target.value = ""; }}
@@ -2479,7 +2571,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
                     : <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>Pendiente</span>
                   }
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
                   {[
                     { key: `cedula-verde-${truck.id}`, label: "Cédula verde", verified: truck.cedula_verde_verified, expiry: undefined, endpoint: `/api/documents/verify-truck/${truck.id}/cedula-verde` },
                     { key: `vtv-${truck.id}`, label: "VTV", verified: truck.vtv_verified, expiry: truck.vtv_vence, endpoint: `/api/documents/verify-truck/${truck.id}/vtv` },
@@ -2499,7 +2591,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
                         {expiry && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 8 }}>Vence: {new Date(expiry + "T12:00:00").toLocaleDateString("es-AR")}</div>}
                         {msg && <div style={{ fontSize: 11, fontWeight: 500, color: msg.ok ? "#065f46" : "#b91c1c", marginBottom: 6 }}>{msg.ok ? "✓ " : "✗ "}{msg.text}</div>}
                         <label style={{ display: "block", cursor: isUp ? "not-allowed" : "pointer" }}>
-                          <input type="file" accept="image/*" style={{ display: "none" }} disabled={isUp}
+                          <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} disabled={isUp}
                             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVerifyDoc(endpoint, key, f); e.target.value = ""; }} />
                           <div style={{ fontSize: 12, padding: "7px 10px", borderRadius: "var(--border-radius-md)", border: "0.5px dashed var(--color-border-secondary)", textAlign: "center", color: isUp ? "var(--color-text-tertiary)" : "var(--color-text-secondary)", background: "var(--color-background-primary)" }}>
                             {isUp ? "Verificando..." : verified ? "Reemplazar" : "+ Subir foto"}
@@ -2549,6 +2641,43 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual" }: { 
                 {stats.rutasFrecuentes.length === 0 ? (<div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-text-tertiary)", fontSize: 13 }}>Sin rutas completadas todavía.</div>) : (<div style={{ display: "flex", flexDirection: "column", gap: 0 }}>{stats.rutasFrecuentes.map((r, i) => (<div key={r.ruta} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: i < stats.rutasFrecuentes.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}><div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--color-brand-light)", color: "var(--color-brand-dark)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div><div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{r.ruta}</div></div><div style={{ textAlign: "right" }}><div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-brand-dark)" }}>{r.viajes}</div><div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>viaje{r.viajes !== 1 ? "s" : ""}</div></div><div style={{ width: 80, height: 6, background: "var(--color-background-secondary)", borderRadius: 3, overflow: "hidden" }}><div style={{ height: "100%", width: `${(r.viajes / stats.rutasFrecuentes[0].viajes) * 100}%`, background: "var(--color-brand)", borderRadius: 3 }} /></div></div>))}</div>)}
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {tabPerfil === "Reseñas" && (
+        <div style={{ padding: isMobile ? "16px 12px 24px" : "20px 40px 32px", maxWidth: 840, margin: "0 auto" }}>
+          {ratings.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 48, color: "var(--color-text-tertiary)", fontSize: 14 }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>⭐</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Aún no tenés reseñas</div>
+              <div>Cuando completes viajes, otros usuarios podrán calificarte aquí.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {ratings.map((r) => (
+                <div key={r.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--color-brand-light)", color: "var(--color-brand-dark)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                        {r.from_user?.name?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2) ?? "?"}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>{r.from_user?.name ?? "Usuario"}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
+                      {new Date(r.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 2, marginBottom: r.comment ? 8 : 4 }}>
+                    {[1,2,3,4,5].map((s) => <span key={s} style={{ fontSize: 16, color: s <= r.score ? "#f59e0b" : "#d1d5db" }}>★</span>)}
+                  </div>
+                  {r.comment
+                    ? <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{r.comment}</div>
+                    : <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", fontStyle: "italic" }}>Sin comentario</div>
+                  }
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -3034,9 +3163,19 @@ function SeccionPlanificar({ trucks }: { trucks: TruckData[] }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode }) {
+export default function TransportistaPage({ mode = "individual" }: { mode?: DashboardMode }) {
+  return (
+    <Suspense fallback={null}>
+      <TransportistaDashboard mode={mode} />
+    </Suspense>
+  );
+}
+
+function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode }) {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [navActivo, setNavActivo] = useState<NavItem>(DEFAULT_NAV[mode]);
+  const [perfilInitialTab, setPerfilInitialTab] = useState<string | null>(null);
   const [modalOferta, setModalOferta] = useState<ModalOfertaState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ofertadasIds, setOfertadasIds] = useState<Set<string | number>>(new Set());
@@ -3050,6 +3189,38 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
     // const visto = localStorage.getItem("transportista-onboarding-done");
     // if (!visto) setShowOnboarding(true);
   }, []);
+
+  // Deep-link desde el onboarding: /transportista?nav=perfil&tab=documentos
+  useEffect(() => {
+    const nav = searchParams.get("nav");
+    const tab = searchParams.get("tab");
+    if (nav) {
+      const navMapping: Record<string, NavItem> = {
+        perfil: "Mi perfil",
+        flota: "Mi flota",
+        viajes: "Mis viajes",
+        ofertas: "Mis ofertas",
+        buscar: "Buscar cargas",
+        inicio: "Inicio",
+        mensajes: "Mensajes",
+        notificaciones: "Notificaciones",
+      };
+      const mapped = navMapping[nav.toLowerCase()];
+      if (mapped && NAV_ITEMS_BY_MODE[mode].includes(mapped)) {
+        setNavActivo(mapped);
+      }
+    }
+    if (tab) {
+      const tabMapping: Record<string, string> = {
+        documentos: "Documentos",
+        perfil: "Perfil",
+        estadisticas: "Estadísticas",
+        resenas: "Reseñas",
+      };
+      const mapped = tabMapping[tab.toLowerCase()];
+      if (mapped) setPerfilInitialTab(mapped);
+    }
+  }, [searchParams, mode]);
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -3178,7 +3349,7 @@ export default function TransportistaDashboard({ mode = "individual" }: { mode?:
         {navActivo === "Mensajes" && <SeccionMensajes userId={userId} onClearBadge={() => setUnreadMsgCount(0)} />}
         {navActivo === "Notificaciones" && <SeccionNotificaciones onClearBadge={() => setNotifBadge(0)} />}
         {navActivo === "Mi flota" && <SeccionMiFlota ownerId={userId} mode={mode} />}
-        {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} mode={mode} />}
+        {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} mode={mode} initialTab={perfilInitialTab} />}
       </div>
 
       {modalOferta && <ModalOfertar info={modalOferta} trucks={trucks} drivers={rootDrivers} mode={mode} userId={userId} userName={userName} isFleetOwner={isFleetOwner} onClose={() => setModalOferta(null)} onEnviar={(cargaId) => { setOfertadasIds((prev) => new Set([...prev, cargaId])); mostrarToast("¡Oferta enviada! El dador recibirá tu propuesta."); }} />}
@@ -3209,4 +3380,3 @@ function FormCampo({ label, value, onChange, placeholder, type = "text", require
     </div>
   );
 }
-

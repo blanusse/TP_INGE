@@ -72,7 +72,14 @@ describe('InsuranceController', () => {
   });
 
   it('purchasePolicy delegates to service with userId and body', () => {
-    const body = { declared_value: 100000, cargo_type: 'granos', pickup_city: 'BA', dropoff_city: 'CBA', quote_id: 'q-1' };
+    const body = {
+      declared_value: 100000,
+      cargo_type: 'granos',
+      pickup_city: 'BA',
+      dropoff_city: 'CBA',
+      quote_id: 'q-1',
+      product_id: 'prod-1',
+    };
     mockService.purchasePolicy.mockReturnValue({ id: 'pol-1' });
     controller.purchasePolicy(mockReq as any, body);
     expect(mockService.purchasePolicy).toHaveBeenCalledWith('user-1', body);
@@ -80,7 +87,13 @@ describe('InsuranceController', () => {
 
   it('getMyPolicies delegates to service with userId', () => {
     mockService.getMyPolicies.mockReturnValue([]);
-    controller.getMyPolicies(mockReq as any);
-    expect(mockService.getMyPolicies).toHaveBeenCalledWith('user-1');
+    controller.getMyPolicies(mockReq as any, undefined);
+    expect(mockService.getMyPolicies).toHaveBeenCalledWith('user-1', undefined);
+  });
+
+  it('getMyPolicies delegates with load_id when provided', () => {
+    mockService.getMyPolicies.mockReturnValue([]);
+    controller.getMyPolicies(mockReq as any, 'load-1');
+    expect(mockService.getMyPolicies).toHaveBeenCalledWith('user-1', 'load-1');
   });
 });
