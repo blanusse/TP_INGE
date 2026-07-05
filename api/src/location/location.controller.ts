@@ -130,28 +130,45 @@ export class LocationController {
     const safeSteps = Math.max(1, Math.min(500, Math.floor(steps)));
     const safeDelay = Math.max(50, Math.min(60_000, Math.floor(delayMs)));
 
+    // Interpolación lineal: fallback confiable que no depende de servicios externos.
+    const linearWaypoints = (): Array<[number, number]> =>
+      Array.from({ length: safeSteps + 1 }, (_, i) => {
+        const t = i / safeSteps;
+        return [
+          originLat + (destLat - originLat) * t,
+          originLng + (destLng - originLng) * t,
+        ] as [number, number];
+      });
+
     void (async () => {
       let waypoints: Array<[number, number]>;
       if (useOsrm) {
-        const url =
-          `http://router.project-osrm.org/route/v1/driving/` +
-          `${originLng},${originLat};${destLng},${destLat}` +
-          `?overview=full&geometries=geojson`;
-        const res = await fetch(url);
-        const data = (await res.json()) as {
-          routes: Array<{ geometry: { coordinates: Array<[number, number]> } }>;
-        };
-        waypoints = data.routes[0].geometry.coordinates.map(
-          ([lng, lat]) => [lat, lng],
-        );
+        try {
+          const url =
+            `https://router.project-osrm.org/route/v1/driving/` +
+            `${originLng},${originLat};${destLng},${destLat}` +
+            `?overview=full&geometries=geojson`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`OSRM respondió ${res.status}`);
+          const data = (await res.json()) as {
+            routes?: Array<{
+              geometry: { coordinates: Array<[number, number]> };
+            }>;
+          };
+          const coords = data.routes?.[0]?.geometry?.coordinates;
+          if (!coords?.length) throw new Error('OSRM sin ruta');
+          waypoints = coords.map(([lng, lat]) => [lat, lng]);
+        } catch (err) {
+          // Si OSRM no responde (p. ej. no alcanzable desde el server),
+          // caemos a la ruta lineal para que la simulación funcione igual.
+          console.warn(
+            '[simulate] OSRM falló, uso ruta lineal:',
+            err instanceof Error ? err.message : err,
+          );
+          waypoints = linearWaypoints();
+        }
       } else {
-        waypoints = Array.from({ length: safeSteps + 1 }, (_, i) => {
-          const t = i / safeSteps;
-          return [
-            originLat + (destLat - originLat) * t,
-            originLng + (destLng - originLng) * t,
-          ];
-        });
+        waypoints = linearWaypoints();
       }
 
       for (const [lat, lng] of waypoints) {
