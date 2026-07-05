@@ -79,15 +79,6 @@ export class OnboardingService {
         cta_label: 'Completar datos',
         cta_path: '/dador?nav=perfil',
       },
-      {
-        key: 'mp_conectado',
-        label: 'Conectá tu cuenta de MercadoPago',
-        description: 'Necesaria para pagar a los transportistas que cumplan el viaje.',
-        completed: Boolean(user.mp_user_id),
-        optional: false,
-        cta_label: 'Conectar MercadoPago',
-        cta_path: '/dador?nav=perfil',
-      },
     ];
 
     return this.summarize(steps, esEmpresa ? 'dador_empresa' : 'dador_persona');

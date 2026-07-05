@@ -305,23 +305,42 @@ function StepRow({
         </div>
       </div>
       {!done && (
-        <Link
-          href={step.cta_path}
-          onClick={onCtaClick}
-          style={{
-            background: "#3a806b",
-            color: "#fff",
-            padding: "7px 12px",
-            borderRadius: 8,
-            fontSize: 12,
-            fontWeight: 700,
-            textDecoration: "none",
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-          }}
-        >
-          {step.cta_label}
-        </Link>
+        step.key === "mp_conectado" ? (
+          <a
+            href="/api/auth/mp/connect"
+            style={{
+              background: "#3a806b",
+              color: "#fff",
+              padding: "7px 12px",
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 700,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {step.cta_label}
+          </a>
+        ) : (
+          <Link
+            href={step.cta_path}
+            onClick={onCtaClick}
+            style={{
+              background: "#3a806b",
+              color: "#fff",
+              padding: "7px 12px",
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 700,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {step.cta_label}
+          </Link>
+        )
       )}
     </div>
   );

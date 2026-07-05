@@ -152,24 +152,6 @@ export function MainNavigator({ navigation }: Props) {
             options={{ tabBarLabel: "Cargas" }}
           />
           <Tab.Screen
-            name="NuevaCargaTab"
-            component={NuevaCargaScreen}
-            options={{
-              tabBarLabel: "",
-              tabBarButton: (props) => (
-                <TouchableOpacity
-                  style={tabStyles.fabWrapper}
-                  onPress={props.onPress as () => void}
-                  activeOpacity={0.85}
-                >
-                  <View style={tabStyles.fab}>
-                    <Text style={tabStyles.fabPlus}>+</Text>
-                  </View>
-                </TouchableOpacity>
-              ),
-            }}
-          />
-          <Tab.Screen
             name="MisEnviosTab"
             component={MisEnviosNavigator}
             options={{ tabBarLabel: "Envíos" }}
@@ -202,6 +184,26 @@ export function MainNavigator({ navigation }: Props) {
         name="Perfil"
         children={() => <PerfilScreen onLogout={handleLogout} />}
       />
+      {shipper && (
+        <Tab.Screen
+          name="NuevaCargaTab"
+          component={NuevaCargaScreen}
+          options={{
+            tabBarLabel: "",
+            tabBarButton: (props) => (
+              <TouchableOpacity
+                style={tabStyles.fabWrapper}
+                onPress={props.onPress as () => void}
+                activeOpacity={0.85}
+              >
+                <View style={tabStyles.fab}>
+                  <Text style={tabStyles.fabPlus}>+</Text>
+                </View>
+              </TouchableOpacity>
+            ),
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 }
