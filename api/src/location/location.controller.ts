@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   ForbiddenException,
   Get,
@@ -31,6 +32,12 @@ const DEMO_LOAD_ID = 'dd89af02-cbe8-4cc9-ba98-5b3e614553e1';
 
 @Controller('location')
 export class LocationController {
+  /**
+   * loadIds con una simulación en curso. Evita que se disparen dos loops sobre
+   * la misma carga (se pisarían escribiendo el mismo load_id y el mapa falla).
+   */
+  private readonly activeSimulations = new Set<string>();
+
   constructor(
     private readonly locationService: LocationService,
     @InjectRepository(TripLocation)
@@ -87,6 +94,13 @@ export class LocationController {
     return this.locationService.stream(loadId);
   }
 
+  /** Indica si hay una simulación en curso para la carga (para deshabilitar el botón). */
+  @Get(':loadId/simulation-status')
+  @UseGuards(DevPublicJwtGuard)
+  simulationStatus(@Param('loadId') loadId: string) {
+    return { running: this.activeSimulations.has(loadId) };
+  }
+
   /** Simula un viaje. Requiere estar autenticado (habilitado también en prod para demo). */
   @Post(':loadId/simulate')
   @UseGuards(JwtAuthGuard)
@@ -127,6 +141,12 @@ export class LocationController {
       destLng <= 180;
     if (!coordsOk) throw new ForbiddenException('Coordenadas inválidas.');
 
+    // Si ya hay una simulación en curso para esta carga, no arrancamos otra:
+    // dos loops sobre el mismo load_id se pisan y el mapa empieza a fallar.
+    if (this.activeSimulations.has(loadId)) {
+      throw new ConflictException('Ya hay una simulación en curso para esta carga.');
+    }
+
     const safeSteps = Math.max(1, Math.min(500, Math.floor(steps)));
     const safeDelay = Math.max(50, Math.min(60_000, Math.floor(delayMs)));
 
@@ -140,7 +160,12 @@ export class LocationController {
         ] as [number, number];
       });
 
+    // Marcamos la carga como "simulando" antes de largar el loop, para que una
+    // segunda llamada concurrente sea rechazada arriba.
+    this.activeSimulations.add(loadId);
+
     void (async () => {
+      try {
       let waypoints: Array<[number, number]>;
       if (useOsrm) {
         try {
@@ -175,6 +200,10 @@ export class LocationController {
         await this.repo.upsert({ load_id: loadId, lat, lng }, ['load_id']);
         this.locationService.emit(loadId, lat, lng);
         await new Promise((r) => setTimeout(r, safeDelay));
+      }
+      } finally {
+        // Pase lo que pase, liberamos la carga para que se pueda simular de nuevo.
+        this.activeSimulations.delete(loadId);
       }
     })();
 

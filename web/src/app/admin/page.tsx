@@ -1115,8 +1115,33 @@ function SeccionCargasSospechosas() {
 
 // ─── Simulación de viaje Section ──────────────────────────────────────────────
 
+const DEMO_LOAD_ID = "dd89af02-cbe8-4cc9-ba98-5b3e614553e1";
+
 function SeccionSimulacion() {
   const [starting, setStarting] = React.useState(false);
+  // Refleja si el backend tiene una simulación en curso. Mientras esté corriendo,
+  // el botón queda deshabilitado para que no se disparen dos loops que se pisan.
+  const [running, setRunning] = React.useState(false);
+
+  // Consulta el estado al montar y hace polling para reactivar el botón al terminar.
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function checkStatus() {
+      try {
+        const res = await fetch(`/api/location/${DEMO_LOAD_ID}/simulation-status`);
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!cancelled) setRunning(Boolean(d.running));
+      } catch {
+        // sin conexión: dejamos el estado como está
+      }
+    }
+
+    checkStatus();
+    const id = setInterval(checkStatus, 3000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   async function iniciarSimulacion() {
     setStarting(true);
@@ -1124,7 +1149,7 @@ function SeccionSimulacion() {
     // ESPERA a que el backend la acepte antes de navegar. Si navegáramos
     // sin await, la navegación cancelaría el fetch y no se dispararía.
     try {
-      await fetch("/api/location/dd89af02-cbe8-4cc9-ba98-5b3e614553e1/simulate", {
+      const res = await fetch(`/api/location/${DEMO_LOAD_ID}/simulate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1136,25 +1161,39 @@ function SeccionSimulacion() {
           useOsrm: true,
         }),
       });
+      // 409 = ya hay una simulación en curso; no arrancamos otra, solo miramos el mapa.
+      if (res.status === 409) setRunning(true);
     } catch {
       // ignoramos el error: igual llevamos al mapa
     }
     window.location.href = "/dev/mapa";
   }
 
+  const disabled = starting || running;
+
   return (
     <div style={{ background: "#fff", borderRadius: 12, padding: 40, boxShadow: "0 1px 4px #0001", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
       <button
         onClick={iniciarSimulacion}
-        disabled={starting}
-        style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, padding: "10px 20px", borderRadius: 8, background: "#3a806b", color: "#fff", border: "none", cursor: starting ? "not-allowed" : "pointer", opacity: starting ? 0.7 : 1 }}
+        disabled={disabled}
+        style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, padding: "10px 20px", borderRadius: 8, background: "#3a806b", color: "#fff", border: "none", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.7 : 1 }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-        {starting ? "Iniciando..." : "Simular viaje Buenos Aires → Rosario"}
+        {running ? "Simulación en curso..." : starting ? "Iniciando..." : "Simular viaje Buenos Aires → Rosario"}
       </button>
       <span style={{ fontSize: 11, color: "#9ca3af" }}>
-        Inicia la simulación y te lleva al mapa para ver el camión moverse.
+        {running
+          ? "Hay una simulación corriendo. Esperá a que termine para iniciar otra."
+          : "Inicia la simulación y te lleva al mapa para ver el camión moverse."}
       </span>
+      {running && (
+        <button
+          onClick={() => { window.location.href = "/dev/mapa"; }}
+          style={{ fontSize: 12, fontWeight: 600, padding: "7px 16px", borderRadius: 8, background: "none", color: "#3a806b", border: "1px solid #3a806b", cursor: "pointer" }}
+        >
+          Ver el mapa →
+        </button>
+      )}
     </div>
   );
 }
