@@ -2533,7 +2533,6 @@ function DadorDashboard() {
   }, [searchParams]);
   const [modalPublicar, setModalPublicar] = useState(false);
   const [dniVerificado, setDniVerificado] = useState<boolean | null>(null);
-  const [identityVerificado, setIdentityVerificado] = useState(false);
 
   // const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -2545,10 +2544,6 @@ function DadorDashboard() {
     fetch("/api/documents/verify-dni")
       .then((r) => r.json())
       .then((d) => setDniVerificado(d.dni_verified ?? false))
-      .catch(() => {});
-    fetch("/api/documents/identity-status")
-      .then((r) => r.json())
-      .then((d) => { if (d.identity_verified) setIdentityVerificado(true); })
       .catch(() => {});
   }, []);
 
@@ -2643,15 +2638,15 @@ function DadorDashboard() {
           )}
           <button
             onClick={() => {
-              if (dniVerificado === false || !identityVerificado) {
-                mostrarToast("Verificá tu identidad en Mi perfil antes de publicar cargas.");
+              if (dniVerificado === false) {
+                mostrarToast("Verificá tu DNI en Mi perfil antes de publicar cargas.");
                 setNavActivo("Mi perfil");
               } else {
                 setModalPublicar(true);
               }
             }}
-            title={(dniVerificado === false || !identityVerificado) ? "Verificá tu identidad primero" : undefined}
-            style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: (dniVerificado === false || !identityVerificado) ? "#9ca3af" : "#3a806b", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}
+            title={dniVerificado === false ? "Verificá tu DNI primero" : undefined}
+            style={{ fontSize: 13, padding: "9px 18px", borderRadius: 8, background: dniVerificado === false ? "#9ca3af" : "#3a806b", border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-ibm-plex), sans-serif" }}
           >
             + Publicar carga
           </button>
