@@ -80,7 +80,7 @@ export class LocationController {
   @Get(':loadId/last')
   @UseGuards(DevPublicJwtGuard)
   async getLast(@Request() req: AuthReq, @Param('loadId') loadId: string) {
-    if (req.user && loadId !== DEMO_LOAD_ID)
+    if (req.user && req.user.role !== 'admin' && loadId !== DEMO_LOAD_ID)
       await this.assertParticipantForLoad(req.user.id, loadId);
     return (await this.repo.findOne({ where: { load_id: loadId } })) ?? null;
   }
@@ -89,7 +89,7 @@ export class LocationController {
   @Sse(':loadId/stream')
   @UseGuards(DevPublicJwtGuard)
   async stream(@Request() req: AuthReq, @Param('loadId') loadId: string) {
-    if (req.user && loadId !== DEMO_LOAD_ID)
+    if (req.user && req.user.role !== 'admin' && loadId !== DEMO_LOAD_ID)
       await this.assertParticipantForLoad(req.user.id, loadId);
     return this.locationService.stream(loadId);
   }

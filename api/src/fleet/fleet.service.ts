@@ -294,7 +294,9 @@ export class FleetService {
     body: { name?: string; phone?: string | null },
   ) {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
-    if (!user || user.role !== 'transportista') throw new ForbiddenException();
+    // Nombre y teléfono son editables tanto por transportistas como por dadores
+    if (!user || (user.role !== 'transportista' && user.role !== 'shipper'))
+      throw new ForbiddenException();
 
     if (body.name !== undefined) {
       const name = body.name.trim();

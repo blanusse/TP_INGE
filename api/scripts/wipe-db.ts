@@ -15,6 +15,7 @@ import 'dotenv/config';
 import { DataSource } from 'typeorm';
 
 const TABLAS_A_VACIAR = [
+  'trip_locations',
   'audit_logs',
   'ratings',
   'reports',

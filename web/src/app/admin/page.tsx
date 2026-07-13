@@ -1,7 +1,10 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { signOut } from "next-auth/react";
+
+const TripMap = dynamic(() => import("@/app/_components/TripMap"), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1115,85 +1118,214 @@ function SeccionCargasSospechosas() {
 
 // ─── Simulación de viaje Section ──────────────────────────────────────────────
 
-const DEMO_LOAD_ID = "dd89af02-cbe8-4cc9-ba98-5b3e614553e1";
+interface UnfinishedTrip {
+  id: string;
+  status: "matched" | "in_transit";
+  cargo_type: string | null;
+  pickup_city: string;
+  dropoff_city: string;
+  pickup_lat: number | null;
+  pickup_lon: number | null;
+  dropoff_lat: number | null;
+  dropoff_lon: number | null;
+  distance_km: number | null;
+  price: number | null;
+  driver_name: string | null;
+  shipper_name: string | null;
+  created_at: string;
+}
+
+const VELOCIDADES = [
+  { label: "🐢 Lenta", delayMs: 2000, desc: "un punto cada 2 s" },
+  { label: "▶ Normal", delayMs: 800, desc: "un punto cada 0,8 s" },
+  { label: "⏩ Rápida", delayMs: 300, desc: "un punto cada 0,3 s" },
+  { label: "🚀 Turbo", delayMs: 100, desc: "un punto cada 0,1 s" },
+];
 
 function SeccionSimulacion() {
-  const [starting, setStarting] = React.useState(false);
-  // Refleja si el backend tiene una simulación en curso. Mientras esté corriendo,
-  // el botón queda deshabilitado para que no se disparen dos loops que se pisan.
-  const [running, setRunning] = React.useState(false);
+  const [trips, setTrips] = React.useState<UnfinishedTrip[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [expanded, setExpanded] = React.useState<string | null>(null);
+  const [delayMs, setDelayMs] = React.useState(800);
+  const [useOsrm, setUseOsrm] = React.useState(true);
+  const [running, setRunning] = React.useState<Record<string, boolean>>({});
+  const [starting, setStarting] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
 
-  // Consulta el estado al montar y hace polling para reactivar el botón al terminar.
   React.useEffect(() => {
-    let cancelled = false;
-
-    async function checkStatus() {
-      try {
-        const res = await fetch(`/api/location/${DEMO_LOAD_ID}/simulation-status`);
-        if (!res.ok) return;
-        const d = await res.json();
-        if (!cancelled) setRunning(Boolean(d.running));
-      } catch {
-        // sin conexión: dejamos el estado como está
-      }
-    }
-
-    checkStatus();
-    const id = setInterval(checkStatus, 3000);
-    return () => { cancelled = true; clearInterval(id); };
+    fetch("/api/admin/trips/unfinished")
+      .then((r) => r.json())
+      .then((d) => setTrips(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  async function iniciarSimulacion() {
-    setStarting(true);
-    // Dispara la simulación Buenos Aires → Rosario sobre la carga demo y
-    // ESPERA a que el backend la acepte antes de navegar. Si navegáramos
-    // sin await, la navegación cancelaría el fetch y no se dispararía.
+  // Polling del estado de simulación del viaje expandido (para reflejar cuándo termina)
+  React.useEffect(() => {
+    if (!expanded) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const res = await fetch(`/api/location/${expanded}/simulation-status`);
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!cancelled) setRunning((prev) => ({ ...prev, [expanded]: Boolean(d.running) }));
+      } catch { /* sin conexión: mantener estado */ }
+    };
+    check();
+    const id = setInterval(check, 2000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [expanded]);
+
+  const iniciar = async (t: UnfinishedTrip) => {
+    if (t.pickup_lat == null || t.pickup_lon == null || t.dropoff_lat == null || t.dropoff_lon == null) return;
+    setStarting(t.id);
+    setError(null);
     try {
-      const res = await fetch(`/api/location/${DEMO_LOAD_ID}/simulate`, {
+      const res = await fetch(`/api/location/${t.id}/simulate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          originLat: -34.6037,
-          originLng: -58.3816,
-          destLat: -32.9468,
-          destLng: -60.6393,
-          delayMs: 800,
-          useOsrm: true,
+          originLat: t.pickup_lat,
+          originLng: t.pickup_lon,
+          destLat: t.dropoff_lat,
+          destLng: t.dropoff_lon,
+          delayMs,
+          useOsrm,
         }),
       });
-      // 409 = ya hay una simulación en curso; no arrancamos otra, solo miramos el mapa.
-      if (res.status === 409) setRunning(true);
+      if (res.ok || res.status === 409) {
+        setRunning((prev) => ({ ...prev, [t.id]: true }));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? data.message ?? `No se pudo iniciar la simulación (${res.status}).`);
+      }
     } catch {
-      // ignoramos el error: igual llevamos al mapa
+      setError("Error de conexión al iniciar la simulación.");
+    } finally {
+      setStarting(null);
     }
-    window.location.href = "/dev/mapa";
+  };
+
+  if (loading) {
+    return <div style={{ background: "#fff", borderRadius: 12, padding: 40, boxShadow: "0 1px 4px #0001", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>Cargando viajes...</div>;
   }
 
-  const disabled = starting || running;
+  if (trips.length === 0) {
+    return (
+      <div style={{ background: "#fff", borderRadius: 12, padding: 40, boxShadow: "0 1px 4px #0001", textAlign: "center" }}>
+        <div style={{ fontSize: 32, marginBottom: 10 }}>🛰</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 6 }}>No hay viajes en curso para simular</div>
+        <div style={{ fontSize: 13, color: "#6b7280" }}>
+          Cuando un dador acepte una oferta, el viaje va a aparecer acá y vas a poder simular el recorrido del camión en el mapa.
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ background: "#fff", borderRadius: 12, padding: 40, boxShadow: "0 1px 4px #0001", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-      <button
-        onClick={iniciarSimulacion}
-        disabled={disabled}
-        style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, padding: "10px 20px", borderRadius: 8, background: "#3a806b", color: "#fff", border: "none", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.7 : 1 }}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-        {running ? "Simulación en curso..." : starting ? "Iniciando..." : "Simular viaje Buenos Aires → Rosario"}
-      </button>
-      <span style={{ fontSize: 11, color: "#9ca3af" }}>
-        {running
-          ? "Hay una simulación corriendo. Esperá a que termine para iniciar otra."
-          : "Inicia la simulación y te lleva al mapa para ver el camión moverse."}
-      </span>
-      {running && (
-        <button
-          onClick={() => { window.location.href = "/dev/mapa"; }}
-          style={{ fontSize: 12, fontWeight: 600, padding: "7px 16px", borderRadius: 8, background: "none", color: "#3a806b", border: "1px solid #3a806b", cursor: "pointer" }}
-        >
-          Ver el mapa →
-        </button>
-      )}
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ fontSize: 13, color: "#6b7280" }}>
+        {trips.length} viaje{trips.length !== 1 ? "s" : ""} sin terminar. Elegí uno para simular el recorrido del camión en tiempo real — el dador y el transportista lo ven moverse en sus mapas.
+      </div>
+
+      {trips.map((t) => {
+        const sinCoords = t.pickup_lat == null || t.pickup_lon == null || t.dropoff_lat == null || t.dropoff_lon == null;
+        const isOpen = expanded === t.id;
+        const isRunning = running[t.id];
+        return (
+          <div key={t.id} style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px #0001", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 10px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "0.06em", background: t.status === "in_transit" ? "rgba(22,163,74,0.12)" : "rgba(59,130,246,0.12)", color: t.status === "in_transit" ? "#16a34a" : "#2563eb", flexShrink: 0 }}>
+                {t.status === "in_transit" ? "En tránsito" : "Asignada"}
+              </span>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
+                  {t.pickup_city} <span style={{ color: "#3a806b" }}>→</span> {t.dropoff_city}
+                </div>
+                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                  {t.cargo_type ?? "Carga"}
+                  {t.distance_km != null && <> · {t.distance_km.toLocaleString("es-AR")} km</>}
+                  {t.price != null && <> · ${t.price.toLocaleString("es-AR")}</>}
+                  {t.shipper_name && <> · Dador: {t.shipper_name}</>}
+                  {t.driver_name && <> · Transportista: {t.driver_name}</>}
+                </div>
+              </div>
+              {isRunning && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#16a34a", animation: "simPulse 1s ease-in-out infinite" }} />
+                  Simulando
+                </span>
+              )}
+              <button
+                onClick={() => setExpanded(isOpen ? null : t.id)}
+                style={{ fontSize: 12, fontWeight: 600, padding: "8px 16px", borderRadius: 8, background: isOpen ? "#3a806b" : "none", color: isOpen ? "#fff" : "#3a806b", border: "1px solid #3a806b", cursor: "pointer", flexShrink: 0 }}
+              >
+                {isOpen ? "Cerrar" : isRunning ? "Ver simulación" : "Simular viaje"}
+              </button>
+            </div>
+
+            {isOpen && (
+              <div style={{ borderTop: "1px solid #e5e7eb", padding: "16px 20px" }}>
+                {sinCoords ? (
+                  <div style={{ fontSize: 13, color: "#92400e", background: "#fef3c7", borderRadius: 8, padding: "10px 14px" }}>
+                    Este viaje no tiene coordenadas de origen/destino cargadas, no se puede simular en el mapa.
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", marginBottom: 14 }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Velocidad</div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {VELOCIDADES.map((v) => (
+                            <button
+                              key={v.delayMs}
+                              onClick={() => setDelayMs(v.delayMs)}
+                              disabled={isRunning}
+                              title={v.desc}
+                              style={{ fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, border: `1px solid ${delayMs === v.delayMs ? "#3a806b" : "#d1d5db"}`, background: delayMs === v.delayMs ? "rgba(58,128,107,0.1)" : "#fff", color: delayMs === v.delayMs ? "#3a806b" : "#6b7280", cursor: isRunning ? "not-allowed" : "pointer" }}
+                            >
+                              {v.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: isRunning ? "not-allowed" : "pointer", marginTop: 18 }}>
+                        <input type="checkbox" checked={useOsrm} disabled={isRunning} onChange={(e) => setUseOsrm(e.target.checked)} style={{ accentColor: "#3a806b", width: 14, height: 14 }} />
+                        <span style={{ fontSize: 13, color: "#374151" }}>Seguir rutas reales <span style={{ color: "#9ca3af" }}>(el camión va por la ruta, no en línea recta)</span></span>
+                      </label>
+                      <button
+                        onClick={() => iniciar(t)}
+                        disabled={starting === t.id || isRunning}
+                        style={{ marginLeft: "auto", marginTop: 18, display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, padding: "10px 20px", borderRadius: 8, background: isRunning ? "#9ca3af" : "#3a806b", color: "#fff", border: "none", cursor: starting === t.id || isRunning ? "not-allowed" : "pointer" }}
+                      >
+                        {isRunning ? "Simulación en curso..." : starting === t.id ? "Iniciando..." : "▶ Iniciar simulación"}
+                      </button>
+                    </div>
+
+                    {error && (
+                      <div style={{ fontSize: 12, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
+                        {error}
+                      </div>
+                    )}
+
+                    <TripMap
+                      loadId={t.id}
+                      originLat={t.pickup_lat}
+                      originLng={t.pickup_lon}
+                      destLat={t.dropoff_lat}
+                      destLng={t.dropoff_lon}
+                      height={420}
+                      isDriver={false}
+                    />
+                    <style>{`@keyframes simPulse { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }`}</style>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

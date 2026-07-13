@@ -139,8 +139,9 @@ export class LoadsService {
     });
 
     const saved = await this.loadsRepo.save(load);
-    this.alertsService.checkAndNotify(saved); // fire-and-forget
-    void this.checkPriceAnomaly(saved);       // fire-and-forget
+    // fire-and-forget: un fallo acá no debe voltear la publicación ni el proceso
+    Promise.resolve(this.alertsService.checkAndNotify(saved)).catch(() => {});
+    this.checkPriceAnomaly(saved).catch(() => {});
     return saved;
   }
 
@@ -181,6 +182,7 @@ export class LoadsService {
       .createQueryBuilder('l')
       .select([
         'l.id',
+        'l.shipper_id',
         'l.pickup_city',
         'l.dropoff_city',
         'l.cargo_type',
@@ -203,7 +205,46 @@ export class LoadsService {
     if (origin)
       qb.andWhere('l.pickup_city ILIKE :origin', { origin: `%${origin}%` });
 
-    return qb.orderBy('l.created_at', 'DESC').getMany();
+    const loads = await qb.orderBy('l.created_at', 'DESC').getMany();
+    if (loads.length === 0) return loads;
+
+    // Enriquecer con datos del dador (nombre y calificación) para las cards de búsqueda
+    const shipperIds = [...new Set(loads.map((l) => l.shipper_id))];
+    const shippers = await this.shippersRepo.find({ where: { id: In(shipperIds) } });
+    const shipperById = new Map(shippers.map((s) => [s.id, s]));
+    const userIds = shippers.map((s) => s.user_id);
+    const users = userIds.length
+      ? await this.usersRepo.find({ where: { id: In(userIds) } })
+      : [];
+    const userById = new Map(users.map((u) => [u.id, u]));
+
+    const ratingRows: { to_user_id: string; avg: string; count: string }[] =
+      userIds.length
+        ? await this.loadsRepo.manager
+            .createQueryBuilder()
+            .select('r.to_user_id', 'to_user_id')
+            .addSelect('AVG(r.score)', 'avg')
+            .addSelect('COUNT(*)', 'count')
+            .from('ratings', 'r')
+            .where('r.to_user_id IN (:...userIds)', { userIds })
+            .groupBy('r.to_user_id')
+            .getRawMany()
+        : [];
+    const ratingByUser = new Map(ratingRows.map((r) => [r.to_user_id, r]));
+
+    return loads.map((l) => {
+      const shipper = shipperById.get(l.shipper_id);
+      const user = shipper ? userById.get(shipper.user_id) : undefined;
+      const rating = user ? ratingByUser.get(user.id) : undefined;
+      return {
+        ...l,
+        shipper: shipper
+          ? { razon_social: shipper.razon_social ?? user?.name ?? null }
+          : null,
+        shipper_rating: rating ? Math.round(Number(rating.avg) * 10) / 10 : null,
+        shipper_rating_count: rating ? Number(rating.count) : 0,
+      };
+    });
   }
 
   async markInTransitByOffer(offerId: string) {

@@ -67,6 +67,11 @@ export class AdminController {
     );
   }
 
+  @Get('trips/unfinished')
+  getUnfinishedTrips() {
+    return this.adminService.getUnfinishedTrips();
+  }
+
   @Patch('loads/:id/approve')
   approveLoad(@Param('id') id: string) {
     return this.adminService.approveLoad(id);

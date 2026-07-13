@@ -547,7 +547,7 @@ function LoginInner() {
               <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 20 }}>
                 <input type="checkbox" id="terminos" checked={aceptaTerminos} onChange={(e) => setAceptaTerminos(e.target.checked)} style={{ marginTop: 3, accentColor: "#3a806b", cursor: "pointer", width: 15, height: 15 }} />
                 <label htmlFor="terminos" style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", cursor: "pointer", lineHeight: 1.4 }}>
-                  Acepto los <span style={{ color: "#3a806b", fontWeight: 600 }}>términos y condiciones</span> y la <span style={{ color: "#3a806b", fontWeight: 600 }}>política de privacidad</span>
+                  Acepto los <a href="/terminos" target="_blank" rel="noopener noreferrer" style={{ color: "#3a806b", fontWeight: 600, textDecoration: "none" }}>términos y condiciones</a> y la <a href="/terminos#privacidad" target="_blank" rel="noopener noreferrer" style={{ color: "#3a806b", fontWeight: 600, textDecoration: "none" }}>política de privacidad</a>
                 </label>
               </div>
 

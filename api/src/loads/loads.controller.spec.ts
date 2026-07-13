@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { LoadsController } from './loads.controller';
 import { LoadsService } from './loads.service';
+import { RequireOnboardingCompleteGuard } from '../onboarding/require-onboarding-complete.guard';
 
 describe('LoadsController', () => {
   let controller: LoadsController;
@@ -31,7 +32,10 @@ describe('LoadsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LoadsController],
       providers: [{ provide: LoadsService, useValue: service }],
-    }).compile();
+    })
+      .overrideGuard(RequireOnboardingCompleteGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<LoadsController>(LoadsController);
   });

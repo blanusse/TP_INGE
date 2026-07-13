@@ -8,17 +8,21 @@ import {
 import { AdminService } from './admin.service';
 import { User } from '../entities/user.entity';
 import { AuditLog } from '../entities/audit-log.entity';
+import { Load } from '../entities/load.entity';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function makeRepo() {
   return {
+    find: jest.fn(),
     findOne: jest.fn(),
     findAndCount: jest.fn(),
     save: jest.fn(),
     create: jest.fn((data) => ({ ...data })),
     update: jest.fn(),
+    remove: jest.fn(),
     createQueryBuilder: jest.fn(),
+    manager: { find: jest.fn() },
   };
 }
 
@@ -28,6 +32,7 @@ describe('AdminService', () => {
   let service: AdminService;
   let usersRepo: ReturnType<typeof makeRepo>;
   let auditRepo: ReturnType<typeof makeRepo>;
+  let loadsRepo: ReturnType<typeof makeRepo>;
 
   const ADMIN_ID = 'admin-uuid';
   const TARGET_ID = 'target-uuid';
@@ -37,12 +42,14 @@ describe('AdminService', () => {
   beforeEach(async () => {
     usersRepo = makeRepo();
     auditRepo = makeRepo();
+    loadsRepo = makeRepo();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminService,
         { provide: getRepositoryToken(User), useValue: usersRepo },
         { provide: getRepositoryToken(AuditLog), useValue: auditRepo },
+        { provide: getRepositoryToken(Load), useValue: loadsRepo },
       ],
     }).compile();
 

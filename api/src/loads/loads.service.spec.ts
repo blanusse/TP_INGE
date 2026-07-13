@@ -223,13 +223,30 @@ describe('LoadsService', () => {
       return qb;
     }
 
-    test('GIVEN cargas disponibles WHEN getAvailableLoads sin filtros THEN devuelve todas', async () => {
-      const loads = [{ id: 'l1', status: 'available' }];
+    test('GIVEN cargas disponibles WHEN getAvailableLoads sin filtros THEN devuelve todas enriquecidas con datos del dador', async () => {
+      const loads = [{ id: 'l1', status: 'available', shipper_id: 's1' }];
       const qb = mockQb(loads);
+      shippersRepo.find.mockResolvedValue([{ id: 's1', user_id: 'u1', razon_social: 'Empresa SA' }]);
+      usersRepo.find.mockResolvedValue([{ id: 'u1', name: 'Juan' }]);
+      const ratingQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([{ to_user_id: 'u1', avg: '4.5', count: '3' }]),
+      };
+      (loadsRepo as any).manager = { createQueryBuilder: jest.fn().mockReturnValue(ratingQb) };
 
       const result = await service.getAvailableLoads();
 
-      expect(result).toEqual(loads);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: 'l1',
+        shipper: { razon_social: 'Empresa SA' },
+        shipper_rating: 4.5,
+        shipper_rating_count: 3,
+      });
       expect(qb.andWhere).not.toHaveBeenCalled();
     });
 

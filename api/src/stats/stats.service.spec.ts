@@ -140,7 +140,9 @@ describe('StatsService', () => {
 
       expect(result.viajesCompletados).toBe(2);
       expect(result.calificacionPromedio).toBe('4.5');
-      expect(result.tiposCarga).toEqual([{ tipo: 'Granos', cantidad: 2 }]);
+      expect(result.tiposCarga).toEqual([
+        expect.objectContaining({ tipo: 'Granos', cantidad: 2 }),
+      ]);
       expect(result.rutasFrecuentes).toEqual([{ ruta: 'BA → CBA', viajes: 2 }]);
     });
   });
@@ -309,9 +311,13 @@ describe('StatsService', () => {
         id: 'shipper-1', user_id: SHIPPER_USER_ID, tipo: 'empresa',
         razon_social: 'Mi Empresa', cuit: '20301234563', cuil: null, address: 'Calle 1',
       });
-      loadsRepo.count
-        .mockResolvedValueOnce(10)  // totalCargas
-        .mockResolvedValueOnce(2);  // enTransito
+      const loads = [
+        ...Array.from({ length: 8 }, (_, i) => ({ id: `l${i}`, status: 'available', created_at: new Date() })),
+        { id: 'l8', status: 'in_transit', created_at: new Date() },
+        { id: 'l9', status: 'in_transit', created_at: new Date() },
+      ];
+      loadsRepo.find.mockResolvedValue(loads);
+      offersRepo.find.mockResolvedValue([]);
       mockRatingQb(ratingsRepo, '4.2');
       usersRepo.findOne.mockResolvedValue({
         id: SHIPPER_USER_ID, created_at: new Date(), phone: '111', dni: '30123456',

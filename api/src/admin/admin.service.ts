@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { AuditLog } from '../entities/audit-log.entity';
 import { Load } from '../entities/load.entity';
+import { Offer } from '../entities/offer.entity';
+import { Shipper } from '../entities/shipper.entity';
 
 const VALID_ACTIONS = ['suspend', 'unsuspend', 'ban', 'unban'] as const;
 type AdminAction = typeof VALID_ACTIONS[number];
@@ -101,5 +103,60 @@ export class AdminService {
     if (!load) throw new NotFoundException('Carga no encontrada.');
     await this.loadsRepo.remove(load);
     return { id: loadId, deleted: true };
+  }
+
+  /** Viajes con transportista asignado que todavía no terminaron (para el simulador). */
+  async getUnfinishedTrips() {
+    const loads = await this.loadsRepo.find({
+      where: { status: In(['matched', 'in_transit']) },
+      order: { created_at: 'DESC' },
+    });
+    if (loads.length === 0) return [];
+
+    const manager = this.loadsRepo.manager;
+    const loadIds = loads.map((l) => l.id);
+    const shipperIds = [...new Set(loads.map((l) => l.shipper_id))];
+
+    const [offers, shippers] = await Promise.all([
+      manager.find(Offer, { where: { load_id: In(loadIds), status: 'accepted' } }),
+      manager.find(Shipper, { where: { id: In(shipperIds) } }),
+    ]);
+
+    const driverIds = [
+      ...new Set(offers.map((o) => o.assigned_driver_id ?? o.driver_id)),
+    ];
+    const userIds = [...new Set([...driverIds, ...shippers.map((s) => s.user_id)])];
+    const users = userIds.length
+      ? await this.usersRepo.find({ where: { id: In(userIds) } })
+      : [];
+
+    const userById = new Map(users.map((u) => [u.id, u]));
+    const offerByLoad = new Map(offers.map((o) => [o.load_id, o]));
+    const shipperById = new Map(shippers.map((s) => [s.id, s]));
+
+    return loads.map((l) => {
+      const offer = offerByLoad.get(l.id);
+      const driver = offer
+        ? userById.get(offer.assigned_driver_id ?? offer.driver_id)
+        : undefined;
+      const shipper = shipperById.get(l.shipper_id);
+      const shipperUser = shipper ? userById.get(shipper.user_id) : undefined;
+      return {
+        id: l.id,
+        status: l.status,
+        cargo_type: l.cargo_type,
+        pickup_city: l.pickup_city,
+        dropoff_city: l.dropoff_city,
+        pickup_lat: l.pickup_lat != null ? Number(l.pickup_lat) : null,
+        pickup_lon: l.pickup_lon != null ? Number(l.pickup_lon) : null,
+        dropoff_lat: l.dropoff_lat != null ? Number(l.dropoff_lat) : null,
+        dropoff_lon: l.dropoff_lon != null ? Number(l.dropoff_lon) : null,
+        distance_km: l.distance_km != null ? Number(l.distance_km) : null,
+        price: offer ? Number(offer.price) : null,
+        driver_name: driver?.name ?? null,
+        shipper_name: shipper?.razon_social ?? shipperUser?.name ?? null,
+        created_at: l.created_at,
+      };
+    });
   }
 }

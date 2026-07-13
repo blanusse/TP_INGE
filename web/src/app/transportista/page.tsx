@@ -87,11 +87,10 @@ interface CargaCard {
   peso: string;
   camion: string;
   retiro: string;
+  retiroISO: string | null;
   distancia: string;
   rating: number;
-  viajes: number;
-  badge: string | null;
-  destacado: boolean;
+  opiniones: number;
 }
 
 const TRUCK_LABEL: Record<string, string> = {
@@ -128,7 +127,7 @@ function dbLoadToCard(load: Record<string, unknown>): CargaCard {
       distancia = `${km.toLocaleString("es-AR")} km`;
     }
   }
-  return { id: (load.id ?? load.id) as string, titulo, empresa: shipper?.razon_social ?? "Dador de carga", hace, precio: (load.price_base as number) ?? 0, peso: load.weight_kg ? `${(load.weight_kg as number).toLocaleString("es-AR")} kg` : "—", camion: load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required as string] ?? "Cualquiera") : "Cualquiera", retiro: load.ready_at ? new Date(load.ready_at as string).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—", distancia, rating: 0, viajes: 0, badge: null, destacado: false };
+  return { id: (load.id ?? load.id) as string, titulo, empresa: shipper?.razon_social ?? "Dador de carga", hace, precio: (load.price_base as number) ?? 0, peso: load.weight_kg ? `${(load.weight_kg as number).toLocaleString("es-AR")} kg` : "—", camion: load.truck_type_required ? (TRUCK_LABEL[load.truck_type_required as string] ?? "Cualquiera") : "Cualquiera", retiro: load.ready_at ? new Date(load.ready_at as string).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—", retiroISO: load.ready_at ? (load.ready_at as string) : null, distancia, rating: load.shipper_rating != null ? Number(load.shipper_rating) : 0, opiniones: (load.shipper_rating_count as number) ?? 0 };
 }
 
 function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoTruck, onNoDriver }: { onOfertar: (c: ModalOfertaState) => void; onAlerta: () => void; excluirIds: Set<string | number>; trucks: TruckData[]; drivers: Driver[]; onNoTruck: () => void; onNoDriver: () => void }) {
@@ -142,7 +141,6 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoT
   const [precioMax, setPrecioMax] = useState("");
   const [fechaDesde, setFechaDesde] = useState("");
   const [ratingMin, setRatingMin] = useState("0");
-  const [soloDestacadas, setSoloDestacadas] = useState(false);
   const [cargasDB, setCargasDB] = useState<CargaCard[]>([]);
   const [loadingDB, setLoadingDB] = useState(true);
   const [page, setPage] = useState(1);
@@ -164,10 +162,10 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoT
   const toggleChip = (list: string[], setList: (v: string[]) => void, t: string) => setList(list.includes(t) ? list.filter((x) => x !== t) : [...list, t]);
   const parseKm = (d: string) => parseInt(d.replace(/\./g, "").replace(/[^0-9]/g, "")) || 0;
   const DIST_RANGOS: Record<string, [number, number]> = { todos: [0, Infinity], corta: [0, 500], media: [500, 1200], larga: [1200, 2000], muy_larga: [2000, Infinity] };
-  const limpiarFiltros = () => { setTipos([]); setTiposCamion([]); setOrigen(""); setDestino(""); setDistanciaRango("todos"); setPrecioMin(""); setPrecioMax(""); setFechaDesde(""); setRatingMin("0"); setSoloDestacadas(false); setPage(1); };
+  const limpiarFiltros = () => { setTipos([]); setTiposCamion([]); setOrigen(""); setDestino(""); setDistanciaRango("todos"); setPrecioMin(""); setPrecioMax(""); setFechaDesde(""); setRatingMin("0"); setPage(1); };
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setPage(1); }, [tipos, tiposCamion, origen, destino, distanciaRango, precioMin, precioMax, fechaDesde, ratingMin, soloDestacadas, sortBy]);
-  const hayFiltros = tipos.length > 0 || tiposCamion.length > 0 || origen || destino || distanciaRango !== "todos" || precioMin || precioMax || fechaDesde || ratingMin !== "0" || soloDestacadas;
+  useEffect(() => { setPage(1); }, [tipos, tiposCamion, origen, destino, distanciaRango, precioMin, precioMax, fechaDesde, ratingMin, sortBy]);
+  const hayFiltros = tipos.length > 0 || tiposCamion.length > 0 || origen || destino || distanciaRango !== "todos" || precioMin || precioMax || fechaDesde || ratingMin !== "0";
   const [minKm, maxKm] = DIST_RANGOS[distanciaRango];
   const todasCargas: CargaCard[] = cargasDB.filter((c) => !excluirIds.has(c.id));
   const cargas = todasCargas.filter((c) => {
@@ -177,15 +175,20 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoT
     if (precioMax && c.precio > parseInt(precioMax)) return false;
     if (tipos.length > 0 && !tipos.some((t) => c.titulo.toLowerCase().includes(t.toLowerCase()))) return false;
     if (tiposCamion.length > 0 && !tiposCamion.some((t) => c.camion.toLowerCase().includes(t.toLowerCase()))) return false;
-    if (c.rating < parseFloat(ratingMin)) return false;
-    if (soloDestacadas && !c.destacado) return false;
+    if (ratingMin !== "0" && c.rating < parseFloat(ratingMin)) return false;
     if (origen && !c.titulo.toLowerCase().includes(origen.toLowerCase())) return false;
     if (destino && !c.titulo.toLowerCase().includes(destino.toLowerCase())) return false;
+    if (fechaDesde && (!c.retiroISO || c.retiroISO.slice(0, 10) < fechaDesde)) return false;
     return true;
   }).sort((a, b) => {
     if (sortBy === "Mayor precio") return b.precio - a.precio;
     if (sortBy === "Menor precio") return a.precio - b.precio;
     if (sortBy === "Más cercano") return parseKm(a.distancia) - parseKm(b.distancia);
+    if (sortBy === "Fecha de retiro") {
+      if (!a.retiroISO) return 1;
+      if (!b.retiroISO) return -1;
+      return a.retiroISO.localeCompare(b.retiroISO);
+    }
     return 0;
   });
   const totalPages = Math.ceil(cargas.length / PAGE_SIZE);
@@ -268,13 +271,6 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoT
           </select>
         </div>
 
-        <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-            <input type="checkbox" checked={soloDestacadas} onChange={(e) => setSoloDestacadas(e.target.checked)} style={{ accentColor: "var(--green)", width: 14, height: 14, cursor: "pointer" }} />
-            <span style={{ fontSize: 13, color: "var(--text2)" }}>Solo cargas destacadas</span>
-          </label>
-        </div>
-
         <button
           onClick={async () => {
             await fetch("/api/alerts", {
@@ -340,7 +336,7 @@ function SeccionBuscar({ onOfertar, onAlerta, excluirIds, trucks, drivers, onNoT
                 ))}
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
-                <div style={{ fontSize: 12, color: "var(--text2)" }}><Stars value={c.rating} /> {c.rating} · {c.viajes} viajes{c.badge && <span style={{ color: "var(--green)" }}> · {c.badge}</span>}</div>
+                <div style={{ fontSize: 12, color: "var(--text2)" }}>{c.opiniones > 0 ? <><Stars value={c.rating} /> {c.rating} · {c.opiniones} opinión{c.opiniones !== 1 ? "es" : ""}</> : <span style={{ color: "var(--text3)" }}>Dador sin calificaciones</span>}</div>
                 {trucks.length === 0
                   ? <button onClick={(e) => { e.stopPropagation(); onNoTruck(); }} title="Registrá un camión en Mi flota para poder ofertar" style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border2)", background: "transparent", color: "var(--text2)", cursor: "pointer" }}>Sin camión</button>
                   : drivers.length === 0

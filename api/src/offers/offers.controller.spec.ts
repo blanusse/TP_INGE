@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OffersController } from './offers.controller';
 import { OffersService } from './offers.service';
+import { RequireOnboardingCompleteGuard } from '../onboarding/require-onboarding-complete.guard';
 
 const mockService = {
   submitOffer: jest.fn(),
@@ -21,7 +22,10 @@ describe('OffersController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [OffersController],
       providers: [{ provide: OffersService, useValue: mockService }],
-    }).compile();
+    })
+      .overrideGuard(RequireOnboardingCompleteGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
     controller = module.get<OffersController>(OffersController);
   });
 

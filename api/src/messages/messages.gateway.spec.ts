@@ -22,6 +22,7 @@ const makeClient = (overrides: Partial<any> = {}): any => ({
   data: {},
   disconnect: jest.fn(),
   join: jest.fn(),
+  emit: jest.fn(),
   ...overrides,
 });
 

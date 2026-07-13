@@ -269,8 +269,12 @@ export default async function Home() {
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 14, color: "rgba(255,255,255,0.5)" }}>Legal</div>
-              {["Términos y condiciones", "Política de privacidad", "Cookies"].map((l) => (
-                <div key={l} style={{ marginBottom: 8 }}><a href="#" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", textDecoration: "none" }}>{l}</a></div>
+              {[
+                { label: "Términos y condiciones", href: "/terminos" },
+                { label: "Política de privacidad", href: "/terminos#privacidad" },
+                { label: "Cookies", href: "/terminos#cookies" },
+              ].map((l) => (
+                <div key={l.label} style={{ marginBottom: 8 }}><Link href={l.href} style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", textDecoration: "none" }}>{l.label}</Link></div>
               ))}
             </div>
             <div>
