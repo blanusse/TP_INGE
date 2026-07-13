@@ -196,6 +196,28 @@ export class DniVisionService {
     return normalize(text).includes(normalize(dni));
   }
 
+  /**
+   * Extracts an Argentine DNI number from OCR text. Prefers the dotted format
+   * (12.345.678) which is unambiguous; falls back to bare 7–8 digit sequences
+   * in the valid DNI range (1M–99M) that aren't part of a longer number.
+   * Returns the digits only (no dots) or null if nothing plausible found.
+   */
+  extractDniFromText(text: string): string | null {
+    const dotted = text.match(/\b(\d{1,2})\.(\d{3})\.(\d{3})\b/);
+    if (dotted) {
+      return `${dotted[1]}${dotted[2]}${dotted[3]}`;
+    }
+    const matches = [...text.matchAll(/(?<!\d)(\d{7,8})(?!\d)/g)];
+    const candidates = matches
+      .map((m) => m[1])
+      .filter((s) => {
+        const n = parseInt(s, 10);
+        return n >= 1_000_000 && n <= 99_999_999;
+      });
+    if (candidates.length === 0) return null;
+    return candidates[0];
+  }
+
   plateFoundInText(text: string, patente: string): boolean {
     const normalize = (s: string) => s.replace(/[\s.-]/g, '').toUpperCase();
     return normalize(text).includes(normalize(patente));

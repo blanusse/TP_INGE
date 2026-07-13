@@ -108,8 +108,6 @@ export class DocumentsService {
   ): Promise<{ verified: boolean; message: string }> {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Usuario no encontrado');
-    if (!user.dni)
-      throw new BadRequestException('El usuario no tiene DNI registrado');
 
     const text = await this.visionService.extractTextFromFile(filePath);
 
@@ -121,11 +119,39 @@ export class DocumentsService {
       };
     }
 
-    const found = this.visionService.dniFoundInText(text, user.dni);
-
     const backendUrl =
       process.env.BACKEND_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
     const photoUrl = `${backendUrl}/uploads/documents/${basename(filePath)}`;
+
+    // Si el usuario no declaró DNI al registrarse, lo extraemos del OCR y lo
+    // guardamos. Esto permite completar el onboarding sin haber cargado el
+    // número previamente.
+    if (!user.dni) {
+      const extractedDni = this.visionService.extractDniFromText(text);
+      if (!extractedDni) {
+        return {
+          verified: false,
+          message:
+            'No pudimos leer el número de DNI de la foto. Sacá una foto más clara del frente del documento.',
+        };
+      }
+      const existing = await this.usersRepo.findOne({
+        where: { dni: extractedDni, role: user.role },
+      });
+      if (existing && existing.id !== userId) {
+        return {
+          verified: false,
+          message: 'Ya existe una cuenta con ese DNI.',
+        };
+      }
+      await this.usersRepo.update(
+        { id: userId },
+        { dni: extractedDni, dni_verified: true, dni_photo_url: photoUrl },
+      );
+      return { verified: true, message: 'DNI verificado correctamente' };
+    }
+
+    const found = this.visionService.dniFoundInText(text, user.dni);
 
     if (found) {
       await this.usersRepo.update(

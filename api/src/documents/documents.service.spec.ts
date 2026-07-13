@@ -44,6 +44,7 @@ describe('DocumentsService', () => {
       isCedulaAzulDocument: jest.fn().mockReturnValue(true),
       isRucttDocument: jest.fn().mockReturnValue(true),
       dniFoundInText: jest.fn().mockReturnValue(true),
+      extractDniFromText: jest.fn().mockReturnValue(null),
       plateFoundInText: jest.fn().mockReturnValue(true),
       extractExpiryDate: jest.fn().mockReturnValue(null),
     };
@@ -136,9 +137,26 @@ describe('DocumentsService', () => {
       await expect(service.verifyDni('u1', '/path')).rejects.toThrow(NotFoundException);
     });
 
-    test('GIVEN usuario sin DNI WHEN verifyDni THEN lanza BadRequestException', async () => {
-      usersRepo.findOne.mockResolvedValue({ id: 'u1', dni: null });
-      await expect(service.verifyDni('u1', '/path')).rejects.toThrow(BadRequestException);
+    test('GIVEN usuario sin DNI y OCR lee DNI valido WHEN verifyDni THEN guarda el DNI y devuelve verified true', async () => {
+      usersRepo.findOne
+        .mockResolvedValueOnce({ id: 'u1', dni: null, role: 'transportista' })
+        .mockResolvedValueOnce(null);
+      visionService.isDniDocument.mockReturnValue(true);
+      visionService.extractDniFromText.mockReturnValue('46585514');
+      const result = await service.verifyDni('u1', '/path/foto.jpg');
+      expect(result.verified).toBe(true);
+      expect(usersRepo.update).toHaveBeenCalledWith(
+        { id: 'u1' },
+        expect.objectContaining({ dni: '46585514', dni_verified: true }),
+      );
+    });
+
+    test('GIVEN usuario sin DNI y OCR no encuentra numero WHEN verifyDni THEN devuelve verified false', async () => {
+      usersRepo.findOne.mockResolvedValue({ id: 'u1', dni: null, role: 'transportista' });
+      visionService.isDniDocument.mockReturnValue(true);
+      visionService.extractDniFromText.mockReturnValue(null);
+      const result = await service.verifyDni('u1', '/path/foto.jpg');
+      expect(result.verified).toBe(false);
     });
 
     test('GIVEN documento no es DNI WHEN verifyDni THEN devuelve verified false', async () => {
