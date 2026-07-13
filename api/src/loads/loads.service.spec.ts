@@ -204,6 +204,7 @@ describe('LoadsService', () => {
         offerId: 'off-1',
         precio: 50000,
         driverName: 'Carlos',
+        driverId: 'driver-1',
       });
     });
   });
