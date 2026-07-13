@@ -15,4 +15,4 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 RUN mkdir -p /app/uploads/documents /app/uploads/reports && chown -R appuser:appgroup /app/uploads
 USER appuser
 EXPOSE 3001
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/main.js"]
