@@ -2262,6 +2262,16 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual", init
       ? (initialTab as TabPerfil)
       : "Perfil",
   );
+  // Si el usuario navega desde otro CTA del onboarding mientras SeccionPerfil
+  // ya está montado, cambiamos el tab para reflejar el nuevo initialTab.
+  useEffect(() => {
+    if (
+      initialTab &&
+      ["Perfil", "Documentos", "Estadísticas", "Reseñas"].includes(initialTab)
+    ) {
+      setTabPerfil(initialTab as TabPerfil);
+    }
+  }, [initialTab]);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -3211,6 +3221,8 @@ function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode 
   }, []);
 
   // Deep-link desde el onboarding: /transportista?nav=perfil&tab=documentos
+  // "Mi perfil" es siempre válido aunque no esté en el nav visible del modo
+  // (en individual se accede desde el avatar). Ver renders al final del render.
   useEffect(() => {
     const nav = searchParams.get("nav");
     const tab = searchParams.get("tab");
@@ -3226,9 +3238,7 @@ function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode 
         notificaciones: "Notificaciones",
       };
       const mapped = navMapping[nav.toLowerCase()];
-      if (mapped && NAV_ITEMS_BY_MODE[mode].includes(mapped)) {
-        setNavActivo(mapped);
-      }
+      if (mapped) setNavActivo(mapped);
     }
     if (tab) {
       const tabMapping: Record<string, string> = {
