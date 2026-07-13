@@ -4,21 +4,66 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-type Phase = "starting" | "waiting" | "approved" | "declined" | "timeout";
+type Phase = "checking" | "starting" | "waiting" | "approved" | "declined" | "timeout";
+
+type VerificationStatus = {
+  identity_verified: boolean;
+  last_session_status: string | null;
+  last_session_id: string | null;
+  provider: string | null;
+};
+
+async function fetchStatus(): Promise<VerificationStatus | null> {
+  try {
+    const res = await fetch("/api/verification/status");
+    if (!res.ok) return null;
+    return (await res.json()) as VerificationStatus;
+  } catch {
+    return null;
+  }
+}
 
 function Inner() {
   const params = useSearchParams();
   const router = useRouter();
   const done = params.get("done") === "1";
-  const [phase, setPhase] = useState<Phase>(done ? "waiting" : "starting");
+  const [phase, setPhase] = useState<Phase>("checking");
   const [error, setError] = useState("");
-  const startedRef = useRef(false);
+  const [provider, setProvider] = useState<string | null>(null);
+  const initedRef = useRef(false);
 
-  // Arranque: si NO viene ?done=1, pedimos start y redirigimos al widget de Veriff.
+  // Bootstrap: siempre chequeamos el estado real de la DB antes de decidir qué
+  // hacer. Así, si el usuario ya está verificado (ej: cerró la pestaña y volvió
+  // después de que Veriff resolvió), no arrancamos una sesión nueva.
   useEffect(() => {
-    if (done || startedRef.current) return;
-    startedRef.current = true;
+    if (initedRef.current) return;
+    initedRef.current = true;
+
     (async () => {
+      const status = await fetchStatus();
+      if (status?.provider) setProvider(status.provider);
+      if (status?.identity_verified) {
+        setPhase("approved");
+        setTimeout(() => router.push("/onboarding?verified=1"), 1800);
+        return;
+      }
+      if (status?.last_session_status === "declined") {
+        setPhase("declined");
+        return;
+      }
+      // Hay una sesión activa esperando decisión (o volvemos con ?done=1)
+      // → nos ponemos en waiting y hacemos polling.
+      const hasPending =
+        status?.last_session_id &&
+        status.last_session_status !== null &&
+        status.last_session_status !== "approved" &&
+        status.last_session_status !== "declined";
+      if (done || hasPending) {
+        setPhase("waiting");
+        return;
+      }
+      // No hay sesión previa activa → arrancamos una nueva.
+      setPhase("starting");
       try {
         const res = await fetch("/api/verification/start", { method: "POST" });
         if (!res.ok) {
@@ -35,44 +80,37 @@ function Inner() {
         setError("Error de conexión.");
       }
     })();
-  }, [done]);
+  }, [done, router]);
 
-  // Retorno desde Veriff: polling a /verification/status hasta ver aprobación o timeout.
+  // Polling: mientras estemos en waiting, chequeamos status cada 2s por hasta
+  // 60s. Si aparece aprobación → approved. Si aparece rechazo → declined.
   useEffect(() => {
-    if (!done) return;
+    if (phase !== "waiting") return;
     let cancelled = false;
     const deadline = Date.now() + 60_000;
 
-    async function poll() {
+    (async () => {
       while (!cancelled && Date.now() < deadline) {
-        try {
-          const res = await fetch("/api/verification/status");
-          if (res.ok) {
-            const data = await res.json();
-            if (data.identity_verified) {
-              if (cancelled) return;
-              setPhase("approved");
-              setTimeout(() => router.push("/onboarding?verified=1"), 1800);
-              return;
-            }
-            if (data.last_session_status === "declined") {
-              if (cancelled) return;
-              setPhase("declined");
-              return;
-            }
-          }
-        } catch {
-          /* seguimos intentando */
+        const status = await fetchStatus();
+        if (cancelled) return;
+        if (status?.identity_verified) {
+          setPhase("approved");
+          setTimeout(() => router.push("/onboarding?verified=1"), 1800);
+          return;
+        }
+        if (status?.last_session_status === "declined") {
+          setPhase("declined");
+          return;
         }
         await new Promise((r) => setTimeout(r, 2000));
       }
       if (!cancelled) setPhase("timeout");
-    }
-    poll();
+    })();
+
     return () => {
       cancelled = true;
     };
-  }, [done, router]);
+  }, [phase, router]);
 
   async function retry() {
     setError("");
@@ -94,7 +132,7 @@ function Inner() {
     <div style={shell}>
       <style>{`@keyframes verifSpin { to { transform: rotate(360deg); } }`}</style>
       <div style={card}>
-        <Header />
+        <Header provider={provider} />
 
         {error && (
           <div style={errorBox}>
@@ -102,11 +140,12 @@ function Inner() {
           </div>
         )}
 
+        {phase === "checking" && <CheckingPhase />}
         {phase === "starting" && <StartingPhase />}
         {phase === "waiting" && <WaitingPhase />}
         {phase === "approved" && <ApprovedPhase />}
         {phase === "declined" && <DeclinedPhase onRetry={retry} />}
-        {phase === "timeout" && <TimeoutPhase />}
+        {phase === "timeout" && <TimeoutPhase onRecheck={() => setPhase("waiting")} />}
 
         <Footer />
       </div>
@@ -122,17 +161,28 @@ export default function VerificarIdentidadPage() {
   );
 }
 
-function Header() {
+function Header({ provider }: { provider: string | null }) {
+  const badge = provider === "veriff" ? "LIVE" : provider === "mock" ? "MOCK" : null;
   return (
     <div style={{ textAlign: "center", marginBottom: 24 }}>
       <div style={{ fontSize: 11, color: "#3a806b", letterSpacing: 1.5, fontWeight: 700, marginBottom: 6 }}>
         VERIFICACIÓN DE IDENTIDAD
       </div>
       <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
-        Powered by Veriff{" "}
-        <span style={{ background: "rgba(255,255,255,0.08)", padding: "2px 8px", borderRadius: 999, fontSize: 10, marginLeft: 4 }}>
-          SANDBOX
-        </span>
+        Powered by Veriff
+        {badge && (
+          <span
+            style={{
+              background: "rgba(255,255,255,0.08)",
+              padding: "2px 8px",
+              borderRadius: 999,
+              fontSize: 10,
+              marginLeft: 8,
+            }}
+          >
+            {badge}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -144,6 +194,16 @@ function Footer() {
       <Link href="/onboarding" style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", textDecoration: "underline" }}>
         Cancelar y volver al onboarding
       </Link>
+    </div>
+  );
+}
+
+function CheckingPhase() {
+  return (
+    <div style={{ padding: "30px 0", textAlign: "center" }}>
+      <div style={spinner} />
+      <h2 style={h2Style}>Cargando…</h2>
+      <p style={pStyle}>Chequeando el estado de tu verificación.</p>
     </div>
   );
 }
@@ -196,16 +256,28 @@ function DeclinedPhase({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function TimeoutPhase() {
+function TimeoutPhase({ onRecheck }: { onRecheck: () => void }) {
   return (
     <div style={{ padding: "30px 0", textAlign: "center" }}>
       <div style={spinner} />
       <h2 style={h2Style}>Estamos procesando tu verificación</h2>
       <p style={pStyle}>
-        La decisión de Veriff está tardando más de lo habitual. Te avisamos por email en cuanto esté
-        lista — podés cerrar esta ventana y volver más tarde.
+        La decisión de Veriff está tardando más de lo habitual. Podés esperar acá o cerrar y volver
+        más tarde — cuando Veriff termine, tu cuenta va a quedar verificada automáticamente.
       </p>
-      <Link href="/onboarding" style={{ ...btnPrimary, display: "inline-block", textDecoration: "none", textAlign: "center" }}>
+      <button onClick={onRecheck} style={{ ...btnPrimary, marginBottom: 12 }}>
+        Chequear de nuevo
+      </button>
+      <Link
+        href="/onboarding"
+        style={{
+          display: "block",
+          textAlign: "center",
+          fontSize: 12,
+          color: "rgba(255,255,255,0.5)",
+          textDecoration: "underline",
+        }}
+      >
         Volver al onboarding
       </Link>
     </div>
