@@ -25,15 +25,14 @@ export class VerificationService {
     const [firstName, ...rest] = user.name.trim().split(/\s+/);
     const lastName = rest.join(' ');
 
-    const backendUrl =
-      process.env.BACKEND_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
 
     const session = await this.veriffClient.createSession({
       userId: user.id,
       firstName: firstName ?? user.name,
       lastName: lastName ?? '',
       idNumber: user.dni,
-      callbackUrl: `${backendUrl}/verification/webhook`,
+      callbackUrl: `${frontendUrl}/verificar-identidad?done=1`,
     });
 
     const provider = process.env.VERIFF_PROVIDER === 'veriff' ? 'veriff' : 'mock';
