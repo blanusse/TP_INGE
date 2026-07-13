@@ -2397,23 +2397,23 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual", init
     <main style={{ flex: 1, background: "var(--bg1)" }}>
       <div style={{ background: "var(--bg0)", padding: isMobile ? "20px 16px 36px" : "32px 40px 48px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: isMobile ? "flex-start" : "flex-end", gap: isMobile ? 14 : 24, maxWidth: 800, flexWrap: "wrap" }}>
-          <div style={{ width: 84, height: 84, borderRadius: "50%", background: "var(--color-brand)", border: "3px solid rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{initials}</div>
+          <div style={{ width: 84, height: 84, borderRadius: "50%", background: "var(--color-brand)", border: "3px solid var(--border2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{initials}</div>
           <div style={{ flex: 1 }}>
-            {editando ? <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ fontSize: 24, fontWeight: 700, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "var(--border-radius-md)", padding: "4px 10px", color: "#fff", outline: "none", width: "100%", maxWidth: 300 }} /> : <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.2 }}>{nombre}</div>}
+            {editando ? <input value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ fontSize: 24, fontWeight: 700, background: "var(--bg2)", border: "1px solid var(--border2)", borderRadius: "var(--border-radius-md)", padding: "4px 10px", color: "var(--text1)", outline: "none", width: "100%", maxWidth: 300 }} /> : <div style={{ fontSize: 26, fontWeight: 700, color: "var(--text1)", lineHeight: 1.2 }}>{nombre}</div>}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-              <span style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>Transportista</span>
+              <span style={{ fontSize: 14, color: "var(--text2)" }}>Transportista</span>
               {todosAprobados
-                ? <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4 }}><i className="fa-solid fa-circle-check" />Documentación verificada</span>
-                : <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "rgba(255,200,100,0.25)", color: "#fef3c7", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }} onClick={() => setTabPerfil("Documentos")}><i className="fa-solid fa-triangle-exclamation" />Verificación pendiente</span>
+                ? <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "var(--green-muted)", color: "var(--green)", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4 }}><i className="fa-solid fa-circle-check" />Documentación verificada</span>
+                : <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }} onClick={() => setTabPerfil("Documentos")}><i className="fa-solid fa-triangle-exclamation" />Verificación pendiente</span>
               }
             </div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{userEmail}</div>
+            <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>{userEmail}</div>
           </div>
           {tabPerfil === "Perfil" && (
             <button
               onClick={handleProfileAction}
               disabled={savingProfile}
-              style={{ fontSize: 13, padding: "9px 18px", borderRadius: "var(--border-radius-md)", background: editando ? "var(--color-brand)" : "rgba(255,255,255,0.12)", border: editando ? "none" : "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: savingProfile ? "not-allowed" : "pointer", fontWeight: 500, flexShrink: 0, opacity: savingProfile ? 0.75 : 1 }}
+              style={{ fontSize: 13, padding: "9px 18px", borderRadius: "var(--border-radius-md)", background: editando ? "var(--color-brand)" : "var(--bg2)", border: editando ? "none" : "1px solid var(--border2)", color: editando ? "#fff" : "var(--text1)", cursor: savingProfile ? "not-allowed" : "pointer", fontWeight: 500, flexShrink: 0, opacity: savingProfile ? 0.75 : 1 }}
             >
               {savingProfile ? "Guardando..." : editando ? "Guardar cambios" : "Editar perfil"}
             </button>
@@ -2525,7 +2525,7 @@ function SeccionPerfil({ onToast, userName, userEmail, mode = "individual", init
 
           {/* Verificación de identidad AFIP */}
           {dniVerified && (
-            <div style={{ background: identityVerified ? "#d1fae5" : "#fef3c7", borderRadius: 12, padding: 18, marginBottom: 16 }}>
+            <div style={{ background: identityVerified ? "#d1fae5" : "#fef3c7", color: identityVerified ? "#065f46" : "#92400e", borderRadius: 12, padding: 18, marginBottom: 16 }}>
               <div style={{ fontWeight: 700, marginBottom: 8 }}>
                 <i className={`fa-solid ${identityVerified ? "fa-circle-check" : "fa-id-card"}`} /> Verificación de identidad (AFIP)
               </div>

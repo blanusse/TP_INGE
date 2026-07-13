@@ -47,10 +47,9 @@ export function OnboardingGate() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    if (!isProtected(pathname)) {
-      setStatus(null);
-      return;
-    }
+    // No hace falta limpiar `status` al salir de una ruta protegida:
+    // `visible` ya exige isProtected(pathname), y al volver se refetchea.
+    if (!isProtected(pathname)) return;
     let cancelled = false;
     fetchStatus().then((s) => {
       if (!cancelled) setStatus(s);
@@ -306,6 +305,7 @@ function StepRow({
       </div>
       {!done && (
         step.key === "mp_conectado" ? (
+          // eslint-disable-next-line @next/next/no-html-link-for-pages -- es un redirect OAuth del backend, no una página navegable con <Link>
           <a
             href="/api/auth/mp/connect"
             style={{

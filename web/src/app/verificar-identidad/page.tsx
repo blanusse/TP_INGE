@@ -11,15 +11,11 @@ function Inner() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("intro");
   const [error, setError] = useState("");
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(() => params.get("session"));
 
   // Si llegan a /verificar-identidad sin session en la URL, arrancamos una.
   useEffect(() => {
-    const fromUrl = params.get("session");
-    if (fromUrl) {
-      setSessionId(fromUrl);
-      return;
-    }
+    if (sessionId) return;
     (async () => {
       try {
         const res = await fetch("/api/verification/start", { method: "POST" });
@@ -35,7 +31,7 @@ function Inner() {
         setError("Error de conexión.");
       }
     })();
-  }, [params]);
+  }, [sessionId]);
 
   async function simulateAndComplete(decision: "approved" | "declined") {
     if (!sessionId) return;

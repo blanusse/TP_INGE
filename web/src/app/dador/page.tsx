@@ -137,13 +137,13 @@ function Toast({ mensaje, onClose }: { mensaje: string; onClose: () => void }) {
   return (
     <div style={{
       position: "fixed", bottom: 24, right: 24, zIndex: 100,
-      background: "var(--color-text-primary)", color: "#fff",
+      background: "var(--color-text-primary)", color: "var(--color-background-primary)",
       padding: "12px 18px", borderRadius: "var(--border-radius-md)",
       fontSize: 13, fontWeight: 500, boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
       display: "flex", alignItems: "center", gap: 10,
     }}>
       <i className="fa-solid fa-circle-check" /> {mensaje}
-      <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 16, padding: 0, marginLeft: 4 }}>×</button>
+      <button onClick={onClose} style={{ background: "none", border: "none", color: "inherit", opacity: 0.6, cursor: "pointer", fontSize: 16, padding: 0, marginLeft: 4 }}>×</button>
     </div>
   );
 }
