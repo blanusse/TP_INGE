@@ -82,6 +82,7 @@ export class LoadsService {
               offerId: accepted.id,
               precio: Number(accepted.price),
               driverName: driverMap[accepted.driver_id] ?? null,
+              driverId: accepted.driver_id,
             }
           : null,
       };

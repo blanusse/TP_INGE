@@ -4,11 +4,9 @@ import { apiFetch } from "@/lib/apiFetch";
 
 export async function GET() {
   const session = await auth();
-  if (!session?.backendToken) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  }
+  if (!session?.backendToken) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
-  const res = await apiFetch("/insurance/products/all", session.backendToken);
+  const res = await apiFetch("/ratings/given", session.backendToken);
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
 }

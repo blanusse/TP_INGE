@@ -58,7 +58,7 @@ interface ReportData {
   reported: { id: string; name: string; email: string; role: string };
 }
 
-type AdminTab = "usuarios" | "retiros" | "reportes" | "audit" | "seguros" | "sospechosas" | "simulacion";
+type AdminTab = "usuarios" | "retiros" | "reportes" | "audit" | "sospechosas" | "simulacion";
 
 interface SuspiciousLoad {
   id: string;
@@ -67,17 +67,6 @@ interface SuspiciousLoad {
   cargo_type: string | null;
   price_base: number;
   suspicious_reason: string;
-  created_at: string;
-}
-
-interface InsuranceProduct {
-  id: string;
-  name: string;
-  insurer: string;
-  coverage_type: string;
-  price: number;
-  conditions: string;
-  is_active: boolean;
   created_at: string;
 }
 
@@ -137,7 +126,6 @@ export default function AdminPage() {
             { key: "retiros",     label: "Retiros" },
             { key: "reportes",    label: "Reportes" },
             { key: "audit",       label: "Audit log" },
-            { key: "seguros",     label: "Seguros" },
             { key: "sospechosas", label: "Cargas sospechosas" },
             { key: "simulacion",  label: "Simulación" },
           ] as const).map((t) => (
@@ -160,7 +148,6 @@ export default function AdminPage() {
         {tab === "retiros"     && <SeccionRetiros />}
         {tab === "reportes"    && <SeccionReportes />}
         {tab === "audit"       && <SeccionAuditLog />}
-        {tab === "seguros"     && <SeccionSegurosAdmin />}
         {tab === "sospechosas" && <SeccionCargasSospechosas />}
         {tab === "simulacion"  && <SeccionSimulacion />}
       </div>
@@ -766,266 +753,6 @@ function SeccionAuditLog() {
   );
 }
 
-// ─── Seguros Section ──────────────────────────────────────────────────────────
-
-const COVERAGE_TYPES = [
-  "Todo riesgo",
-  "Robo y hurto",
-  "Daño parcial",
-  "Responsabilidad civil",
-  "Carga refrigerada",
-  "Mercadería peligrosa",
-  "Otro",
-];
-
-const EMPTY_FORM = { name: "", insurer: "", coverage_type: "Todo riesgo", price: "", conditions: "" };
-
-function SeccionSegurosAdmin() {
-  const [products, setProducts] = React.useState<InsuranceProduct[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [form, setForm] = React.useState(EMPTY_FORM);
-  const [saving, setSaving] = React.useState(false);
-  const [errors, setErrors] = React.useState<Record<string, string>>({});
-  const [feedback, setFeedback] = React.useState<string | null>(null);
-  const [deleting, setDeleting] = React.useState<string | null>(null);
-  const [editing, setEditing] = React.useState<InsuranceProduct | null>(null);
-  const [editForm, setEditForm] = React.useState(EMPTY_FORM);
-  const [editSaving, setEditSaving] = React.useState(false);
-  const [editErrors, setEditErrors] = React.useState<Record<string, string>>({});
-
-  const cargar = () => {
-    setLoading(true);
-    fetch("/api/insurance/products/all")
-      .then((r) => r.json())
-      .then((d) => setProducts(Array.isArray(d) ? d : []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  };
-
-  React.useEffect(() => { cargar(); }, []);
-
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = "El nombre es obligatorio.";
-    if (!form.insurer.trim()) e.insurer = "La aseguradora es obligatoria.";
-    if (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0) e.price = "El precio debe ser mayor a 0.";
-    if (!form.conditions.trim()) e.conditions = "Las condiciones son obligatorias.";
-    return e;
-  };
-
-  const guardar = async () => {
-    const e = validate();
-    setErrors(e);
-    if (Object.keys(e).length > 0) return;
-    setSaving(true);
-    setFeedback(null);
-    try {
-      const res = await fetch("/api/insurance/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, price: Number(form.price) }),
-      });
-      if (!res.ok) throw new Error();
-      setForm(EMPTY_FORM);
-      setFeedback("Seguro creado correctamente.");
-      cargar();
-    } catch {
-      setFeedback("Error al guardar. Intentá de nuevo.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const desactivar = async (id: string) => {
-    setDeleting(id);
-    try {
-      await fetch(`/api/insurance/products/${id}`, { method: "DELETE" });
-      cargar();
-    } finally {
-      setDeleting(null);
-    }
-  };
-
-  const abrirEdicion = (p: InsuranceProduct) => {
-    setEditing(p);
-    setEditForm({ name: p.name, insurer: p.insurer, coverage_type: p.coverage_type, price: String(p.price), conditions: p.conditions });
-    setEditErrors({});
-  };
-
-  const guardarEdicion = async () => {
-    const errs: Record<string, string> = {};
-    if (!editForm.name.trim()) errs.name = "El nombre es obligatorio.";
-    if (!editForm.insurer.trim()) errs.insurer = "La aseguradora es obligatoria.";
-    if (!editForm.price || isNaN(Number(editForm.price)) || Number(editForm.price) <= 0) errs.price = "El precio debe ser mayor a 0.";
-    if (!editForm.conditions.trim()) errs.conditions = "Las condiciones son obligatorias.";
-    setEditErrors(errs);
-    if (Object.keys(errs).length > 0) return;
-    setEditSaving(true);
-    try {
-      const res = await fetch(`/api/insurance/products/${editing!.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...editForm, price: Number(editForm.price) }),
-      });
-      if (!res.ok) throw new Error();
-      setEditing(null);
-      setFeedback("Seguro actualizado correctamente.");
-      cargar();
-    } catch {
-      setFeedback("Error al actualizar. Intenta de nuevo.");
-    } finally {
-      setEditSaving(false);
-    }
-  };
-
-  const reactivar = async (id: string) => {
-    try {
-      await fetch(`/api/insurance/products/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: true }),
-      });
-      cargar();
-    } catch {}
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "8px 11px", borderRadius: 8,
-    border: "1px solid #d1d5db", fontSize: 14, color: "#111827",
-    background: "#fff", boxSizing: "border-box",
-  };
-  const errStyle: React.CSSProperties = { fontSize: 12, color: "#ef4444", marginTop: 3 };
-
-  return (
-    <>
-      <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 24, marginBottom: 24 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 18 }}>Nuevo seguro</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <div>
-            <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Nombre del seguro *</label>
-            <input style={{ ...inputStyle, borderColor: errors.name ? "#ef4444" : "#d1d5db" }} placeholder="Ej: Seguro básico de carga" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            {errors.name && <div style={errStyle}>{errors.name}</div>}
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Aseguradora *</label>
-            <input style={{ ...inputStyle, borderColor: errors.insurer ? "#ef4444" : "#d1d5db" }} placeholder="Ej: Sura, Zurich, MAPFRE" value={form.insurer} onChange={(e) => setForm({ ...form, insurer: e.target.value })} />
-            {errors.insurer && <div style={errStyle}>{errors.insurer}</div>}
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Tipo de cobertura *</label>
-            <select style={inputStyle} value={form.coverage_type} onChange={(e) => setForm({ ...form, coverage_type: e.target.value })}>
-              {COVERAGE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Precio (ARS) *</label>
-            <input type="number" min={1} style={{ ...inputStyle, borderColor: errors.price ? "#ef4444" : "#d1d5db" }} placeholder="Ej: 15000" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-            {errors.price && <div style={errStyle}>{errors.price}</div>}
-          </div>
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Condiciones *</label>
-            <textarea rows={4} style={{ ...inputStyle, resize: "vertical" as React.CSSProperties["resize"], borderColor: errors.conditions ? "#ef4444" : "#d1d5db" }} placeholder="Detallá qué cubre y qué no cubre el seguro, exclusiones, etc." value={form.conditions} onChange={(e) => setForm({ ...form, conditions: e.target.value })} />
-            {errors.conditions && <div style={errStyle}>{errors.conditions}</div>}
-          </div>
-        </div>
-        {feedback && <div style={{ marginTop: 12, fontSize: 13, color: feedback.startsWith("Error") ? "#ef4444" : "#16a34a" }}>{feedback}</div>}
-        <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={guardar} disabled={saving} style={{ padding: "9px 24px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontSize: 14, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
-            {saving ? "Guardando..." : "Guardar seguro"}
-          </button>
-        </div>
-      </div>
-
-      <div style={{ fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 12 }}>Seguros en el catálogo ({products.length})</div>
-
-      {loading && <div style={{ textAlign: "center", padding: 32, color: "#9ca3af", fontSize: 14 }}>Cargando...</div>}
-
-      {!loading && products.length === 0 && (
-        <div style={{ textAlign: "center", padding: 40, color: "#9ca3af", fontSize: 14, background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb" }}>
-          No hay seguros cargados todavía.
-        </div>
-      )}
-
-      {!loading && products.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {products.map((p) => (
-            <div key={p.id} style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: "16px 20px", opacity: p.is_active ? 1 : 0.5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                    <span style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>{p.name}</span>
-                    {!p.is_active && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "#f3f4f6", color: "#6b7280" }}>Desactivado</span>}
-                  </div>
-                  <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>{p.insurer} · {p.coverage_type} · <strong style={{ color: "#111827" }}>${Number(p.price).toLocaleString("es-AR")}</strong></div>
-                  <div style={{ fontSize: 13, color: "#374151", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{p.conditions}</div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
-                  <button onClick={() => abrirEdicion(p)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#374151", fontSize: 13, cursor: "pointer" }}>
-                    Editar
-                  </button>
-                  {p.is_active ? (
-                    <button onClick={() => desactivar(p.id)} disabled={deleting === p.id} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #fca5a5", background: "#fff5f5", color: "#ef4444", fontSize: 13, cursor: "pointer" }}>
-                      {deleting === p.id ? "..." : "Desactivar"}
-                    </button>
-                  ) : (
-                    <button onClick={() => reactivar(p.id)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #86efac", background: "#f0fdf4", color: "#16a34a", fontSize: 13, cursor: "pointer" }}>
-                      Reactivar
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {editing && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setEditing(null)}>
-          <div style={{ background: "#fff", borderRadius: 16, padding: 28, width: "100%", maxWidth: 520, maxHeight: "90vh", overflow: "auto" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "#111827", marginBottom: 20 }}>Editar seguro</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Nombre del seguro *</label>
-                <input style={{ ...inputStyle, borderColor: editErrors.name ? "#ef4444" : "#d1d5db" }} value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-                {editErrors.name && <div style={errStyle}>{editErrors.name}</div>}
-              </div>
-              <div>
-                <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Aseguradora *</label>
-                <input style={{ ...inputStyle, borderColor: editErrors.insurer ? "#ef4444" : "#d1d5db" }} value={editForm.insurer} onChange={(e) => setEditForm({ ...editForm, insurer: e.target.value })} />
-                {editErrors.insurer && <div style={errStyle}>{editErrors.insurer}</div>}
-              </div>
-              <div>
-                <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Tipo de cobertura *</label>
-                <select style={inputStyle} value={editForm.coverage_type} onChange={(e) => setEditForm({ ...editForm, coverage_type: e.target.value })}>
-                  {COVERAGE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Precio (ARS) *</label>
-                <input type="number" min={1} style={{ ...inputStyle, borderColor: editErrors.price ? "#ef4444" : "#d1d5db" }} value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} />
-                {editErrors.price && <div style={errStyle}>{editErrors.price}</div>}
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Condiciones *</label>
-                <textarea rows={4} style={{ ...inputStyle, resize: "vertical" as React.CSSProperties["resize"], borderColor: editErrors.conditions ? "#ef4444" : "#d1d5db" }} value={editForm.conditions} onChange={(e) => setEditForm({ ...editForm, conditions: e.target.value })} />
-                {editErrors.conditions && <div style={errStyle}>{editErrors.conditions}</div>}
-              </div>
-            </div>
-            <div style={{ marginTop: 18, display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button onClick={() => setEditing(null)} style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#374151", fontSize: 14, cursor: "pointer" }}>
-                Cancelar
-              </button>
-              <button onClick={guardarEdicion} disabled={editSaving} style={{ padding: "9px 24px", borderRadius: 8, border: "none", background: "#3a806b", color: "#fff", fontSize: 14, fontWeight: 600, cursor: editSaving ? "not-allowed" : "pointer", opacity: editSaving ? 0.7 : 1 }}>
-                {editSaving ? "Guardando..." : "Guardar cambios"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
 // ─── Cargas Sospechosas Section ───────────────────────────────────────────────
 
 function SeccionCargasSospechosas() {
@@ -1169,13 +896,40 @@ function SeccionSimulacion() {
         const res = await fetch(`/api/location/${expanded}/simulation-status`);
         if (!res.ok) return;
         const d = await res.json();
-        if (!cancelled) setRunning((prev) => ({ ...prev, [expanded]: Boolean(d.running) }));
+        if (!cancelled) {
+          setRunning((prev) => ({ ...prev, [expanded]: Boolean(d.running) }));
+          // Sincroniza el selector con la velocidad real (por si otro admin la cambió)
+          if (d.running && typeof d.delayMs === "number") setDelayMs(d.delayMs);
+        }
       } catch { /* sin conexión: mantener estado */ }
     };
     check();
     const id = setInterval(check, 2000);
     return () => { cancelled = true; clearInterval(id); };
   }, [expanded]);
+
+  const cambiarVelocidad = async (loadId: string, nuevoDelay: number) => {
+    setDelayMs(nuevoDelay);
+    // Si hay una simulación corriendo, se aplica en vivo
+    if (running[loadId]) {
+      try {
+        await fetch(`/api/location/${loadId}/simulate/speed`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ delayMs: nuevoDelay }),
+        });
+      } catch { /* si falla, el próximo click reintenta */ }
+    }
+  };
+
+  const cancelar = async (loadId: string) => {
+    try {
+      await fetch(`/api/location/${loadId}/simulate/cancel`, { method: "POST" });
+      setRunning((prev) => ({ ...prev, [loadId]: false }));
+    } catch {
+      setError("No se pudo cancelar la simulación.");
+    }
+  };
 
   const iniciar = async (t: UnfinishedTrip) => {
     if (t.pickup_lat == null || t.pickup_lon == null || t.dropoff_lat == null || t.dropoff_lon == null) return;
@@ -1275,15 +1029,16 @@ function SeccionSimulacion() {
                   <>
                     <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", marginBottom: 14 }}>
                       <div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>Velocidad</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                          Velocidad {isRunning && <span style={{ color: "#16a34a", textTransform: "none" }}>(se aplica en vivo)</span>}
+                        </div>
                         <div style={{ display: "flex", gap: 6 }}>
                           {VELOCIDADES.map((v) => (
                             <button
                               key={v.delayMs}
-                              onClick={() => setDelayMs(v.delayMs)}
-                              disabled={isRunning}
+                              onClick={() => cambiarVelocidad(t.id, v.delayMs)}
                               title={v.desc}
-                              style={{ fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, border: `1px solid ${delayMs === v.delayMs ? "#3a806b" : "#d1d5db"}`, background: delayMs === v.delayMs ? "rgba(58,128,107,0.1)" : "#fff", color: delayMs === v.delayMs ? "#3a806b" : "#6b7280", cursor: isRunning ? "not-allowed" : "pointer" }}
+                              style={{ fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, border: `1px solid ${delayMs === v.delayMs ? "#3a806b" : "#d1d5db"}`, background: delayMs === v.delayMs ? "rgba(58,128,107,0.1)" : "#fff", color: delayMs === v.delayMs ? "#3a806b" : "#6b7280", cursor: "pointer" }}
                             >
                               {v.label}
                             </button>
@@ -1294,13 +1049,23 @@ function SeccionSimulacion() {
                         <input type="checkbox" checked={useOsrm} disabled={isRunning} onChange={(e) => setUseOsrm(e.target.checked)} style={{ accentColor: "#3a806b", width: 14, height: 14 }} />
                         <span style={{ fontSize: 13, color: "#374151" }}>Seguir rutas reales <span style={{ color: "#9ca3af" }}>(el camión va por la ruta, no en línea recta)</span></span>
                       </label>
-                      <button
-                        onClick={() => iniciar(t)}
-                        disabled={starting === t.id || isRunning}
-                        style={{ marginLeft: "auto", marginTop: 18, display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, padding: "10px 20px", borderRadius: 8, background: isRunning ? "#9ca3af" : "#3a806b", color: "#fff", border: "none", cursor: starting === t.id || isRunning ? "not-allowed" : "pointer" }}
-                      >
-                        {isRunning ? "Simulación en curso..." : starting === t.id ? "Iniciando..." : "▶ Iniciar simulación"}
-                      </button>
+                      <div style={{ marginLeft: "auto", marginTop: 18, display: "flex", gap: 8 }}>
+                        {isRunning && (
+                          <button
+                            onClick={() => cancelar(t.id)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, padding: "10px 16px", borderRadius: 8, background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca", cursor: "pointer" }}
+                          >
+                            ✕ Cancelar
+                          </button>
+                        )}
+                        <button
+                          onClick={() => iniciar(t)}
+                          disabled={starting === t.id || isRunning}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, padding: "10px 20px", borderRadius: 8, background: isRunning ? "#9ca3af" : "#3a806b", color: "#fff", border: "none", cursor: starting === t.id || isRunning ? "not-allowed" : "pointer" }}
+                        >
+                          {isRunning ? "Simulación en curso..." : starting === t.id ? "Iniciando..." : "▶ Iniciar simulación"}
+                        </button>
+                      </div>
                     </div>
 
                     {error && (

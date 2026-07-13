@@ -3,7 +3,6 @@
  *
  * Conserva:
  *   - users con role = 'admin'
- *   - insurance_products (catálogo de seguros, no son datos de usuarios)
  *
  * Uso:
  *   cd api
@@ -23,6 +22,7 @@ const TABLAS_A_VACIAR = [
   'messages',
   'notifications',
   'insurance_policies',
+  'insurance_products',
   'load_alerts',
   'offers',
   'loads',

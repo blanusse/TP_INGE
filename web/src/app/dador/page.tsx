@@ -25,8 +25,8 @@ type NavItem = "Inicio" | "Mis cargas" | "Mis envios" | "Historial" | "Facturaci
 type TabItem = "Todas" | "Con ofertas" | "Sin ofertas" | "Confirmadas" | "En tránsito";
 
 interface Oferta { id: number; offerId: string; driverId?: string | null; nombre: string; iniciales: string; rating: number; viajes: number; precio: number; counterPrice?: number | null; status?: string; nota: string; telefono?: string | null; email?: string | null; dni?: string | null; }
-interface AcceptedOffer { offerId: string; driverName: string; precio: number; }
-interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; precio: number | null; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; origenExacto?: string | null; destinoExacto?: string | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null; distanceKm?: number | null; cargoType: string }
+interface AcceptedOffer { offerId: string; driverName: string; precio: number; driverId?: string | null; }
+interface Carga { id: string; titulo: string; hace: string; peso: string; tipoCamion: string; retiro: string; precio: number | null; ofertas: number; camioneros: string[]; ofertasDetalle: Oferta[]; status: string; acceptedOffer: AcceptedOffer | null; origenExacto?: string | null; destinoExacto?: string | null; originLat: number | null; originLng: number | null; destLat: number | null; destLng: number | null; truckType: string | null; distanceKm?: number | null }
 
 
 interface LoadDB {
@@ -94,17 +94,7 @@ function loadToCard(load: LoadDB): Carga {
     destLng:   load.dropoff_lon ? Number(load.dropoff_lon) : null,
     truckType: load.truck_type_required ?? null,
     distanceKm: load.distance_km != null ? Number(load.distance_km) : null,
-    cargoType: tipoCarga,
   };
-}
-
-function normalizeCargoType(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
 }
 
 function formatDateTime(value: string | Date | null | undefined) {
@@ -793,191 +783,9 @@ function ModalPago({ sel, onClose }: {
   );
 }
 
-// ── Modal: Asegurar carga ─────────────────────────────────────────────────────
-
-interface ProductoSeguro { id: string; name: string; insurer: string; coverage_type: string; price: number; conditions: string; }
-interface CotizacionSeguro { quote_id: string; premium: number; coverage_amount: number; provider_name: string; coverage_days: number; details: string[]; }
-interface PolizaSeguro { id: string; load_id: string | null; insurance_name: string | null; insurer_name: string | null; coverage_type: string | null; premium: number; declared_value: number; coverage_ends_at: string; }
-
-function ModalSeguro({ carga, onClose, onContratado }: { carga: Carga; onClose: () => void; onContratado: (p: PolizaSeguro) => void }) {
-  const [products, setProducts] = useState<ProductoSeguro[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(true);
-  const [productId, setProductId] = useState<string | null>(null);
-  const [valorDeclarado, setValorDeclarado] = useState("");
-  const [quote, setQuote] = useState<CotizacionSeguro | null>(null);
-  const [cotizando, setCotizando] = useState(false);
-  const [contratando, setContratando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const partes = carga.titulo.split(" — ");
-  const ruta = partes[1] ?? carga.titulo;
-  const [origen, destino] = ruta.split(" → ");
-
-  useEffect(() => {
-    fetch("/api/insurance/products")
-      .then((r) => r.json())
-      .then((d) => {
-        const list: ProductoSeguro[] = Array.isArray(d) ? d : [];
-        setProducts(list);
-        if (list.length === 1) setProductId(list[0].id);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingProducts(false));
-  }, []);
-
-  const valor = Number(valorDeclarado.replace(/\./g, ""));
-  const valorValido = !isNaN(valor) && valor > 0;
-
-  const cotizar = async () => {
-    if (!valorValido) { setError("Ingresá el valor declarado de la carga."); return; }
-    setCotizando(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/insurance/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          declared_value: valor,
-          cargo_type: normalizeCargoType(carga.cargoType),
-          distance_km: carga.distanceKm ?? undefined,
-          pickup_city: origen ?? "",
-          dropoff_city: destino ?? "",
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.message ?? "No se pudo cotizar el seguro."); return; }
-      setQuote(data);
-    } catch {
-      setError("Error de conexión. Intentá de nuevo.");
-    } finally {
-      setCotizando(false);
-    }
-  };
-
-  const contratar = async () => {
-    if (!quote) return;
-    setContratando(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/insurance/purchase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          declared_value: valor,
-          cargo_type: normalizeCargoType(carga.cargoType),
-          distance_km: carga.distanceKm ?? undefined,
-          pickup_city: origen ?? "",
-          dropoff_city: destino ?? "",
-          quote_id: quote.quote_id,
-          load_id: carga.id,
-          product_id: productId ?? undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.message ?? "No se pudo contratar el seguro."); return; }
-      onContratado(data);
-    } catch {
-      setError("Error de conexión. Intentá de nuevo.");
-    } finally {
-      setContratando(false);
-    }
-  };
-
-  const seleccionado = products.find((p) => p.id === productId) ?? null;
-
-  return (
-    <Modal title="Asegurar carga" onClose={onClose}>
-      <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 16 }}>
-        {carga.cargoType} · {origen} <span style={{ color: "#3a806b" }}>→</span> {destino}
-      </div>
-
-      {loadingProducts && <div style={{ textAlign: "center", padding: 24, color: "var(--color-text-tertiary)", fontSize: 13 }}>Cargando seguros disponibles...</div>}
-
-      {!loadingProducts && products.length === 0 && (
-        <div style={{ textAlign: "center", padding: 24, color: "var(--color-text-tertiary)", fontSize: 13 }}>
-          No hay seguros disponibles en este momento.
-        </div>
-      )}
-
-      {!loadingProducts && products.length > 0 && !quote && (
-        <>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 8 }}>Elegí una cobertura</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-            {products.map((p) => (
-              <label key={p.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", border: `1px solid ${productId === p.id ? "#3a806b" : "var(--color-border-tertiary)"}`, background: productId === p.id ? "rgba(58,128,107,0.06)" : "transparent", borderRadius: "var(--border-radius-md)", padding: "10px 12px", cursor: "pointer" }}>
-                <input type="radio" name="producto-seguro" checked={productId === p.id} onChange={() => setProductId(p.id)} style={{ marginTop: 3, accentColor: "#3a806b" }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>{p.name}</div>
-                  <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 2 }}>{p.insurer} · {p.coverage_type}</div>
-                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4, lineHeight: 1.4 }}>{p.conditions}</div>
-                </div>
-              </label>
-            ))}
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", display: "block", marginBottom: 6 }}>Valor declarado de la carga (ARS)</label>
-            <input
-              value={valorDeclarado}
-              onChange={(e) => setValorDeclarado(e.target.value.replace(/[^\d.]/g, ""))}
-              placeholder="Ej: 500000"
-              inputMode="numeric"
-              style={{ fontSize: 14, border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", padding: "9px 12px", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none", width: "100%", boxSizing: "border-box" }}
-            />
-          </div>
-        </>
-      )}
-
-      {quote && (
-        <div style={{ background: "var(--color-background-tertiary)", borderRadius: "var(--border-radius-lg)", padding: 16, marginBottom: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>{seleccionado?.name ?? quote.provider_name}</div>
-              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{seleccionado?.insurer ?? quote.provider_name} · {quote.coverage_days} días de cobertura</div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-brand-dark)" }}>${quote.premium.toLocaleString("es-AR")}</div>
-              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>prima única</div>
-            </div>
-          </div>
-          <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 8 }}>
-            Cobertura hasta <strong>${quote.coverage_amount.toLocaleString("es-AR")}</strong>
-          </div>
-          <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 3 }}>
-            {quote.details.map((d, i) => <li key={i} style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{d}</li>)}
-          </ul>
-        </div>
-      )}
-
-      {error && (
-        <div style={{ background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: "var(--border-radius-md)", padding: "8px 12px", marginBottom: 12, fontSize: 12, color: "#b91c1c" }}>
-          {error}
-        </div>
-      )}
-
-      {!loadingProducts && products.length > 0 && (
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={quote ? () => setQuote(null) : onClose} style={{ flex: 1, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-primary)", cursor: "pointer" }}>
-            {quote ? "← Volver" : "Cancelar"}
-          </button>
-          {quote ? (
-            <button onClick={contratar} disabled={contratando} style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", cursor: contratando ? "not-allowed" : "pointer", fontWeight: 600, opacity: contratando ? 0.7 : 1 }}>
-              {contratando ? "Contratando..." : `Contratar por $${quote.premium.toLocaleString("es-AR")}`}
-            </button>
-          ) : (
-            <button onClick={cotizar} disabled={cotizando || !productId || !valorValido} style={{ flex: 2, fontSize: 13, padding: "10px", borderRadius: "var(--border-radius-md)", border: "none", background: cotizando || !productId || !valorValido ? "var(--color-background-secondary)" : "var(--color-brand)", color: cotizando || !productId || !valorValido ? "var(--color-text-tertiary)" : "#fff", cursor: cotizando || !productId || !valorValido ? "not-allowed" : "pointer", fontWeight: 600 }}>
-              {cotizando ? "Cotizando..." : "Cotizar seguro"}
-            </button>
-          )}
-        </div>
-      )}
-    </Modal>
-  );
-}
-
 // ── Modal: Calificar camionero ────────────────────────────────────────────────
 
-function ModalCalificarCamionero({ offerId, driverName, driverId, onClose }: { offerId: string; driverName: string; driverId?: string | null; onClose: () => void }) {
+function ModalCalificarCamionero({ offerId, driverName, driverId, onClose, onRated }: { offerId: string; driverName: string; driverId?: string | null; onClose: () => void; onRated?: () => void }) {
   const [score, setScore]       = useState(0);
   const [hover, setHover]       = useState(0);
   const [comment, setComment]   = useState("");
@@ -995,6 +803,7 @@ function ModalCalificarCamionero({ offerId, driverName, driverId, onClose }: { o
         body:    JSON.stringify({ offerId, score, ...(comment.trim() ? { comment: comment.trim() } : {}) }),
       });
       setDone(true);
+      onRated?.();
     } finally {
       setEnviando(false);
     }
@@ -1330,7 +1139,7 @@ function SeccionMisCargas({
               </div>
               {!deliveryCode.used ? (
                 <>
-                  <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: "0.25em", color: "#111", fontFamily: "monospace", marginBottom: 8 }}>
+                  <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: "0.25em", color: "var(--heading-color)", fontFamily: "monospace", marginBottom: 8 }}>
                     {deliveryCode.code}
                   </div>
                   <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5, marginBottom: 10 }}>
@@ -1501,23 +1310,8 @@ function SeccionMisEnvios({ cargas, userId }: { cargas: Carga[]; onRefresh: () =
   const [deliveryCodes, setDeliveryCodes] = useState<Record<string, { code: string; used: boolean }>>({});
   const [mapaAbierto, setMapaAbierto] = useState<string | null>(null);
   const [chatAbierto, setChatAbierto] = useState<string | null>(null);
-  const [polizas, setPolizas] = useState<Record<string, PolizaSeguro>>({});
-  const [seguroAbierto, setSeguroAbierto] = useState<Carga | null>(null);
-
   const enTransito = cargas.filter((c) => c.status === "in_transit" || c.status === "accepted");
   const entregados = cargas.filter((c) => c.status === "delivered");
-
-  useEffect(() => {
-    fetch("/api/insurance/policies")
-      .then((r) => r.json())
-      .then((d: PolizaSeguro[]) => {
-        if (!Array.isArray(d)) return;
-        const map: Record<string, PolizaSeguro> = {};
-        for (const p of d) { if (p.load_id) map[p.load_id] = p; }
-        setPolizas(map);
-      })
-      .catch(() => {});
-  }, [cargas]);
 
   useEffect(() => {
     const inTransit = cargas.filter((c) => c.status === "in_transit" || c.status === "accepted");
@@ -1547,17 +1341,6 @@ function SeccionMisEnvios({ cargas, userId }: { cargas: Carga[]; onRefresh: () =
 
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
-
-      {seguroAbierto && (
-        <ModalSeguro
-          carga={seguroAbierto}
-          onClose={() => setSeguroAbierto(null)}
-          onContratado={(p) => {
-            if (p.load_id) setPolizas((prev) => ({ ...prev, [p.load_id as string]: p }));
-            setSeguroAbierto(null);
-          }}
-        />
-      )}
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -1596,18 +1379,6 @@ function SeccionMisEnvios({ cargas, userId }: { cargas: Carga[]; onRefresh: () =
                 EN TRANSITO
               </span>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {polizas[c.id] ? (
-                  <span title={`${polizas[c.id].insurance_name ?? "Seguro"} · ${polizas[c.id].insurer_name ?? ""} · cubre $${Number(polizas[c.id].declared_value).toLocaleString("es-AR")}`} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid rgba(22,163,74,0.35)", background: "rgba(22,163,74,0.08)", color: "#16a34a", display: "flex", alignItems: "center", gap: 5 }}>
-                    <i className="fa-solid fa-shield-halved" /> Asegurada
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => setSeguroAbierto(c)}
-                    style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
-                  >
-                    <i className="fa-solid fa-shield-halved" /> Asegurar carga
-                  </button>
-                )}
                 <button
                   onClick={() => setMapaAbierto(mapaAbierto === c.id ? null : c.id)}
                   style={{ fontSize: 12, padding: "6px 14px", borderRadius: 7, border: "1px solid var(--color-border-secondary)", background: mapaAbierto === c.id ? "rgba(58,128,107,0.08)" : "transparent", color: mapaAbierto === c.id ? "#3a806b" : "var(--color-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
@@ -1758,13 +1529,80 @@ function SeccionMisEnvios({ cargas, userId }: { cargas: Carga[]; onRefresh: () =
   );
 }
 
-function SeccionHistorial() {
+function SeccionHistorial({ cargas }: { cargas: Carga[] }) {
+  const entregados = cargas.filter((c) => c.status === "delivered");
+  const cancelados = cargas.filter((c) => c.status === "cancelled");
+  const historial = [...entregados, ...cancelados];
+  const [calificados, setCalificados] = useState<Set<string>>(new Set());
+  const [modalCalificar, setModalCalificar] = useState<{ offerId: string; driverName: string; driverId?: string | null } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/ratings/given")
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.offer_ids)) setCalificados(new Set(d.offer_ids)); })
+      .catch(() => {});
+  }, []);
+
   return (
-    <main style={{ padding: 20, flex: 1 }}>
-      <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)", marginBottom: 16 }}>Historial de envíos</div>
-      <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
-        No tenés envíos completados todavía.
+    <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", width: "100%", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", margin: 0 }}>Historial</h1>
+        <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Tus envíos completados y cancelados</p>
       </div>
+
+      {historial.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)", fontSize: 14, background: "var(--color-background-primary)", borderRadius: "var(--border-radius-lg)", border: "0.5px solid var(--color-border-tertiary)" }}>
+          No tenés envíos completados todavía.
+        </div>
+      )}
+
+      {historial.map((c) => {
+        const partes = c.titulo.split(" — ");
+        const tipoCarga = partes[0];
+        const ruta = partes[1] ?? c.titulo;
+        const [origen, destino] = ruta.split(" → ");
+        const ao = c.acceptedOffer;
+        const cancelado = c.status === "cancelled";
+        return (
+          <div key={c.id} style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: "14px 18px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 3 }}>
+                {origen} <span style={{ color: "#3a806b" }}>&rarr;</span> {destino}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                {tipoCarga}{ao?.driverName ? ` · ${ao.driverName}` : ""} · Retiro: {c.retiro}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {ao && <span style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text-primary)" }}>${ao.precio.toLocaleString("es-AR")}</span>}
+              {cancelado
+                ? <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: "rgba(220,38,38,0.1)", color: "#dc2626", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>Cancelado</span>
+                : <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: "rgba(22,163,74,0.12)", color: "#16a34a", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>Entregado</span>
+              }
+              {!cancelado && ao && (
+                calificados.has(ao.offerId)
+                  ? <span style={{ fontSize: 12, color: "var(--color-text-tertiary)", display: "flex", alignItems: "center", gap: 5 }}><i className="fa-solid fa-circle-check" style={{ color: "#16a34a" }} />Calificado</span>
+                  : <button
+                      onClick={() => setModalCalificar({ offerId: ao.offerId, driverName: ao.driverName ?? "Transportista", driverId: ao.driverId })}
+                      style={{ fontSize: 12, padding: "7px 14px", borderRadius: "var(--border-radius-md)", border: "none", background: "var(--color-brand)", color: "#fff", fontWeight: 600, cursor: "pointer" }}
+                    >
+                      <i className="fa-solid fa-star" style={{ marginRight: 5 }} />Calificar
+                    </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {modalCalificar && (
+        <ModalCalificarCamionero
+          offerId={modalCalificar.offerId}
+          driverName={modalCalificar.driverName}
+          driverId={modalCalificar.driverId}
+          onRated={() => setCalificados((prev) => new Set([...prev, modalCalificar.offerId]))}
+          onClose={() => setModalCalificar(null)}
+        />
+      )}
     </main>
   );
 }
@@ -2414,7 +2252,7 @@ function SeccionInicio({ cargas, userName, onNavegar }: { cargas: Carga[]; userN
                       {c.acceptedOffer && (
                         <div style={{ fontSize: 18, fontWeight: 700, color: "#3a806b", marginBottom: 10 }}>${c.acceptedOffer.precio.toLocaleString("es-AR")}</div>
                       )}
-                      <button style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", fontWeight: 500 }}>
+                      <button onClick={() => onNavegar("Mis envios")} style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", fontWeight: 500 }}>
                         Ver tracking
                       </button>
                     </div>
@@ -2553,6 +2391,17 @@ function DadorDashboard() {
 
   useEffect(() => { fetchCargas(); }, [fetchCargas]);
 
+  // Refresco periódico y al volver el foco: así el badge de ofertas nuevas
+  // aparece sin necesidad de recargar la página.
+  useEffect(() => {
+    const id = setInterval(fetchCargas, 30_000);
+    window.addEventListener("focus", fetchCargas);
+    return () => { clearInterval(id); window.removeEventListener("focus", fetchCargas); };
+  }, [fetchCargas]);
+
+  // Ofertas pendientes de decisión: solo cuentan las de cargas todavía publicadas
+  const ofertasPendientes = cargas.filter((c) => c.status === "available").reduce((s, c) => s + c.ofertas, 0);
+
   return (
     <div style={{ background: "var(--page-bg)", minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "var(--font-ibm-plex), sans-serif" }}>
 
@@ -2565,7 +2414,7 @@ function DadorDashboard() {
           <nav style={{ display: isMobile ? "none" : "flex", height: 64 }}>
             {NAV_ITEMS.map(({ item, icon }) => {
               const activo = navActivo === item;
-              const badge = item === "Mis cargas" ? cargas.reduce((s, c) => s + c.ofertas, 0) : 0;
+              const badge = item === "Mis cargas" ? ofertasPendientes : 0;
               return (
                 <button key={item} onClick={() => setNavActivo(item)} style={{
                   display: "flex", alignItems: "center", gap: 8,
@@ -2631,7 +2480,7 @@ function DadorDashboard() {
         <div style={{ position: "fixed", top: 64, left: 0, right: 0, zIndex: 9, background: darkMode === false ? "#ffffff" : "rgba(10,10,10,0.97)", borderBottom: "1px solid " + (darkMode === false ? "#e5e7eb" : "rgba(255,255,255,0.1)"), paddingBottom: 8 }}>
           {NAV_ITEMS.map(({ item, icon }) => {
             const activo = navActivo === item;
-            const badge = item === "Mis cargas" ? cargas.reduce((s, c) => s + c.ofertas, 0) : 0;
+            const badge = item === "Mis cargas" ? ofertasPendientes : 0;
             return (
               <button key={item} onClick={() => { setNavActivo(item); setMobileMenuOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 24px", background: activo ? "rgba(58,128,107,0.1)" : "transparent", border: "none", cursor: "pointer", color: activo ? "#3a806b" : darkMode === false ? "#374151" : "rgba(255,255,255,0.75)", fontSize: 15, fontWeight: activo ? 600 : 400, fontFamily: "var(--font-ibm-plex), sans-serif" }}>
                 <FontAwesomeIcon icon={icon} style={{ width: 16, height: 16 }} />
@@ -2674,7 +2523,7 @@ function DadorDashboard() {
           />
         )}
         {navActivo === "Mis envios" && <SeccionMisEnvios cargas={cargas} onRefresh={fetchCargas} userId={userId} />}
-        {navActivo === "Historial" && <SeccionHistorial />}
+        {navActivo === "Historial" && <SeccionHistorial cargas={cargas} />}
         {navActivo === "Facturación" && <SeccionFacturacion />}
         {navActivo === "Mi perfil" && <SeccionPerfil onToast={mostrarToast} userName={userName} userEmail={userEmail} />}
       </div>

@@ -18,6 +18,13 @@ export class RatingsController {
     return this.ratingsService.submitRating(req.user.id, body);
   }
 
+  /** offer_ids que el usuario logueado ya calificó (para ocultar el botón de calificar) */
+  @UseGuards(JwtAuthGuard)
+  @Get('given')
+  getGivenRatings(@Request() req: AuthReq) {
+    return this.ratingsService.getGivenOfferIds(req.user.id);
+  }
+
   @SkipThrottle()
   @Get('user/:id')
   getUserRatings(@Param('id') id: string) {

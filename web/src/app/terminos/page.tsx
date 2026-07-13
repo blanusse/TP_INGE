@@ -74,44 +74,36 @@ export default function TerminosPage() {
           de confirmar cada pago. Los retiros de fondos de los transportistas se procesan a la cuenta que indiquen.
         </p>
 
-        <h2 style={h2Style}>6. Seguros</h2>
-        <p style={pStyle}>
-          La Plataforma permite contratar coberturas de seguro para las cargas a través de productos ofrecidos en el
-          catálogo. La relación contractual del seguro se establece entre el dador y la aseguradora correspondiente;
-          CargaBack actúa como intermediario tecnológico. Las condiciones, exclusiones y montos de cobertura son los
-          informados al momento de la cotización.
-        </p>
-
-        <h2 style={h2Style}>7. Seguimiento y ubicación en tiempo real</h2>
+        <h2 style={h2Style}>6. Seguimiento y ubicación en tiempo real</h2>
         <p style={pStyle}>
           Durante un viaje activo, el transportista comparte su ubicación para que el dador pueda seguir el envío.
           La ubicación solo es visible para las partes del viaje y los administradores de la Plataforma, y deja de
           compartirse al finalizar el viaje.
         </p>
 
-        <h2 style={h2Style}>8. Calificaciones y conducta</h2>
+        <h2 style={h2Style}>7. Calificaciones y conducta</h2>
         <ul style={{ paddingLeft: 22, marginBottom: 12 }}>
           <li style={liStyle}>Al completar un viaje, ambas partes pueden calificarse mutuamente. Las calificaciones deben ser honestas y estar basadas en la experiencia real.</li>
           <li style={liStyle}>No se tolera lenguaje ofensivo, discriminación, acoso ni amenazas en chats, reseñas o reportes.</li>
           <li style={liStyle}>Los usuarios pueden reportar conductas indebidas; el equipo de administración revisa cada reporte y puede aplicar advertencias, suspensiones o bajas definitivas.</li>
         </ul>
 
-        <h2 style={h2Style}>9. Responsabilidad</h2>
+        <h2 style={h2Style}>8. Responsabilidad</h2>
         <p style={pStyle}>
           CargaBack pone a disposición la infraestructura tecnológica &quot;tal cual está&quot; y no garantiza la
           disponibilidad ininterrumpida del servicio. El transporte, la carga, su documentación y el cumplimiento de la
           normativa de tránsito y transporte son responsabilidad exclusiva de las partes. CargaBack no responde por
-          daños, pérdidas o demoras derivadas del transporte, sin perjuicio de las coberturas de seguro contratadas.
+          daños, pérdidas o demoras derivadas del transporte.
         </p>
 
-        <h2 style={h2Style}>10. Suspensión y terminación</h2>
+        <h2 style={h2Style}>9. Suspensión y terminación</h2>
         <p style={pStyle}>
           CargaBack puede suspender o dar de baja cuentas que incumplan estos términos, presenten documentación falsa,
           usen la Plataforma para fines ilícitos o dañen a otros usuarios. Podés solicitar la baja de tu cuenta en
           cualquier momento escribiendo al contacto indicado al final.
         </p>
 
-        <h2 id="privacidad" style={{ ...h2Style, scrollMarginTop: 80 }}>11. Política de privacidad</h2>
+        <h2 id="privacidad" style={{ ...h2Style, scrollMarginTop: 80 }}>10. Política de privacidad</h2>
         <h3 style={h3Style}>Qué datos recolectamos</h3>
         <ul style={{ paddingLeft: 22, marginBottom: 12 }}>
           <li style={liStyle}>Datos de registro: nombre, email, teléfono, DNI/CUIT/CUIL, rol.</li>
@@ -136,13 +128,13 @@ export default function TerminosPage() {
           la eliminación de tus datos escribiendo al contacto indicado abajo.
         </p>
 
-        <h2 id="cookies" style={{ ...h2Style, scrollMarginTop: 80 }}>12. Cookies</h2>
+        <h2 id="cookies" style={{ ...h2Style, scrollMarginTop: 80 }}>11. Cookies</h2>
         <p style={pStyle}>
           Usamos cookies estrictamente necesarias para mantener tu sesión iniciada y recordar preferencias como el tema
           claro/oscuro. No utilizamos cookies de publicidad ni de seguimiento de terceros.
         </p>
 
-        <h2 style={h2Style}>13. Cambios y contacto</h2>
+        <h2 style={h2Style}>12. Cambios y contacto</h2>
         <p style={pStyle}>
           Podemos actualizar estos términos; si el cambio es significativo, lo comunicaremos dentro de la Plataforma.
           Ante cualquier consulta escribinos a{" "}

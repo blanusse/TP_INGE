@@ -35,8 +35,13 @@ export class LocationController {
   /**
    * loadIds con una simulación en curso. Evita que se disparen dos loops sobre
    * la misma carga (se pisarían escribiendo el mismo load_id y el mapa falla).
+   * El loop lee `delayMs` en cada paso, así la velocidad se puede cambiar en vivo,
+   * y `cancelled` corta el loop para poder reiniciar de cero.
    */
-  private readonly activeSimulations = new Set<string>();
+  private readonly activeSimulations = new Map<
+    string,
+    { delayMs: number; cancelled: boolean }
+  >();
 
   constructor(
     private readonly locationService: LocationService,
@@ -98,7 +103,35 @@ export class LocationController {
   @Get(':loadId/simulation-status')
   @UseGuards(DevPublicJwtGuard)
   simulationStatus(@Param('loadId') loadId: string) {
-    return { running: this.activeSimulations.has(loadId) };
+    const control = this.activeSimulations.get(loadId);
+    return { running: !!control, delayMs: control?.delayMs ?? null };
+  }
+
+  /** Cambia la velocidad de una simulación en curso (se aplica en el próximo paso). */
+  @Post(':loadId/simulate/speed')
+  @UseGuards(JwtAuthGuard)
+  changeSimulationSpeed(
+    @Param('loadId') loadId: string,
+    @Body() body: { delayMs: number },
+  ) {
+    const control = this.activeSimulations.get(loadId);
+    if (!control)
+      throw new NotFoundException('No hay una simulación en curso para esta carga.');
+    const delayMs = Number(body?.delayMs);
+    if (!Number.isFinite(delayMs))
+      throw new ForbiddenException('delayMs inválido.');
+    control.delayMs = Math.max(50, Math.min(60_000, Math.floor(delayMs)));
+    return { ok: true, delayMs: control.delayMs };
+  }
+
+  /** Cancela una simulación en curso. El loop se corta en el próximo paso. */
+  @Post(':loadId/simulate/cancel')
+  @UseGuards(JwtAuthGuard)
+  cancelSimulation(@Param('loadId') loadId: string) {
+    const control = this.activeSimulations.get(loadId);
+    if (!control) return { ok: true, cancelled: false };
+    control.cancelled = true;
+    return { ok: true, cancelled: true };
   }
 
   /** Simula un viaje. Requiere estar autenticado (habilitado también en prod para demo). */
@@ -162,7 +195,8 @@ export class LocationController {
 
     // Marcamos la carga como "simulando" antes de largar el loop, para que una
     // segunda llamada concurrente sea rechazada arriba.
-    this.activeSimulations.add(loadId);
+    const control = { delayMs: safeDelay, cancelled: false };
+    this.activeSimulations.set(loadId, control);
 
     void (async () => {
       try {
@@ -197,9 +231,11 @@ export class LocationController {
       }
 
       for (const [lat, lng] of waypoints) {
+        if (control.cancelled) break;
         await this.repo.upsert({ load_id: loadId, lat, lng }, ['load_id']);
         this.locationService.emit(loadId, lat, lng);
-        await new Promise((r) => setTimeout(r, safeDelay));
+        // Leemos delayMs del control en cada paso: permite cambiar la velocidad en vivo
+        await new Promise((r) => setTimeout(r, control.delayMs));
       }
       } finally {
         // Pase lo que pase, liberamos la carga para que se pueda simular de nuevo.

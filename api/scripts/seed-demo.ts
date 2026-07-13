@@ -36,8 +36,6 @@ import { LoadAlert } from '../src/entities/load-alert.entity';
 import { EmailVerification } from '../src/entities/email-verification.entity';
 import { IdentityVerification } from '../src/entities/identity-verification.entity';
 import { FleetInvitation } from '../src/entities/fleet-invitation.entity';
-import { InsurancePolicy } from '../src/entities/insurance-policy.entity';
-import { InsuranceProduct } from '../src/entities/insurance-product.entity';
 
 const DEMO_PASSWORD = 'Demo1234!';
 const DEMO_EMAIL_SUFFIX = '@cargaback-demo.com';
@@ -75,7 +73,6 @@ async function main() {
       User, Shipper, Load, Offer, Rating, Truck, Payment, Message,
       Notification, TruckerDocument, Report, AuditLog, LoadAlert,
       EmailVerification, IdentityVerification, FleetInvitation,
-      InsurancePolicy, InsuranceProduct,
     ],
   });
 

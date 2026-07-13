@@ -22,6 +22,30 @@ const NAV_ITEMS_BY_MODE: Record<DashboardMode, NavItem[]> = {
   flota:      ["Mi flota", "Buscar cargas", "Mis viajes", "Mensajes", "Notificaciones", "Mi perfil"],
   empleado:   ["Mis viajes", "Mensajes", "Mi perfil", "Notificaciones"],
 };
+
+// Navbar agrupada: menos ítems arriba, las secciones agrupadas se abren como sub-pestañas.
+type NavGroup = { label: string; icon: string; items: NavItem[] };
+const NAV_GROUPS_BY_MODE: Record<DashboardMode, NavGroup[]> = {
+  individual: [
+    { label: "Inicio",        icon: "fa-solid fa-house",             items: ["Inicio"] },
+    { label: "Buscar cargas", icon: "fa-solid fa-magnifying-glass",  items: ["Buscar cargas", "Planificar viaje"] },
+    { label: "Mi actividad",  icon: "fa-solid fa-route",             items: ["Mis ofertas", "Mis viajes"] },
+    { label: "Bandeja",       icon: "fa-solid fa-inbox",             items: ["Mensajes", "Notificaciones"] },
+    { label: "Mi flota",      icon: "fa-solid fa-truck-front",       items: ["Mi flota"] },
+  ],
+  flota: [
+    { label: "Mi flota",      icon: "fa-solid fa-truck-front",       items: ["Mi flota"] },
+    { label: "Buscar cargas", icon: "fa-solid fa-magnifying-glass",  items: ["Buscar cargas"] },
+    { label: "Mis viajes",    icon: "fa-solid fa-route",             items: ["Mis viajes"] },
+    { label: "Bandeja",       icon: "fa-solid fa-inbox",             items: ["Mensajes", "Notificaciones"] },
+    { label: "Mi perfil",     icon: "fa-solid fa-user",              items: ["Mi perfil"] },
+  ],
+  empleado: [
+    { label: "Mis viajes",    icon: "fa-solid fa-route",             items: ["Mis viajes"] },
+    { label: "Bandeja",       icon: "fa-solid fa-inbox",             items: ["Mensajes", "Notificaciones"] },
+    { label: "Mi perfil",     icon: "fa-solid fa-user",              items: ["Mi perfil"] },
+  ],
+};
 const DEFAULT_NAV: Record<DashboardMode, NavItem> = {
   individual: "Inicio",
   flota:      "Mi flota",
@@ -3266,6 +3290,10 @@ function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode 
   const mostrarToast = (msg: string) => setToast(msg);
 
   const navItems = NAV_ITEMS_BY_MODE[mode];
+  const navGroups = NAV_GROUPS_BY_MODE[mode];
+  const badgeFor = (item: NavItem) =>
+    item === "Mis ofertas" ? ofertasBadge : item === "Mensajes" ? unreadMsgCount : item === "Notificaciones" ? notifBadge : 0;
+  const activeGroup = navGroups.find((g) => g.items.includes(navActivo)) ?? null;
   const NAV_ICONS: Record<NavItem, string> = {
     "Inicio": "fa-solid fa-house",
     "Buscar cargas": "fa-solid fa-magnifying-glass",
@@ -3285,13 +3313,13 @@ function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode 
         <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
           <Link href="/" style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)", textDecoration: "none", marginRight: 28, letterSpacing: "0.01em" }}>Carga<span style={{ color: "var(--green)" }}>Back</span></Link>
           <nav style={{ display: isMobile ? "none" : "flex", height: "100%" }}>
-            {navItems.map((item) => {
-              const badge = item === "Mis ofertas" ? ofertasBadge : item === "Mensajes" ? unreadMsgCount : item === "Notificaciones" ? notifBadge : 0;
-              const active = navActivo === item;
+            {navGroups.map((group) => {
+              const badge = group.items.reduce((s, it) => s + badgeFor(it), 0);
+              const active = group.items.includes(navActivo);
               return (
-                <button key={item} onClick={() => setNavActivo(item)} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
-                  <i className={NAV_ICONS[item]} style={{ fontSize: 12 }} />
-                  {item}
+                <button key={group.label} onClick={() => setNavActivo(group.items[0])} style={{ height: "100%", padding: "0 14px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", position: "relative", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s, border-color 0.15s", fontFamily: "inherit" }}>
+                  <i className={group.icon} style={{ fontSize: 12 }} />
+                  {group.label}
                   {badge > 0 && <span style={{ position: "absolute", top: 10, right: 6, width: 15, height: 15, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{badge > 9 ? "9+" : badge}</span>}
                 </button>
               );
@@ -3333,6 +3361,23 @@ function TransportistaDashboard({ mode = "individual" }: { mode?: DashboardMode 
             <i className={theme === "dark" ? "fa-solid fa-sun" : "fa-solid fa-moon"} style={{ fontSize: 14, width: 16 }} />
             {theme === "dark" ? "Modo claro" : "Modo oscuro"}
           </button>
+        </div>
+      )}
+
+      {/* Sub-pestañas del grupo activo (ej: Bandeja → Mensajes | Notificaciones) */}
+      {!isMobile && activeGroup && activeGroup.items.length > 1 && (
+        <div style={{ display: "flex", gap: 2, padding: "8px 20px 0", background: "var(--bg0)", borderBottom: "1px solid var(--border)" }}>
+          {activeGroup.items.map((item) => {
+            const active = navActivo === item;
+            const badge = badgeFor(item);
+            return (
+              <button key={item} onClick={() => setNavActivo(item)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "transparent", border: "none", borderBottom: active ? "2px solid var(--green)" : "2px solid transparent", cursor: "pointer", color: active ? "var(--text1)" : "var(--text2)", fontWeight: active ? 600 : 400, fontSize: 13, fontFamily: "inherit" }}>
+                <i className={NAV_ICONS[item]} style={{ fontSize: 11 }} />
+                {item}
+                {badge > 0 && <span style={{ minWidth: 16, height: 16, borderRadius: 8, background: "#ef4444", color: "#fff", fontSize: 9, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>{badge > 9 ? "9+" : badge}</span>}
+              </button>
+            );
+          })}
         </div>
       )}
 

@@ -37,6 +37,15 @@ export class RatingsService {
       .getMany();
   }
 
+  /** offer_ids ya calificados por el usuario, para que el front oculte el botón */
+  async getGivenOfferIds(userId: string) {
+    const ratings = await this.ratingsRepo.find({
+      where: { from_user_id: userId },
+      select: ['offer_id'],
+    });
+    return { offer_ids: ratings.map((r) => r.offer_id) };
+  }
+
   async submitRating(
     userId: string,
     body: { offer_id: string; score: number; comment?: string },
