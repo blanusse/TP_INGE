@@ -1,21 +1,23 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-type Phase = "intro" | "doc" | "selfie" | "processing" | "approved" | "declined";
+type Phase = "starting" | "waiting" | "approved" | "declined" | "timeout";
 
 function Inner() {
   const params = useSearchParams();
   const router = useRouter();
-  const [phase, setPhase] = useState<Phase>("intro");
+  const done = params.get("done") === "1";
+  const [phase, setPhase] = useState<Phase>(done ? "waiting" : "starting");
   const [error, setError] = useState("");
-  const [sessionId, setSessionId] = useState<string | null>(() => params.get("session"));
+  const startedRef = useRef(false);
 
-  // Si llegan a /verificar-identidad sin session en la URL, arrancamos una.
+  // Arranque: si NO viene ?done=1, pedimos start y redirigimos al widget de Veriff.
   useEffect(() => {
-    if (sessionId) return;
+    if (done || startedRef.current) return;
+    startedRef.current = true;
     (async () => {
       try {
         const res = await fetch("/api/verification/start", { method: "POST" });
@@ -24,39 +26,67 @@ function Inner() {
           return;
         }
         const data = await res.json();
-        // El backend devuelve { url, sessionId }. La URL apunta acá, pero ya estamos
-        // acá — solo necesitamos el sessionId.
-        setSessionId(data.sessionId);
+        if (!data?.url) {
+          setError("Respuesta inválida del servidor.");
+          return;
+        }
+        window.location.href = data.url;
       } catch {
         setError("Error de conexión.");
       }
     })();
-  }, [sessionId]);
+  }, [done]);
 
-  async function simulateAndComplete(decision: "approved" | "declined") {
-    if (!sessionId) return;
-    setPhase("processing");
-    await new Promise((r) => setTimeout(r, 2500));
+  // Retorno desde Veriff: polling a /verification/status hasta ver aprobación o timeout.
+  useEffect(() => {
+    if (!done) return;
+    let cancelled = false;
+    const deadline = Date.now() + 60_000;
 
+    async function poll() {
+      while (!cancelled && Date.now() < deadline) {
+        try {
+          const res = await fetch("/api/verification/status");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.identity_verified) {
+              if (cancelled) return;
+              setPhase("approved");
+              setTimeout(() => router.push("/onboarding?verified=1"), 1800);
+              return;
+            }
+            if (data.last_session_status === "declined") {
+              if (cancelled) return;
+              setPhase("declined");
+              return;
+            }
+          }
+        } catch {
+          /* seguimos intentando */
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      if (!cancelled) setPhase("timeout");
+    }
+    poll();
+    return () => {
+      cancelled = true;
+    };
+  }, [done, router]);
+
+  async function retry() {
+    setError("");
+    setPhase("starting");
     try {
-      const res = await fetch("/api/verification/mock-complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, status: decision }),
-      });
+      const res = await fetch("/api/verification/start", { method: "POST" });
       if (!res.ok) {
-        setError("El backend rechazó la verificación.");
-        setPhase("intro");
+        setError("No pudimos reiniciar la verificación.");
         return;
       }
-      setPhase(decision);
-      if (decision === "approved") {
-        // Esperamos un toque y volvemos al onboarding
-        setTimeout(() => router.push("/onboarding"), 1800);
-      }
+      const data = await res.json();
+      if (data?.url) window.location.href = data.url;
     } catch {
-      setError("Error al completar la verificación.");
-      setPhase("intro");
+      setError("Error de conexión.");
     }
   }
 
@@ -72,17 +102,11 @@ function Inner() {
           </div>
         )}
 
-        {phase === "intro" && <IntroPhase onStart={() => setPhase("doc")} />}
-        {phase === "doc" && <DocPhase onNext={() => setPhase("selfie")} />}
-        {phase === "selfie" && (
-          <SelfiePhase
-            onApprove={() => simulateAndComplete("approved")}
-            onDecline={() => simulateAndComplete("declined")}
-          />
-        )}
-        {phase === "processing" && <ProcessingPhase />}
+        {phase === "starting" && <StartingPhase />}
+        {phase === "waiting" && <WaitingPhase />}
         {phase === "approved" && <ApprovedPhase />}
-        {phase === "declined" && <DeclinedPhase onRetry={() => setPhase("intro")} />}
+        {phase === "declined" && <DeclinedPhase onRetry={retry} />}
+        {phase === "timeout" && <TimeoutPhase />}
 
         <Footer />
       </div>
@@ -124,92 +148,25 @@ function Footer() {
   );
 }
 
-function IntroPhase({ onStart }: { onStart: () => void }) {
-  return (
-    <div>
-      <h2 style={h2Style}>Verifiquemos que sos vos</h2>
-      <p style={pStyle}>
-        Vas a hacer dos cosas: sacarle una foto a tu DNI y una selfie. Nuestro proveedor compara
-        ambas imágenes y confirma que la persona en el DNI es la que está usando la cuenta.
-      </p>
-      <Steps current={0} />
-      <button onClick={onStart} style={btnPrimary}>Empezar verificación →</button>
-    </div>
-  );
-}
-
-function DocPhase({ onNext }: { onNext: () => void }) {
-  return (
-    <div>
-      <h2 style={h2Style}>1. Foto del DNI</h2>
-      <p style={pStyle}>Sacale una foto al frente del documento. Asegurate que se lea con claridad.</p>
-      <div style={cameraFrame}>
-        <div style={{ ...placeholderDoc }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#3a806b", marginBottom: 8, letterSpacing: 0.5 }}>
-            DOCUMENTO NACIONAL DE IDENTIDAD
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>JUAN HUMPHREYS</div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>DNI 12.345.678</div>
-          <div style={{ marginTop: 16, fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
-            (vista simulada — sandbox)
-          </div>
-        </div>
-      </div>
-      <button onClick={onNext} style={btnPrimary}>Foto OK, continuar →</button>
-    </div>
-  );
-}
-
-function SelfiePhase({
-  onApprove,
-  onDecline,
-}: {
-  onApprove: () => void;
-  onDecline: () => void;
-}) {
-  return (
-    <div>
-      <h2 style={h2Style}>2. Selfie con prueba de vida</h2>
-      <p style={pStyle}>
-        Posicioná tu cara dentro del círculo. Nuestro proveedor detectará movimiento natural para
-        confirmar que sos una persona real.
-      </p>
-      <div style={cameraFrame}>
-        <div style={{
-          width: 180, height: 180, borderRadius: "50%",
-          background: "radial-gradient(circle at 50% 40%, rgba(58,128,107,0.35), rgba(58,128,107,0))",
-          border: "2px dashed rgba(58,128,107,0.6)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          margin: "0 auto", fontSize: 14, color: "rgba(255,255,255,0.5)",
-        }}>
-          rostro detectado
-        </div>
-      </div>
-      <div style={{ background: "rgba(255,255,255,0.04)", padding: 14, borderRadius: 10, marginTop: 20 }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 8, letterSpacing: 0.5 }}>
-          SIMULACIÓN — VERDICT DE VERIFF
-        </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onApprove} style={btnApprove}>
-            ✓ Approved
-          </button>
-          <button onClick={onDecline} style={btnDecline}>
-            ✗ Declined
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProcessingPhase() {
+function StartingPhase() {
   return (
     <div style={{ padding: "30px 0", textAlign: "center" }}>
       <div style={spinner} />
-      <h2 style={h2Style}>Veriff está procesando…</h2>
+      <h2 style={h2Style}>Iniciando verificación…</h2>
       <p style={pStyle}>
-        Comparando la selfie con la foto del DNI, validando liveness y cruzando con la base de
-        datos de documentos. Esto demora segundos.
+        Te vamos a redirigir al widget de Veriff para que saques la foto de tu DNI y una selfie.
+      </p>
+    </div>
+  );
+}
+
+function WaitingPhase() {
+  return (
+    <div style={{ padding: "30px 0", textAlign: "center" }}>
+      <div style={spinner} />
+      <h2 style={h2Style}>Esperando decisión de Veriff…</h2>
+      <p style={pStyle}>
+        Recibimos tu verificación. Estamos esperando el resultado final. Esto puede tardar unos segundos.
       </p>
     </div>
   );
@@ -231,29 +188,26 @@ function DeclinedPhase({ onRetry }: { onRetry: () => void }) {
       <div style={{ ...checkMark, background: "#ef4444" }}>✗</div>
       <h2 style={{ ...h2Style, color: "#ef4444" }}>Verificación rechazada</h2>
       <p style={pStyle}>
-        El verdict simulado fue <strong>declined</strong>. En producción, Veriff te diría el motivo
-        (foto borrosa, no coincide el rostro, documento no detectable, etc.).
+        Veriff rechazó la verificación. Puede ser por foto borrosa, documento no detectable, o el
+        rostro no coincide con el DNI.
       </p>
       <button onClick={onRetry} style={btnPrimary}>Reintentar</button>
     </div>
   );
 }
 
-function Steps({ current }: { current: number }) {
-  const labels = ["Foto del DNI", "Selfie", "Procesamiento"];
+function TimeoutPhase() {
   return (
-    <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
-      {labels.map((label, i) => (
-        <div key={label} style={{ flex: 1 }}>
-          <div style={{
-            height: 4, borderRadius: 999,
-            background: i <= current ? "#3a806b" : "rgba(255,255,255,0.1)",
-          }} />
-          <div style={{ fontSize: 11, color: i <= current ? "#fff" : "rgba(255,255,255,0.4)", marginTop: 6, fontWeight: 600 }}>
-            {label}
-          </div>
-        </div>
-      ))}
+    <div style={{ padding: "30px 0", textAlign: "center" }}>
+      <div style={spinner} />
+      <h2 style={h2Style}>Estamos procesando tu verificación</h2>
+      <p style={pStyle}>
+        La decisión de Veriff está tardando más de lo habitual. Te avisamos por email en cuanto esté
+        lista — podés cerrar esta ventana y volver más tarde.
+      </p>
+      <Link href="/onboarding" style={{ ...btnPrimary, display: "inline-block", textDecoration: "none", textAlign: "center" }}>
+        Volver al onboarding
+      </Link>
     </div>
   );
 }
@@ -286,37 +240,6 @@ const btnPrimary: React.CSSProperties = {
   width: "100%", background: "#3a806b", color: "#fff",
   border: "none", borderRadius: 12, padding: 14,
   fontSize: 14, fontWeight: 700, cursor: "pointer",
-};
-
-const btnApprove: React.CSSProperties = {
-  flex: 1, background: "rgba(58,128,107,0.2)", color: "#3a806b",
-  border: "1px solid rgba(58,128,107,0.5)", borderRadius: 10,
-  padding: "10px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer",
-};
-
-const btnDecline: React.CSSProperties = {
-  flex: 1, background: "rgba(239,68,68,0.12)", color: "#ef4444",
-  border: "1px solid rgba(239,68,68,0.4)", borderRadius: 10,
-  padding: "10px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer",
-};
-
-const cameraFrame: React.CSSProperties = {
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 12,
-  paddingTop: 24, paddingBottom: 24, paddingLeft: 20, paddingRight: 20,
-  marginBottom: 20,
-  display: "flex", alignItems: "center", justifyContent: "center",
-  minHeight: 220,
-};
-
-const placeholderDoc: React.CSSProperties = {
-  background: "linear-gradient(135deg, #1a1a1a, #0f0f0f)",
-  border: "1px solid rgba(58,128,107,0.3)",
-  borderRadius: 10,
-  paddingTop: 18, paddingBottom: 18, paddingLeft: 18, paddingRight: 18,
-  width: "100%", maxWidth: 280,
-  textAlign: "center",
 };
 
 const errorBox: React.CSSProperties = {
